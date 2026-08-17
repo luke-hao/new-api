@@ -6,6 +6,10 @@ The canonical production source is `/opt/new-api-src/current`. All persistent
 NewAPI edits, tests, builds, and deployment preparation must happen in this Git
 working tree.
 
+This is a local production baseline without an upstream Git remote or pre-baseline
+author history. Do not pull, reset, clean, or infer historical authors; use the
+commits and archive tags in this repository as the source history.
+
 - Do not create task-specific full source copies under `/opt/new-api-src`.
   Historical source states belong in Git commits or tags, not sibling folders,
   tar archives, or long-lived staging trees.
