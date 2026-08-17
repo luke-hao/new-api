@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>生图网络测速</title>
+    <link rel="stylesheet" href="/speedtest/assets/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">IMAGE.KELE520.COM</p>
+        <h1>生图网络测速</h1>
+        <p class="subtitle">测量图片上传、服务器接收、模型响应和结果图片加载的实际耗时。</p>
+      </header>
+
+      <section class="card notice">
+        <strong>费用提示</strong>
+        <span>上传测速不消耗额度；点击“真实生图”会按你选择的模型和参数正常计费。</span>
+      </section>
+
+      <section class="card form-card">
+        <div class="grid two">
+          <label>API Key<input id="api-key" type="password" autocomplete="off" placeholder="sk-..." /></label>
+          <label>模型<input id="model" type="text" list="model-list" autocomplete="off" placeholder="先填写 API Key 后加载" /><datalist id="model-list"></datalist></label>
+        </div>
+        <div class="mode-tabs" role="tablist">
+          <button class="mode active" data-mode="edit" role="tab" aria-selected="true">图生图</button>
+          <button class="mode" data-mode="generation" role="tab" aria-selected="false">文生图</button>
+        </div>
+        <label>提示词<textarea id="prompt" rows="3" placeholder="输入本次测试的提示词"></textarea></label>
+        <div id="image-field">
+          <label>参考图片<input id="image" type="file" accept="image/*" /></label>
+          <p id="image-meta" class="muted">图生图需要选择一张图片。</p>
+        </div>
+        <div class="grid three">
+          <label>数量<input id="count" type="number" min="1" value="1" /></label>
+          <label>尺寸<select id="size"><option>1024x1024</option><option>1024x1792</option><option>1792x1024</option><option>1K</option><option>2K</option><option>4K</option></select></label>
+          <label>质量<select id="quality"><option value="auto">auto</option><option value="standard">standard</option><option value="hd">hd</option></select></label>
+        </div>
+        <div class="grid two">
+          <label>响应格式<select id="response-format"><option value="url">url</option><option value="b64_json">b64_json</option></select></label>
+          <label>上传测试包<select id="upload-size"><option value="file">使用参考图片</option><option value="1048576">1 MB</option><option value="5242880">5 MB</option><option value="10485760">10 MB</option><option value="26214400">25 MB</option><option value="52428800">50 MB</option><option value="104857600">100 MB</option></select></label>
+        </div>
+        <label>高级参数 JSON（可选）<textarea id="advanced" rows="3" spellcheck="false" placeholder='例如 {"background":"transparent","output_format":"png"}'></textarea></label>
+        <div class="actions">
+          <button id="load-models" class="secondary">加载模型</button>
+          <button id="upload-test" class="secondary">只测上传</button>
+          <button id="run-test" class="primary">开始完整测试</button>
+          <button id="cancel" class="danger" hidden>取消</button>
+        </div>
+        <div class="progress-wrap" hidden><div id="progress"><span></span></div><p id="progress-label" class="muted"></p></div>
+      </section>
+
+      <section id="results" class="card results" hidden>
+        <div class="results-head"><div><p class="eyebrow">RESULT</p><h2>测试结果</h2></div><button id="copy-report" class="secondary">复制脱敏报告</button></div>
+        <div id="summary" class="summary"></div>
+        <div id="metrics" class="metrics"></div>
+        <div id="images" class="result-images"></div>
+        <pre id="error" class="error" hidden></pre>
+      </section>
+      <footer class="muted footer">API 地址固定为 https://image.kele520.com · API Key 仅保存在当前页面内存中</footer>
+    </main>
+    <script src="/speedtest/assets/app.js" defer></script>
+  </body>
+</html>
