@@ -1,5 +1,35 @@
 # AGENTS.md — Project Conventions for new-api
 
+## Production Working Copy on ns1009363
+
+The canonical production source is `/opt/new-api-src/current`. All persistent
+NewAPI edits, tests, builds, and deployment preparation must happen in this Git
+working tree.
+
+- Do not create task-specific full source copies under `/opt/new-api-src`.
+  Historical source states belong in Git commits or tags, not sibling folders,
+  tar archives, or long-lived staging trees.
+- Treat any local workstation copy as a read-only synchronized backup. Never
+  upload it over this working tree without an explicit, reviewed restore plan.
+- Before editing, verify `hostname`, the active compose image, container health,
+  `git status --short --branch`, and `git diff`. Start new work from the current
+  `main` HEAD and inspect any existing changes before proceeding.
+- Back up only the files being changed to a timestamped temporary directory.
+  Do not replace complete files or directories from old images or snapshots;
+  merge the required change against the current HEAD.
+- Run tests, type checks, and production builds from this working tree. Commit
+  the validated source before building a deployment image, and include the
+  short commit ID in the unique image tag.
+- Build only from `/opt/new-api-src/current`. Archive tags are read-only history
+  and must never be used as a deployment build context.
+- After deployment, create an annotated `production/<timestamp>-<name>` tag for
+  the deployed commit, recording the image name, image ID, and compose hash.
+- After verification, synchronize the remote source back to the local backup,
+  excluding `.git`, dependencies, caches, databases, logs, and runtime data.
+- Never commit or synchronize `/opt/new-api/.env`, `/opt/new-api/data`,
+  `/opt/new-api/logs`, source-tree databases, credentials, or authentication
+  material.
+
 ## Context Loading
 
 For token-efficient AI work, read `docs/ai-context/README.md` after this file and then open only the task-specific index files it points to. Use `docs/ai-context/generated/repo-snapshot.md` for the latest generated route/feature/channel map. Do not load full `.chat-archive` files by default; only copy stable decisions into `docs/ai-context/history-decisions.md`.
