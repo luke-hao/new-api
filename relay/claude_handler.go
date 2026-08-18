@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
@@ -34,6 +36,30 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	request, err := common.DeepCopy(claudeReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to ClaudeRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
+	}
+
+	bodyStorage, err := common.GetBodyStorage(c)
+	if err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	rawClaudeBody, err := bodyStorage.Bytes()
+	if err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	var rawBodyOverride []byte
+	knownSanitized, err := service.SanitizeKnownInvalidClaudeThinking(rawClaudeBody)
+	if err != nil {
+		return types.NewErrorWithStatusCode(fmt.Errorf("failed to inspect Claude thinking history: %w", err), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	if knownSanitized.RemovedBlocks > 0 {
+		var sanitizedRequest dto.ClaudeRequest
+		if err := common.Unmarshal(knownSanitized.Body, &sanitizedRequest); err != nil {
+			return types.NewErrorWithStatusCode(fmt.Errorf("failed to rebuild Claude request after thinking cleanup: %w", err), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+		}
+		request = &sanitizedRequest
+		rawClaudeBody = knownSanitized.Body
+		rawBodyOverride = knownSanitized.Body
+		service.MarkClaudeThinkingPreflightRemoved(c, knownSanitized.RemovedBlocks)
 	}
 
 	err = helper.ModelMappedHelper(c, info, request)
@@ -156,77 +182,127 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		return nil
 	}
 
+	statusCodeMappingStr := c.GetString("status_code_mapping")
+	conversionCount := len(info.RequestConversionChain)
+	paramAuditCount := len(info.ParamOverrideAudit)
+	usage, newAPIError := executeClaudeAttempt(c, info, adaptor, request, useRawClaudeBody, rawBodyOverride)
+	if service.IsInvalidClaudeThinkingSignatureError(newAPIError) {
+		recoveredRaw, sanitizeErr := service.SanitizeAllClaudeThinking(rawClaudeBody)
+		if sanitizeErr != nil {
+			return types.NewErrorWithStatusCode(fmt.Errorf("failed to recover Claude thinking history: %w", sanitizeErr), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+		}
+		if recoveredRaw.RemovedBlocks > 0 {
+			adjustedBody, marshalErr := common.Marshal(request)
+			if marshalErr != nil {
+				return types.NewError(marshalErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+			}
+			recoveredAdjusted, adjustedErr := service.SanitizeAllClaudeThinking(adjustedBody)
+			if adjustedErr != nil {
+				return types.NewErrorWithStatusCode(fmt.Errorf("failed to rebuild adjusted Claude request: %w", adjustedErr), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			}
+			var recoveredRequest dto.ClaudeRequest
+			if unmarshalErr := common.Unmarshal(recoveredAdjusted.Body, &recoveredRequest); unmarshalErr != nil {
+				return types.NewErrorWithStatusCode(fmt.Errorf("failed to decode recovered Claude request: %w", unmarshalErr), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			}
+
+			service.RememberInvalidClaudeThinking(recoveredRaw.Fingerprints)
+			service.MarkClaudeThinkingRecoveryAttempt(c, recoveredRaw.RemovedBlocks)
+			c.Set(common.UpstreamRequestIdKey, "")
+			info.RequestConversionChain = info.RequestConversionChain[:conversionCount]
+			info.ParamOverrideAudit = info.ParamOverrideAudit[:paramAuditCount]
+			adaptor.Init(info)
+			logger.LogInfo(c, fmt.Sprintf("retrying channel #%d after removing %d incompatible Claude thinking blocks", info.ChannelId, recoveredRaw.RemovedBlocks))
+			usage, newAPIError = executeClaudeAttempt(c, info, adaptor, &recoveredRequest, useRawClaudeBody, recoveredRaw.Body)
+			if newAPIError == nil {
+				service.MarkClaudeThinkingRecoverySuccess(c)
+			}
+		}
+	}
+	if newAPIError != nil {
+		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
+		return newAPIError
+	}
+
+	service.PostTextConsumeQuota(c, info, usage, nil)
+	return nil
+}
+
+func executeClaudeAttempt(
+	c *gin.Context,
+	info *relaycommon.RelayInfo,
+	adaptor channel.Adaptor,
+	request *dto.ClaudeRequest,
+	useRawClaudeBody bool,
+	rawBodyOverride []byte,
+) (*dto.Usage, *types.NewAPIError) {
 	var requestBody io.Reader
 	if useRawClaudeBody {
-		storage, err := common.GetBodyStorage(c)
-		if err != nil {
-			return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+		if rawBodyOverride != nil {
+			info.UpstreamRequestBodySize = int64(len(rawBodyOverride))
+			requestBody = bytes.NewReader(rawBodyOverride)
+		} else {
+			storage, err := common.GetBodyStorage(c)
+			if err != nil {
+				return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			}
+			info.UpstreamRequestBodySize = storage.Size()
+			requestBody = common.ReaderOnly(storage)
 		}
-		info.UpstreamRequestBodySize = storage.Size()
-		requestBody = common.ReaderOnly(storage)
 	} else {
 		convertedRequest, err := adaptor.ConvertClaudeRequest(c, info, request)
 		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 		relaycommon.AppendRequestConversionFromRequest(info, convertedRequest)
 		jsonData, err := common.Marshal(convertedRequest)
 		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 
-		// remove disabled fields for Claude API
 		jsonData, err = relaycommon.RemoveDisabledFields(jsonData, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
 		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
-
-		// apply param override
 		if len(info.ParamOverride) > 0 {
 			jsonData, err = relaycommon.ApplyParamOverrideWithRelayInfo(jsonData, info)
 			if err != nil {
-				return newAPIErrorFromParamOverride(err)
+				return nil, newAPIErrorFromParamOverride(err)
 			}
 		}
 
 		logger.LogDebug(c, "requestBody: %s", jsonData)
 		body, size, closer, err := relaycommon.NewOutboundJSONBody(jsonData)
 		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
+			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 		defer closer.Close()
-		jsonData = nil
 		info.UpstreamRequestBodySize = size
 		requestBody = body
 	}
 
-	statusCodeMappingStr := c.GetString("status_code_mapping")
-	var httpResp *http.Response
 	resp, err := adaptor.DoRequest(c, info, requestBody)
 	if err != nil {
-		return types.NewOpenAIError(err, types.ErrorCodeDoRequestFailed, http.StatusInternalServerError)
+		return nil, types.NewOpenAIError(err, types.ErrorCodeDoRequestFailed, http.StatusInternalServerError)
 	}
-
+	var httpResp *http.Response
 	if resp != nil {
 		httpResp = resp.(*http.Response)
 		info.IsStream = info.IsStream || strings.HasPrefix(httpResp.Header.Get("Content-Type"), "text/event-stream")
 		if httpResp.StatusCode != http.StatusOK {
-			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
-			// reset status code 重置状态码
-			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-			return newAPIError
+			newAPIError := service.RelayErrorHandler(c.Request.Context(), httpResp, false)
+			return nil, newAPIError
 		}
 	}
 
 	usage, newAPIError := adaptor.DoResponse(c, httpResp, info)
 	if newAPIError != nil {
-		// reset status code 重置状态码
-		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-		return newAPIError
+		return nil, newAPIError
 	}
-
-	service.PostTextConsumeQuota(c, info, usage.(*dto.Usage), nil)
-	return nil
+	typedUsage, ok := usage.(*dto.Usage)
+	if !ok {
+		return nil, types.NewError(fmt.Errorf("invalid Claude usage type %T", usage), types.ErrorCodeBadResponseBody)
+	}
+	return typedUsage, nil
 }
 
 // Opus 4.7/4.8 default adaptive thinking to an omitted display. Preserve an

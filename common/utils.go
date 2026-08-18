@@ -276,6 +276,10 @@ func Max(a int, b int) int {
 }
 
 func MessageWithRequestId(message string, id string) string {
+	message = StripRequestIDAnnotations(message)
+	if id == "" {
+		return message
+	}
 	return fmt.Sprintf("%s (request id: %s)", message, id)
 }
 
