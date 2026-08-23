@@ -1,8 +1,10 @@
 package service
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -73,10 +75,33 @@ func splitClaudeToolResultContent(media dto.ClaudeMediaMessage) (string, []dto.M
 	return strings.Join(textParts, "\n"), mediaContents
 }
 
+func claudeMetadataPromptCacheKey(metadata json.RawMessage) string {
+	if len(metadata) == 0 {
+		return ""
+	}
+
+	var claudeMetadata dto.ClaudeMetadata
+	if err := common.Unmarshal(metadata, &claudeMetadata); err != nil {
+		return ""
+	}
+	userID := strings.TrimSpace(claudeMetadata.UserId)
+	if userID == "" {
+		return ""
+	}
+
+	digest := sha256.Sum256([]byte(userID))
+	return fmt.Sprintf("claude_%x", digest[:28])
+}
+
 func ClaudeToOpenAIRequest(claudeRequest dto.ClaudeRequest, info *relaycommon.RelayInfo) (*dto.GeneralOpenAIRequest, error) {
 	openAIRequest := dto.GeneralOpenAIRequest{
 		Model:       claudeRequest.Model,
 		Temperature: claudeRequest.Temperature,
+	}
+	stabilizePromptCache := info.ChannelType == constant.ChannelTypeOpenAI &&
+		strings.EqualFold(strings.TrimSpace(info.OriginModelName), "gpt-5.5")
+	if stabilizePromptCache {
+		openAIRequest.PromptCacheKey = claudeMetadataPromptCacheKey(claudeRequest.Metadata)
 	}
 	if claudeRequest.MaxTokens != nil {
 		openAIRequest.MaxTokens = lo.ToPtr(lo.FromPtr(claudeRequest.MaxTokens))
@@ -144,6 +169,13 @@ func ClaudeToOpenAIRequest(claudeRequest dto.ClaudeRequest, info *relaycommon.Re
 			},
 		}
 		openAITools = append(openAITools, openAITool)
+	}
+	if stabilizePromptCache {
+		// OpenAI prompt caching includes tool definitions. Keep equivalent tool
+		// sets in a deterministic order so their cache prefix stays stable.
+		sort.SliceStable(openAITools, func(i, j int) bool {
+			return openAITools[i].Function.Name < openAITools[j].Function.Name
+		})
 	}
 	openAIRequest.Tools = openAITools
 
