@@ -14,6 +14,65 @@ import (
 	"github.com/samber/lo"
 )
 
+func claudeImageToOpenAIMedia(media dto.ClaudeMediaMessage) (dto.MediaContent, bool) {
+	if media.Source == nil {
+		return dto.MediaContent{}, false
+	}
+
+	imageURL := media.Source.Url
+	if imageURL == "" {
+		data := common.Interface2String(media.Source.Data)
+		if data == "" {
+			return dto.MediaContent{}, false
+		}
+		imageURL = fmt.Sprintf("data:%s;base64,%s", media.Source.MediaType, data)
+	}
+
+	return dto.MediaContent{
+		Type:     "image_url",
+		ImageUrl: &dto.MessageImageUrl{Url: imageURL},
+	}, true
+}
+
+func splitClaudeToolResultContent(media dto.ClaudeMediaMessage) (string, []dto.MediaContent) {
+	if media.IsStringContent() {
+		return media.GetStringContent(), nil
+	}
+	if media.Content == nil {
+		return "", nil
+	}
+
+	contents := media.ParseMediaContent()
+	if len(contents) == 0 {
+		encoded, _ := common.Marshal(media.Content)
+		return string(encoded), nil
+	}
+
+	textParts := make([]string, 0, len(contents))
+	mediaContents := make([]dto.MediaContent, 0, len(contents))
+	for _, content := range contents {
+		switch content.Type {
+		case "text", "input_text":
+			if text := content.GetText(); text != "" {
+				textParts = append(textParts, text)
+			}
+		case "image":
+			if image, ok := claudeImageToOpenAIMedia(content); ok {
+				mediaContents = append(mediaContents, image)
+			}
+		default:
+			encoded, err := common.Marshal(content)
+			if err == nil {
+				textParts = append(textParts, string(encoded))
+			}
+		}
+	}
+	if len(mediaContents) > 0 && len(textParts) == 0 {
+		textParts = append(textParts, "[Tool result media attached in the following user message.]")
+	}
+	return strings.Join(textParts, "\n"), mediaContents
+}
+
 func ClaudeToOpenAIRequest(claudeRequest dto.ClaudeRequest, info *relaycommon.RelayInfo) (*dto.GeneralOpenAIRequest, error) {
 	openAIRequest := dto.GeneralOpenAIRequest{
 		Model:       claudeRequest.Model,
@@ -157,14 +216,9 @@ func ClaudeToOpenAIRequest(claudeRequest dto.ClaudeRequest, info *relaycommon.Re
 					}
 					mediaMessages = append(mediaMessages, message)
 				case "image":
-					// Handle image conversion (base64 to URL or keep as is)
-					imageData := fmt.Sprintf("data:%s;base64,%s", mediaMsg.Source.MediaType, mediaMsg.Source.Data)
-					//textContent += fmt.Sprintf("[Image: %s]", imageData)
-					mediaMessage := dto.MediaContent{
-						Type:     "image_url",
-						ImageUrl: &dto.MessageImageUrl{Url: imageData},
+					if image, ok := claudeImageToOpenAIMedia(mediaMsg); ok {
+						mediaMessages = append(mediaMessages, image)
 					}
-					mediaMessages = append(mediaMessages, mediaMessage)
 				case "tool_use":
 					toolCall := dto.ToolCallRequest{
 						ID:   mediaMsg.Id,
@@ -186,15 +240,20 @@ func ClaudeToOpenAIRequest(claudeRequest dto.ClaudeRequest, info *relaycommon.Re
 						Name:       &toolName,
 						ToolCallId: mediaMsg.ToolUseId,
 					}
-					//oaiToolMessage.SetStringContent(*mediaMsg.GetMediaContent().Text)
-					if mediaMsg.IsStringContent() {
-						oaiToolMessage.SetStringContent(mediaMsg.GetStringContent())
-					} else {
-						mediaContents := mediaMsg.ParseMediaContent()
-						encodeJson, _ := common.Marshal(mediaContents)
-						oaiToolMessage.SetStringContent(string(encodeJson))
-					}
+					toolOutput, toolMedia := splitClaudeToolResultContent(mediaMsg)
+					oaiToolMessage.SetStringContent(toolOutput)
 					openAIMessages = append(openAIMessages, oaiToolMessage)
+					if len(toolMedia) > 0 {
+						marker := "[Tool output media]"
+						if mediaMsg.ToolUseId != "" {
+							marker = fmt.Sprintf("[Tool output media for call %s]", mediaMsg.ToolUseId)
+						}
+						mediaMessages = append(mediaMessages, dto.MediaContent{
+							Type: "text",
+							Text: marker,
+						})
+						mediaMessages = append(mediaMessages, toolMedia...)
+					}
 				}
 			}
 

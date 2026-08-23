@@ -241,6 +241,49 @@ type OutputConfigForEffort struct {
 	Effort string `json:"effort,omitempty"`
 }
 
+func appendClaudeMediaTokenMeta(mediaMessages []ClaudeMediaMessage, texts *[]string, fileMeta *[]*types.FileMeta) {
+	for _, media := range mediaMessages {
+		switch media.Type {
+		case "text", "input_text":
+			if text := media.GetText(); text != "" {
+				*texts = append(*texts, text)
+			}
+		case "image":
+			if source := media.ToFileSource(); source != nil {
+				*fileMeta = append(*fileMeta, &types.FileMeta{
+					FileType: types.FileTypeImage,
+					Source:   source,
+				})
+			}
+		case "tool_use":
+			if media.Name != "" {
+				*texts = append(*texts, media.Name)
+			}
+			if media.Input != nil {
+				b, _ := common.Marshal(media.Input)
+				*texts = append(*texts, string(b))
+			}
+		case "tool_result":
+			if media.IsStringContent() {
+				if content := media.GetStringContent(); content != "" {
+					*texts = append(*texts, content)
+				}
+				continue
+			}
+			if media.Content == nil {
+				continue
+			}
+			nested := media.ParseMediaContent()
+			if len(nested) > 0 {
+				appendClaudeMediaTokenMeta(nested, texts, fileMeta)
+				continue
+			}
+			b, _ := common.Marshal(media.Content)
+			*texts = append(*texts, string(b))
+		}
+	}
+}
+
 func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 	maxTokens := 0
 	if c.MaxTokens != nil {
@@ -292,32 +335,7 @@ func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 		}
 
 		content, _ := message.ParseContent()
-		for _, media := range content {
-			switch media.Type {
-			case "text":
-				texts = append(texts, media.GetText())
-			case "image":
-				if source := media.ToFileSource(); source != nil {
-					fileMeta = append(fileMeta, &types.FileMeta{
-						FileType: types.FileTypeImage,
-						Source:   source,
-					})
-				}
-			case "tool_use":
-				if media.Name != "" {
-					texts = append(texts, media.Name)
-				}
-				if media.Input != nil {
-					b, _ := common.Marshal(media.Input)
-					texts = append(texts, string(b))
-				}
-			case "tool_result":
-				if media.Content != nil {
-					b, _ := common.Marshal(media.Content)
-					texts = append(texts, string(b))
-				}
-			}
-		}
+		appendClaudeMediaTokenMeta(content, &texts, &fileMeta)
 	}
 
 	// tools
