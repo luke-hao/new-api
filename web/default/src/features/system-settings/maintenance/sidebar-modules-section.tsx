@@ -117,11 +117,7 @@ export function SidebarModulesSection({
     },
     personal: {
       recharge: {
-        title: t('Recharge'),
-        description: t('Balance and top-up management'),
-      },
-      rechargeLowFee: {
-        title: t('Recharge (low fee)'),
+        title: t('Recharge (no fee)'),
         description: t('Balance and top-up management'),
       },
       topup: {

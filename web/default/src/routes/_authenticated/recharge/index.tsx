@@ -20,5 +20,5 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Recharge } from '@/features/recharge'
 
 export const Route = createFileRoute('/_authenticated/recharge/')({
-  component: Recharge,
+  component: () => <Recharge title='Recharge (no fee)' />,
 })

@@ -52,7 +52,6 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
   personal: {
     enabled: true,
     recharge: true,
-    rechargeLowFee: true,
     topup: true,
     personal: true,
   },
@@ -108,10 +107,6 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/wallet': { section: 'personal', module: 'topup' },
   '/recharge': { section: 'personal', module: 'recharge' },
-  '/recharge-low-fee': {
-    section: 'personal',
-    module: 'rechargeLowFee',
-  },
   '/profile': { section: 'personal', module: 'personal' },
   '/channels': { section: 'admin', module: 'channel' },
   '/models': { section: 'admin', module: 'models' },

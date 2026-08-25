@@ -110,12 +110,7 @@ export function SidebarModulesCard() {
       modules: [
         {
           key: 'recharge',
-          title: t('Recharge'),
-          description: t('Balance and top-up management'),
-        },
-        {
-          key: 'rechargeLowFee',
-          title: t('Recharge (low fee)'),
+          title: t('Recharge (no fee)'),
           description: t('Balance and top-up management'),
         },
         {

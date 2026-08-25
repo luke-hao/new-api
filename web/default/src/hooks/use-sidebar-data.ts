@@ -107,13 +107,8 @@ export function useSidebarData(): SidebarData {
             icon: Wallet,
           },
           {
-            title: t('Recharge'),
+            title: t('Recharge (no fee)'),
             url: '/recharge',
-            icon: BadgeDollarSign,
-          },
-          {
-            title: t('Recharge (low fee)'),
-            url: '/recharge-low-fee',
             icon: BadgeDollarSign,
           },
           {
