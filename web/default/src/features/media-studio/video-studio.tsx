@@ -568,6 +568,7 @@ export function VideoStudio({
                 onChange={handleModeChange}
               />
               <SelectField
+                disabled={capabilities.length <= 1}
                 label={t('Group')}
                 value={selectedGroup?.group ?? ''}
                 options={capabilities.map((group) => ({
@@ -787,12 +788,14 @@ function ModeControl({
 
 function SelectField({
   className,
+  disabled = false,
   label,
   value,
   options,
   onChange,
 }: {
   className?: string
+  disabled?: boolean
   label: string
   value: string
   options: SelectOption[]
@@ -801,7 +804,11 @@ function SelectField({
   return (
     <div className={cn('grid min-w-0 gap-1.5', className)}>
       <Label>{label}</Label>
-      <Select value={value} onValueChange={(next) => onChange(next ?? '')}>
+      <Select
+        disabled={disabled}
+        value={value}
+        onValueChange={(next) => onChange(next ?? '')}
+      >
         <SelectTrigger className='w-full min-w-0'>
           <SelectValue className='min-w-0 truncate' />
         </SelectTrigger>
