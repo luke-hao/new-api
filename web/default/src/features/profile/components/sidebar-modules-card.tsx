@@ -65,6 +65,11 @@ export function SidebarModulesCard() {
           description: t('AI model testing environment'),
         },
         {
+          key: 'mediaStudio',
+          title: t('Image & Video Studio'),
+          description: t('Image and video generation workspace'),
+        },
+        {
           key: 'chat',
           title: t('Chat'),
           description: t('Chat session management'),

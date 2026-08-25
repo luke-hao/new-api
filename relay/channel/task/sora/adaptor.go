@@ -158,6 +158,9 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		var bodyMap map[string]interface{}
 		if err := common.Unmarshal(cachedBody, &bodyMap); err == nil {
 			bodyMap["model"] = info.UpstreamModelName
+			for _, field := range []string{"group", "duration", "metadata"} {
+				delete(bodyMap, field)
+			}
 			if newBody, err := common.Marshal(bodyMap); err == nil {
 				return bytes.NewReader(newBody), nil
 			}
@@ -174,7 +177,7 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		writer := multipart.NewWriter(&buf)
 		writer.WriteField("model", info.UpstreamModelName)
 		for key, values := range formData.Value {
-			if key == "model" {
+			if key == "model" || key == "group" || key == "duration" || key == "metadata" {
 				continue
 			}
 			for _, v := range values {

@@ -24,6 +24,7 @@ export type HeaderNavAccessConfig = {
 export type HeaderNavModulesConfig = {
   home: boolean
   console: boolean
+  mediaStudio: boolean
   pricing: HeaderNavAccessConfig
   rankings: HeaderNavAccessConfig
   docs: boolean
@@ -41,6 +42,7 @@ export type SidebarModulesAdminConfig = Record<string, SidebarSectionConfig>
 export const HEADER_NAV_DEFAULT: HeaderNavModulesConfig = {
   home: true,
   console: true,
+  mediaStudio: true,
   pricing: {
     enabled: true,
     requireAuth: false,
@@ -57,6 +59,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
   chat: {
     enabled: true,
     playground: true,
+    mediaStudio: true,
     chat: true,
   },
   console: {

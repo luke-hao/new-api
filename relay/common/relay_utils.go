@@ -1,8 +1,11 @@
 package common
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -81,21 +84,29 @@ func validatePrompt(prompt string) *dto.TaskError {
 
 func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string) (TaskSubmitReq, error) {
 	var req TaskSubmitReq
-	if _, err := c.MultipartForm(); err != nil {
+	form, err := common.ParseMultipartFormReusable(c)
+	if err != nil {
 		return req, err
 	}
+	defer form.RemoveAll()
 
-	formData := c.Request.PostForm
+	formData := form.Value
+	getFormValue := func(key string) string {
+		if values := formData[key]; len(values) > 0 {
+			return values[0]
+		}
+		return ""
+	}
 	req = TaskSubmitReq{
-		Prompt:   formData.Get("prompt"),
-		Model:    formData.Get("model"),
-		Mode:     formData.Get("mode"),
-		Image:    formData.Get("image"),
-		Size:     formData.Get("size"),
+		Prompt:   getFormValue("prompt"),
+		Model:    getFormValue("model"),
+		Mode:     getFormValue("mode"),
+		Image:    getFormValue("image"),
+		Size:     getFormValue("size"),
 		Metadata: make(map[string]interface{}),
 	}
 
-	if durationStr := formData.Get("seconds"); durationStr != "" {
+	if durationStr := getFormValue("seconds"); durationStr != "" {
 		duration, err := strconv.Atoi(durationStr)
 		if err != nil {
 			return req, fmt.Errorf("seconds is invalid")
@@ -105,6 +116,15 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 
 	if images := formData["images"]; len(images) > 0 {
 		req.Images = images
+	}
+	fileImages, err := readTaskInputReferenceFiles(form)
+	if err != nil {
+		return req, err
+	}
+	if len(fileImages) > 0 {
+		req.Images = append(req.Images, fileImages...)
+		req.Image = req.Images[0]
+		req.InputReference = req.Images[0]
 	}
 
 	for key, values := range formData {
@@ -119,6 +139,28 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 		}
 	}
 	return req, nil
+}
+
+func readTaskInputReferenceFiles(form *multipart.Form) ([]string, error) {
+	files := form.File["input_reference"]
+	images := make([]string, 0, len(files))
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			return nil, err
+		}
+		data, readErr := io.ReadAll(file)
+		_ = file.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		contentType := fileHeader.Header.Get("Content-Type")
+		if contentType == "" || contentType == "application/octet-stream" {
+			contentType = http.DetectContentType(data)
+		}
+		images = append(images, "data:"+contentType+";base64,"+base64.StdEncoding.EncodeToString(data))
+	}
+	return images, nil
 }
 
 func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
@@ -142,6 +184,22 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	}
 	if req.InputReference != "" {
 		req.Images = []string{req.InputReference}
+	}
+	if strings.Contains(c.GetHeader("Content-Type"), "multipart/form-data") {
+		form, err := common.ParseMultipartFormReusable(c)
+		if err != nil {
+			return createTaskError(err, "invalid_multipart_form", http.StatusBadRequest, true)
+		}
+		fileImages, err := readTaskInputReferenceFiles(form)
+		_ = form.RemoveAll()
+		if err != nil {
+			return createTaskError(err, "invalid_multipart_form", http.StatusBadRequest, true)
+		}
+		if len(fileImages) > 0 {
+			req.Images = fileImages
+			req.Image = fileImages[0]
+			req.InputReference = fileImages[0]
+		}
 	}
 	if taskErr := validateTaskQuantityLimits(&req); taskErr != nil {
 		return taskErr
@@ -191,11 +249,14 @@ func isKnownTaskField(field string) bool {
 	knownFields := map[string]bool{
 		"prompt":          true,
 		"model":           true,
+		"group":           true,
 		"mode":            true,
 		"image":           true,
 		"images":          true,
 		"size":            true,
 		"duration":        true,
+		"seconds":         true,
+		"metadata":        true,
 		"input_reference": true, // Sora 特有字段
 	}
 	return knownFields[field]

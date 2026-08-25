@@ -49,6 +49,7 @@ import {
 const headerNavSchema = z.object({
   home: z.boolean(),
   console: z.boolean(),
+  mediaStudio: z.boolean(),
   pricingEnabled: z.boolean(),
   pricingRequireAuth: z.boolean(),
   rankingsEnabled: z.boolean(),
@@ -71,6 +72,10 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
     config.console === undefined
       ? HEADER_NAV_DEFAULT.console
       : Boolean(config.console),
+  mediaStudio:
+    config.mediaStudio === undefined
+      ? HEADER_NAV_DEFAULT.mediaStudio
+      : Boolean(config.mediaStudio),
   pricingEnabled:
     config.pricing?.enabled === undefined
       ? HEADER_NAV_DEFAULT.pricing.enabled
@@ -117,6 +122,7 @@ export function HeaderNavigationSection({
       ...config,
       home: values.home,
       console: values.console,
+      mediaStudio: values.mediaStudio,
       docs: values.docs,
       about: values.about,
       pricing: {
@@ -160,6 +166,11 @@ export function HeaderNavigationSection({
       key: 'console',
       title: t('Console'),
       description: t('User dashboard and quota controls.'),
+    },
+    {
+      key: 'mediaStudio',
+      title: t('Image & Video Studio'),
+      description: t('Image and video generation workspace.'),
     },
     {
       key: 'docs',

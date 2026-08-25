@@ -159,6 +159,12 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		Duration:   &duration,
 		Resolution: resolution,
 	}
+	if len(req.Images) > 0 {
+		videoRequest.FirstFrameImage = req.Images[0]
+	}
+	if len(req.Images) > 1 {
+		videoRequest.LastFrameImage = req.Images[1]
+	}
 	if err := req.UnmarshalMetadata(&videoRequest); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata to video request failed")
 	}

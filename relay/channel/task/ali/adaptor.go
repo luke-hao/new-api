@@ -268,6 +268,13 @@ func (a *TaskAdaptor) convertToAliRequest(info *relaycommon.RelayInfo, req relay
 			Watermark:    false,
 		},
 	}
+	if len(req.Images) == 1 {
+		aliReq.Input.ImgURL = req.Images[0]
+	} else if len(req.Images) > 1 {
+		aliReq.Input.ImgURL = ""
+		aliReq.Input.FirstFrameURL = req.Images[0]
+		aliReq.Input.LastFrameURL = req.Images[1]
+	}
 
 	// 处理分辨率映射
 	if req.Size != "" {

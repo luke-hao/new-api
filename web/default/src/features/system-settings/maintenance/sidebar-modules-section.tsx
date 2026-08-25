@@ -88,6 +88,10 @@ export function SidebarModulesSection({
         title: t('Playground'),
         description: t('Experiment with prompts and models in real time.'),
       },
+      mediaStudio: {
+        title: t('Image & Video Studio'),
+        description: t('Create images and videos with available models.'),
+      },
       chat: {
         title: t('Chat'),
         description: t('Access previous conversations and start new ones.'),

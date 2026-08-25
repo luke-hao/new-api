@@ -279,6 +279,12 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		CallbackUrl:    "",
 		ExternalTaskId: "",
 	}
+	if len(req.Images) > 0 {
+		r.Image = req.Images[0]
+	}
+	if len(req.Images) > 1 {
+		r.ImageTail = req.Images[1]
+	}
 	if r.ModelName == "" {
 		r.ModelName = "kling-v1"
 		r.Model = "kling-v1"

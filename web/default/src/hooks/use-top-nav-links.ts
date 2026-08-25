@@ -81,6 +81,15 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Model Square'), href: '/pricing', requiresAuth })
   }
 
+  // Media Studio
+  if (modules?.mediaStudio !== false) {
+    links.push({
+      title: t('Image & Video Studio'),
+      href: '/studio',
+      requiresAuth: !isAuthed,
+    })
+  }
+
   // Rankings
   const rankings = modules?.rankings
   if (rankings && typeof rankings === 'object' && rankings.enabled) {

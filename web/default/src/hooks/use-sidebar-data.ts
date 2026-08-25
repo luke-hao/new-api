@@ -20,6 +20,7 @@ import {
   Activity,
   BadgeDollarSign,
   Box,
+  Clapperboard,
   CreditCard,
   FileText,
   FlaskConical,
@@ -56,6 +57,11 @@ export function useSidebarData(): SidebarData {
             title: t('Playground'),
             url: '/playground',
             icon: FlaskConical,
+          },
+          {
+            title: t('Image & Video Studio'),
+            url: '/studio',
+            icon: Clapperboard,
           },
           {
             title: t('Chat'),
