@@ -26,6 +26,13 @@ type listModelsResponse struct {
 	Object  string             `json:"object"`
 }
 
+type anthropicModelsResponse struct {
+	Data    []dto.AnthropicModel `json:"data"`
+	FirstID string               `json:"first_id"`
+	HasMore bool                 `json:"has_more"`
+	LastID  string               `json:"last_id"`
+}
+
 func setupModelListControllerTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -240,4 +247,25 @@ func TestListModelsTokenLimitIncludesTieredBillingModel(t *testing.T) {
 	require.NotContains(t, ids, "zz-token-tiered-empty-expr-model")
 	require.NotContains(t, ids, "zz-token-tiered-missing-expr-model")
 	require.NotContains(t, ids, "zz-token-unpriced-model")
+}
+
+func TestListModelsAnthropicHandlesEmptyModelList(t *testing.T) {
+	withSelfUseModeDisabled(t)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	common.SetContextKey(ctx, constant.ContextKeyUserGroup, "default")
+	common.SetContextKey(ctx, constant.ContextKeyTokenModelLimitEnabled, true)
+	common.SetContextKey(ctx, constant.ContextKeyTokenModelLimit, map[string]bool{})
+
+	ListModels(ctx, constant.ChannelTypeAnthropic)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var payload anthropicModelsResponse
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Empty(t, payload.Data)
+	require.Empty(t, payload.FirstID)
+	require.Empty(t, payload.LastID)
+	require.False(t, payload.HasMore)
 }
