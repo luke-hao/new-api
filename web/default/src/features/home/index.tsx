@@ -22,13 +22,14 @@ import { Markdown } from '@/components/ui/markdown'
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
 import { CTA, Features, Hero, HowItWorks, Stats } from './components'
-import { useHomePageContent } from './hooks'
+import { useHomeModelCatalog, useHomePageContent } from './hooks'
 
 export function Home() {
   const { t } = useTranslation()
   const { auth } = useAuthStore()
   const isAuthenticated = !!auth.user
   const { content, isLoaded, isUrl } = useHomePageContent()
+  const modelSummary = useHomeModelCatalog()
 
   if (!isLoaded) {
     return (
@@ -61,13 +62,20 @@ export function Home() {
   }
 
   return (
-    <PublicLayout showMainContainer={false}>
-      <Hero isAuthenticated={isAuthenticated} />
-      <Stats />
-      <Features />
-      <HowItWorks />
-      <CTA isAuthenticated={isAuthenticated} />
-      <Footer />
+    <PublicLayout
+      showMainContainer={false}
+      showThemeSwitch={false}
+      showNotifications={false}
+      headerProps={{ appearance: 'dark' }}
+    >
+      <main className='dark bg-[#070b12] text-white'>
+        <Hero isAuthenticated={isAuthenticated} modelSummary={modelSummary} />
+        <Stats modelSummary={modelSummary} />
+        <Features modelSummary={modelSummary} />
+        <HowItWorks />
+        <CTA isAuthenticated={isAuthenticated} />
+        <Footer />
+      </main>
     </PublicLayout>
   )
 }

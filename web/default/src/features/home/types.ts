@@ -37,3 +37,19 @@ export interface HomePageContentResult {
   isLoaded: boolean
   isUrl: boolean
 }
+
+export type HomeModelFamily = {
+  id: string
+  title: string
+  descriptionKey: string
+  iconName: string
+  tone: 'blue' | 'amber' | 'cyan' | 'slate' | 'rose' | 'mint'
+  models: string[]
+}
+
+export type HomeModelSummary = {
+  total: number
+  displayTotal: string
+  isLive: boolean
+  families: HomeModelFamily[]
+}

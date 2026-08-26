@@ -43,6 +43,7 @@ type AuthPromptTarget = {
 }
 
 export interface PublicHeaderProps {
+  appearance?: 'default' | 'dark'
   navLinks?: TopNavLink[]
   mobileLinks?: TopNavLink[]
   navContent?: React.ReactNode
@@ -61,6 +62,7 @@ export interface PublicHeaderProps {
 
 export function PublicHeader(props: PublicHeaderProps) {
   const {
+    appearance = 'default',
     navLinks = defaultTopNavLinks,
     showThemeSwitch = true,
     showLanguageSwitcher = true,
@@ -95,6 +97,7 @@ export function PublicHeader(props: PublicHeaderProps) {
   const isAuthenticated = !!user
   const displaySiteName = customSiteName || systemName
   const links = dynamicLinks.length > 0 ? dynamicLinks : navLinks
+  const isDark = appearance === 'dark'
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -182,10 +185,13 @@ export function PublicHeader(props: PublicHeaderProps) {
         >
           <nav
             className={cn(
-              'flex items-center justify-between transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
-              scrolled
-                ? 'bg-background/60 ring-border/50 h-12 rounded-2xl pr-1.5 pl-4 shadow-[0_2px_16px_-6px_rgba(0,0,0,0.08),0_0_0_0.5px_rgba(0,0,0,0.02)] ring-[0.5px] backdrop-blur-2xl dark:shadow-[0_2px_16px_-6px_rgba(0,0,0,0.4)]'
-                : 'h-16 px-2'
+              'text-foreground flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]',
+              scrolled &&
+                (isDark
+                  ? 'h-12 rounded-lg border border-white/10 bg-[#081221]/92 pr-1.5 pl-4 text-white shadow-[0_14px_36px_rgba(0,0,0,0.28)] backdrop-blur-xl'
+                  : 'bg-background/90 border-border/70 h-12 rounded-lg border pr-1.5 pl-4 shadow-[0_8px_28px_rgba(16,24,40,0.08)] backdrop-blur-xl'),
+              !scrolled && 'h-16 px-2',
+              isDark && !scrolled && 'text-white'
             )}
           >
             {/* Logo */}
@@ -207,7 +213,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                   />
                 )}
               </div>
-              <span className='text-sm font-semibold tracking-tight'>
+              <span className='text-sm font-semibold'>
                 {loading ? <Skeleton className='h-4 w-16' /> : displaySiteName}
               </span>
             </Link>
@@ -227,7 +233,10 @@ export function PublicHeader(props: PublicHeaderProps) {
                       tabIndex={link.disabled ? -1 : undefined}
                       onClick={(event) => handleNavLinkClick(event, link)}
                       className={cn(
-                        'text-muted-foreground hover:text-foreground rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200',
+                        'rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200',
+                        isDark
+                          ? 'text-white/62 hover:bg-white/[0.06] hover:text-white'
+                          : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
                         link.disabled && 'pointer-events-none opacity-50'
                       )}
                     >
@@ -244,8 +253,12 @@ export function PublicHeader(props: PublicHeaderProps) {
                     className={cn(
                       'rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200',
                       isActive
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
+                        ? isDark
+                          ? 'bg-white/[0.07] text-white'
+                          : 'bg-accent/70 text-foreground'
+                        : isDark
+                          ? 'text-white/62 hover:bg-white/[0.06] hover:text-white'
+                          : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
                       link.disabled && 'pointer-events-none opacity-50'
                     )}
                   >
@@ -257,7 +270,12 @@ export function PublicHeader(props: PublicHeaderProps) {
               {(showLanguageSwitcher ||
                 showThemeSwitch ||
                 showNotifications) && (
-                <div className='bg-border/40 mx-2 h-4 w-px' />
+                <div
+                  className={cn(
+                    'mx-2 h-4 w-px',
+                    isDark ? 'bg-white/12' : 'bg-border/60'
+                  )}
+                />
               )}
 
               {showLanguageSwitcher && <LanguageSwitcher />}
@@ -277,7 +295,12 @@ export function PublicHeader(props: PublicHeaderProps) {
 
               {showAuthButtons && (
                 <>
-                  <div className='bg-border/40 mx-1 h-4 w-px' />
+                  <div
+                    className={cn(
+                      'mx-1 h-4 w-px',
+                      isDark ? 'bg-white/12' : 'bg-border/60'
+                    )}
+                  />
                   {loading ? (
                     <Skeleton className='h-8 w-20 rounded-lg' />
                   ) : isAuthenticated ? (
@@ -285,7 +308,10 @@ export function PublicHeader(props: PublicHeaderProps) {
                   ) : (
                     <Button
                       size='sm'
-                      className='h-8 rounded-lg px-3.5 text-xs font-medium'
+                      className={cn(
+                        'h-8 rounded-lg px-3.5 text-xs font-semibold',
+                        isDark && 'bg-[#4f8cff] text-white hover:bg-[#689cff]'
+                      )}
                       render={<Link to='/sign-in' />}
                     >
                       {t('Sign in')}
@@ -305,7 +331,10 @@ export function PublicHeader(props: PublicHeaderProps) {
                 type='button'
                 variant='ghost'
                 size='icon'
-                className='size-9'
+                className={cn(
+                  'size-9',
+                  isDark && 'text-white hover:bg-white/[0.08] hover:text-white'
+                )}
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-label={t('Toggle navigation menu')}
               >
@@ -338,7 +367,8 @@ export function PublicHeader(props: PublicHeaderProps) {
       {/* Mobile full-screen overlay */}
       <div
         className={cn(
-          'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:pointer-events-none sm:hidden',
+          'fixed inset-0 z-40 backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:pointer-events-none sm:hidden',
+          isDark ? 'bg-[#07111f]/98 text-white' : 'bg-background/98',
           mobileOpen
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'
@@ -353,7 +383,13 @@ export function PublicHeader(props: PublicHeaderProps) {
                 mobileOpen
                   ? 'translate-y-0 opacity-100'
                   : 'translate-y-4 opacity-0',
-                isActive ? 'text-foreground' : 'text-muted-foreground',
+                isActive
+                  ? isDark
+                    ? 'text-white'
+                    : 'text-foreground'
+                  : isDark
+                    ? 'text-white/55'
+                    : 'text-muted-foreground',
                 link.disabled && 'pointer-events-none opacity-50'
               )
               const transitionStyle = {
@@ -404,7 +440,12 @@ export function PublicHeader(props: PublicHeaderProps) {
               <Link
                 to={isAuthenticated ? '/dashboard' : '/sign-in'}
                 onClick={() => setMobileOpen(false)}
-                className='bg-foreground text-background inline-flex h-10 items-center justify-center rounded-lg text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80'
+                className={cn(
+                  'inline-flex h-10 items-center justify-center rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80',
+                  isDark
+                    ? 'bg-[#4f8cff] text-white'
+                    : 'bg-foreground text-background'
+                )}
               >
                 {isAuthenticated ? t('Go to Dashboard') : t('Sign in')}
               </Link>
