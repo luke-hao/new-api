@@ -66,9 +66,11 @@ func Path2RelayMode(path string) int {
 		relayMode = RelayModeEmbeddings
 	} else if strings.HasPrefix(path, "/v1/moderations") {
 		relayMode = RelayModeModerations
-	} else if path == "/pg/videos" || path == "/pg/videos/" {
+	} else if path == "/pg/videos" || path == "/pg/videos/" || path == "/v1/videos" || path == "/v1/videos/" {
 		relayMode = RelayModeVideoSubmit
-	} else if strings.HasPrefix(path, "/pg/videos/") {
+	} else if strings.HasPrefix(path, "/v1/videos/") && strings.HasSuffix(path, "/remix") {
+		relayMode = RelayModeVideoSubmit
+	} else if strings.HasPrefix(path, "/pg/videos/") || strings.HasPrefix(path, "/v1/videos/") {
 		relayMode = RelayModeVideoFetchByID
 	} else if strings.HasPrefix(path, "/v1/images/generations") || strings.HasPrefix(path, "/pg/images/generations") {
 		relayMode = RelayModeImagesGenerations

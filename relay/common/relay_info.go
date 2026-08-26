@@ -687,6 +687,8 @@ type TaskSubmitReq struct {
 	Mode           string                 `json:"mode,omitempty"`
 	Image          string                 `json:"image,omitempty"`
 	Images         []string               `json:"images,omitempty"`
+	Videos         []string               `json:"videos,omitempty"`
+	Audios         []string               `json:"audios,omitempty"`
 	Size           string                 `json:"size,omitempty"`
 	Duration       int                    `json:"duration,omitempty"`
 	Seconds        string                 `json:"seconds,omitempty"`
@@ -703,6 +705,12 @@ func (t *TaskSubmitReq) HasImage() bool {
 }
 
 func (t *TaskSubmitReq) UnmarshalJSON(data []byte) error {
+	normalized, err := normalizeTaskSubmitJSON(data)
+	if err != nil {
+		return err
+	}
+	data = normalized
+
 	type Alias TaskSubmitReq
 	aux := &struct {
 		Metadata json.RawMessage `json:"metadata,omitempty"`
@@ -749,6 +757,285 @@ func (t *TaskSubmitReq) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// normalizeTaskSubmitJSON accepts the public /v1/videos field aliases and
+// flattens model-specific extra parameters into the metadata consumed by the
+// existing channel adaptors. The internal playground fields remain accepted.
+func normalizeTaskSubmitJSON(data []byte) ([]byte, error) {
+	var payload map[string]any
+	if err := common.Unmarshal(data, &payload); err != nil {
+		return nil, err
+	}
+	if payload == nil {
+		return nil, fmt.Errorf("request body must be a JSON object")
+	}
+
+	metadata := map[string]any{}
+	if raw, ok := payload["metadata"]; ok {
+		switch value := raw.(type) {
+		case map[string]any:
+			for key, item := range value {
+				metadata[key] = item
+			}
+		case string:
+			if strings.TrimSpace(value) != "" {
+				if err := common.Unmarshal([]byte(value), &metadata); err != nil {
+					return nil, fmt.Errorf("metadata is invalid")
+				}
+			}
+		case nil:
+		default:
+			return nil, fmt.Errorf("metadata is invalid")
+		}
+	}
+
+	if rawExtra, exists := payload["extra"]; exists {
+		if extra, ok := taskRequestObject(rawExtra); ok {
+			for key, value := range extra {
+				metadata[key] = value
+			}
+			delete(payload, "extra")
+		} else if rawExtra != nil {
+			return nil, fmt.Errorf("extra is invalid")
+		}
+	}
+
+	// Accept documented model-specific aliases at the top level as well as
+	// under extra, while leaving unknown structured fields untouched in the
+	// adaptor metadata instead of silently discarding them.
+	for _, key := range []string{
+		"aspect_ratio", "aspectRatio", "ratio", "resolution", "fps", "seed",
+		"watermark", "generate_audio", "negative_prompt", "request_id",
+		"reference_images", "reference_videos", "reference_audios",
+		"image_references", "video_references", "audio_references", "videos", "audios",
+	} {
+		if value, ok := payload[key]; ok {
+			switch key {
+			case "image_references":
+				metadata["reference_images"] = value
+				continue
+			case "video_references", "videos":
+				metadata["reference_videos"] = value
+				continue
+			case "audio_references", "audios":
+				metadata["reference_audios"] = value
+				continue
+			}
+			metadata[key] = value
+		}
+	}
+
+	for _, key := range []string{"image", "input_reference"} {
+		if value, ok := payload[key]; ok {
+			reference, err := taskRequestReferenceValue(value)
+			if err != nil {
+				return nil, fmt.Errorf("%s is invalid", key)
+			}
+			if reference != "" {
+				payload[key] = reference
+			}
+		}
+	}
+	if reference, ok := payload["input_reference"].(string); ok && reference != "" {
+		if _, exists := payload["images"]; !exists {
+			payload["images"] = []any{reference}
+		}
+	}
+	if values, ok := payload["images"]; ok {
+		references, err := taskRequestReferenceValues(values)
+		if err != nil {
+			return nil, fmt.Errorf("images is invalid")
+		}
+		payload["images"] = references
+	}
+	for _, key := range []string{"videos", "audios"} {
+		if values, ok := payload[key]; ok {
+			references, err := taskRequestReferenceValues(values)
+			if err != nil {
+				return nil, fmt.Errorf("%s is invalid", key)
+			}
+			payload[key] = references
+		}
+	}
+	if values, ok := metadata["reference_images"]; ok {
+		references, err := taskRequestReferenceValues(values)
+		if err != nil {
+			return nil, fmt.Errorf("extra.reference_images is invalid")
+		}
+		if len(references) > 0 {
+			payload["images"] = appendUniqueTaskReferences(payload["images"], references)
+			if _, exists := payload["input_reference"]; !exists {
+				payload["input_reference"] = references[0]
+			}
+		}
+	}
+	for _, key := range []string{"reference_videos", "reference_audios"} {
+		if values, ok := metadata[key]; ok {
+			references, err := taskRequestReferenceValues(values)
+			if err != nil {
+				return nil, fmt.Errorf("extra.%s is invalid", key)
+			}
+			_ = references // validate aliases while preserving object roles in metadata
+		}
+	}
+
+	for _, key := range []string{"seconds", "duration", "size"} {
+		if value, ok := payload[key]; ok {
+			if normalized, ok := taskRequestStringValue(value); ok {
+				payload[key] = normalized
+			}
+		}
+	}
+	for _, key := range []string{"aspect_ratio", "aspectRatio", "ratio", "resolution"} {
+		if value, ok := metadata[key]; ok {
+			if normalized, ok := taskRequestStringValue(value); ok {
+				metadata[key] = normalized
+			}
+		}
+	}
+	for _, key := range []string{"fps", "seed", "duration", "durationSeconds", "duration_seconds"} {
+		if value, ok := metadata[key]; ok {
+			if normalized, ok := taskRequestIntegerValue(value); ok {
+				metadata[key] = normalized
+			}
+		}
+	}
+	if len(metadata) > 0 {
+		payload["metadata"] = metadata
+	} else {
+		delete(payload, "metadata")
+	}
+
+	return json.Marshal(payload)
+}
+
+func taskRequestObject(value any) (map[string]any, bool) {
+	object, ok := value.(map[string]any)
+	return object, ok && object != nil
+}
+
+func taskRequestStringValue(value any) (string, bool) {
+	switch value := value.(type) {
+	case string:
+		return value, true
+	case float64:
+		if value == float64(int(value)) {
+			return strconv.Itoa(int(value)), true
+		}
+	case map[string]any:
+		if nested, ok := value["value"]; ok {
+			return taskRequestStringValue(nested)
+		}
+	}
+	return "", false
+}
+
+func taskRequestIntegerValue(value any) (int, bool) {
+	switch value := value.(type) {
+	case int:
+		return value, true
+	case float64:
+		if value == float64(int(value)) {
+			return int(value), true
+		}
+	case string:
+		parsed, err := strconv.Atoi(strings.TrimSpace(value))
+		if err == nil {
+			return parsed, true
+		}
+	case map[string]any:
+		if nested, ok := value["value"]; ok {
+			return taskRequestIntegerValue(nested)
+		}
+	}
+	return 0, false
+}
+
+func taskRequestReferenceValue(value any) (string, error) {
+	if reference, ok := value.(string); ok {
+		if strings.TrimSpace(reference) == "" {
+			return "", fmt.Errorf("reference URL is missing")
+		}
+		return reference, nil
+	}
+	object, ok := taskRequestObject(value)
+	if !ok {
+		return "", fmt.Errorf("reference must be a string or object")
+	}
+	for _, key := range []string{"url", "image_url", "file_id"} {
+		if nested, exists := object[key]; exists {
+			if key == "image_url" {
+				if imageObject, ok := taskRequestObject(nested); ok {
+					nested = imageObject["url"]
+				}
+			}
+			if reference, ok := nested.(string); ok {
+				if strings.TrimSpace(reference) == "" {
+					return "", fmt.Errorf("reference URL is missing")
+				}
+				return reference, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("reference URL is missing")
+}
+
+func taskRequestReferenceValues(value any) ([]string, error) {
+	var items []any
+	switch values := value.(type) {
+	case []any:
+		items = values
+	case []string:
+		items = make([]any, len(values))
+		for index, item := range values {
+			items[index] = item
+		}
+	default:
+		return nil, fmt.Errorf("references must be an array")
+	}
+	references := make([]string, 0, len(items))
+	for _, item := range items {
+		reference, err := taskRequestReferenceValue(item)
+		if err != nil {
+			return nil, err
+		}
+		references = append(references, reference)
+	}
+	return references, nil
+}
+
+func appendUniqueTaskReferences(current any, references []string) []string {
+	result := make([]string, 0, len(references))
+	seen := make(map[string]struct{}, len(references))
+	var items []any
+	switch values := current.(type) {
+	case []any:
+		items = values
+	case []string:
+		items = make([]any, len(values))
+		for index, value := range values {
+			items[index] = value
+		}
+	}
+	for _, item := range items {
+		if reference, ok := item.(string); ok && strings.TrimSpace(reference) != "" {
+			if _, exists := seen[reference]; !exists {
+				seen[reference] = struct{}{}
+				result = append(result, reference)
+			}
+		}
+	}
+	for _, reference := range references {
+		if reference == "" {
+			continue
+		}
+		if _, exists := seen[reference]; !exists {
+			seen[reference] = struct{}{}
+			result = append(result, reference)
+		}
+	}
+	return result
 }
 func (t *TaskSubmitReq) UnmarshalMetadata(v any) error {
 	metadata := t.Metadata

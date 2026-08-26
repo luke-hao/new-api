@@ -546,7 +546,7 @@ func RelayNotFound(c *gin.Context) {
 func RelayTaskFetch(c *gin.Context) {
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, &dto.TaskError{
+		respondTaskError(c, &dto.TaskError{
 			Code:       "gen_relay_info_failed",
 			Message:    err.Error(),
 			StatusCode: http.StatusInternalServerError,
@@ -561,7 +561,7 @@ func RelayTaskFetch(c *gin.Context) {
 func RelayTask(c *gin.Context) {
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, &dto.TaskError{
+		respondTaskError(c, &dto.TaskError{
 			Code:       "gen_relay_info_failed",
 			Message:    err.Error(),
 			StatusCode: http.StatusInternalServerError,
@@ -683,7 +683,39 @@ func respondTaskError(c *gin.Context, taskErr *dto.TaskError) {
 	if taskErr.StatusCode == http.StatusTooManyRequests {
 		taskErr.Message = "当前分组上游负载已饱和，请稍后再试"
 	}
+	if strings.HasPrefix(c.Request.URL.Path, "/v1/videos") {
+		code := unifiedVideoErrorCode(taskErr.Code, taskErr.Message)
+		c.JSON(taskErr.StatusCode, gin.H{
+			"error": gin.H{
+				"message": taskErr.Message,
+				"type":    "invalid_request_error",
+				"code":    code,
+			},
+		})
+		return
+	}
 	c.JSON(taskErr.StatusCode, taskErr)
+}
+
+func unifiedVideoErrorCode(code, message string) string {
+	if strings.Contains(strings.ToLower(message), "reference") {
+		return "invalid_reference"
+	}
+	switch code {
+	case "missing_model", "invalid_request", "invalid_json", "invalid_multipart_form", "invalid_size", "invalid_task_quota", "task_not_exist":
+		return "invalid_parameter"
+	case "get_channel_failed", "model_mapping_failed", "invalid_api_platform", "channel_not_found", "invalid_channel_id":
+		return "model_not_available"
+	case "upstream_timeout", "timeout":
+		return "upstream_timeout"
+	case "task_failed", "fail_to_fetch_task", "do_request_failed":
+		return "upstream_task_failed"
+	default:
+		if code == "" {
+			return "invalid_parameter"
+		}
+		return code
+	}
 }
 
 func shouldRetryTaskRelay(c *gin.Context, channelId int, taskErr *dto.TaskError, retryTimes int) bool {

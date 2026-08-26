@@ -23,6 +23,21 @@ func TestResolvePlaygroundMappedModel(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestVideoModesForModelExcludesImageOnlyModels(t *testing.T) {
+	for _, modelName := range []string{
+		"gpt-image-2",
+		"nano-banana-2",
+		"gemini-3-pro-image-2k",
+	} {
+		t.Run(modelName, func(t *testing.T) {
+			require.Empty(t, videoModesForModel(constant.ChannelTypeGemini, modelName))
+			require.Empty(t, videoModesForModel(constant.ChannelTypeSora, modelName))
+		})
+	}
+
+	require.Equal(t, []string{playgroundVideoModeText, playgroundVideoModeImage}, videoModesForModel(constant.ChannelTypeSora, "sora-2"))
+}
+
 func TestCollectPlaygroundVideoModelsIntersectsDuplicateRoutes(t *testing.T) {
 	abilities := []model.AbilityWithChannel{
 		{
@@ -84,6 +99,7 @@ func TestGetPlaygroundVideoCapabilitiesFiltersChannelsAndBuildsAutoGroup(t *test
 		{Group: "video-a", Model: "shared-video", ChannelId: 201, Enabled: true},
 		{Group: "video-a", Model: "shared-video", ChannelId: 202, Enabled: true},
 		{Group: "video-b", Model: "vidu2.0", ChannelId: 201, Enabled: true},
+		{Group: "video-b", Model: "nano-banana-2", ChannelId: 202, Enabled: true},
 		{Group: "private", Model: "private-video", ChannelId: 201, Enabled: true},
 		{Group: "video-b", Model: "disabled-video", ChannelId: 203, Enabled: true},
 	}).Error)
@@ -114,5 +130,8 @@ func TestGetPlaygroundVideoCapabilitiesFiltersChannelsAndBuildsAutoGroup(t *test
 	require.Len(t, groups["video-a"].Models, 1)
 	require.Equal(t, "shared-video", groups["video-a"].Models[0].Model)
 	require.NotContains(t, groups["video-b"].Models, playgroundVideoModelCapability{Model: "disabled-video"})
+	for _, capability := range groups["video-b"].Models {
+		require.NotEqual(t, "nano-banana-2", capability.Model)
+	}
 	require.Len(t, groups["auto"].Models, 2)
 }

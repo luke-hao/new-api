@@ -412,6 +412,9 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 				taskResp = service.TaskErrorWrapper(err, "convert_to_openai_video_failed", http.StatusInternalServerError)
 				return
 			}
+			if strings.HasPrefix(c.Request.URL.Path, "/v1/videos/") {
+				openAIVideoData = normalizeUnifiedVideoResponse(originTask, openAIVideoData)
+			}
 			respBody = openAIVideoData
 			return
 		}
@@ -428,6 +431,36 @@ func videoFetchByIDRespBodyBuilder(c *gin.Context) (respBody []byte, taskResp *d
 		taskResp = service.TaskErrorWrapper(err, "marshal_response_failed", http.StatusInternalServerError)
 	}
 	return
+}
+
+// normalizeUnifiedVideoResponse keeps the public /v1/videos contract stable
+// and prevents upstream CDN URLs from leaking through the user-facing API.
+func normalizeUnifiedVideoResponse(task *model.Task, data []byte) []byte {
+	var video dto.OpenAIVideo
+	if err := common.Unmarshal(data, &video); err != nil {
+		return data
+	}
+	if video.ID == "" {
+		video.ID = task.TaskID
+	}
+	if video.Model == "" {
+		video.Model = task.Properties.OriginModelName
+	}
+	video.VideoURL = ""
+	if task.Status == model.TaskStatusSuccess {
+		video.VideoURL = taskcommon.BuildProxyURL(task.TaskID)
+	}
+	if video.Metadata != nil {
+		delete(video.Metadata, "url")
+		if len(video.Metadata) == 0 {
+			video.Metadata = nil
+		}
+	}
+	normalized, err := common.Marshal(video)
+	if err != nil {
+		return data
+	}
+	return normalized
 }
 
 // tryRealtimeFetch 尝试从上游实时拉取 Gemini/Vertex 任务状态。

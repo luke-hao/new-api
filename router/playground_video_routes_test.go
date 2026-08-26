@@ -17,6 +17,7 @@ func TestPlaygroundVideoRoutesRequireUserSession(t *testing.T) {
 	engine := gin.New()
 	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("playground-video-route-test"))))
 	SetRelayRouter(engine)
+	SetVideoRouter(engine)
 
 	tests := []struct {
 		method string
@@ -25,6 +26,8 @@ func TestPlaygroundVideoRoutesRequireUserSession(t *testing.T) {
 	}{
 		{method: http.MethodPost, path: "/pg/videos", body: `{"model":"sora-2","prompt":"test"}`},
 		{method: http.MethodGet, path: "/pg/videos/task_example"},
+		{method: http.MethodPost, path: "/v1/videos", body: `{"model":"sora-2","prompt":"test"}`},
+		{method: http.MethodGet, path: "/v1/videos/task_example"},
 	}
 	for _, test := range tests {
 		t.Run(test.method+" "+test.path, func(t *testing.T) {
@@ -35,7 +38,11 @@ func TestPlaygroundVideoRoutesRequireUserSession(t *testing.T) {
 			engine.ServeHTTP(recorder, request)
 
 			require.Equal(t, http.StatusUnauthorized, recorder.Code)
-			require.Contains(t, recorder.Body.String(), `"success":false`)
+			if strings.HasPrefix(test.path, "/v1/") {
+				require.Contains(t, recorder.Body.String(), `"error"`)
+			} else {
+				require.Contains(t, recorder.Body.String(), `"success":false`)
+			}
 		})
 	}
 }

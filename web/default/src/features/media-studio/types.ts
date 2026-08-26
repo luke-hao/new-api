@@ -35,6 +35,7 @@ export interface VideoTaskResponse {
   model?: string
   status?: string
   progress?: number
+  video_url?: string
   metadata?: { url?: string }
   url?: string
   error?: { message?: string; code?: string } | null

@@ -24,7 +24,12 @@ func TestPath2RelayModePlaygroundVideos(t *testing.T) {
 		want int
 	}{
 		{path: "/pg/videos", want: RelayModeVideoSubmit},
+		{path: "/pg/videos/", want: RelayModeVideoSubmit},
 		{path: "/pg/videos/task_example", want: RelayModeVideoFetchByID},
+		{path: "/v1/videos", want: RelayModeVideoSubmit},
+		{path: "/v1/videos/", want: RelayModeVideoSubmit},
+		{path: "/v1/videos/task_example", want: RelayModeVideoFetchByID},
+		{path: "/v1/videos/task_example/remix", want: RelayModeVideoSubmit},
 	}
 
 	for _, tt := range tests {

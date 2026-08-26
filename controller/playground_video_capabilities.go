@@ -68,6 +68,12 @@ func resolvePlaygroundMappedModel(modelName, rawMapping string) (string, bool) {
 
 func videoModesForModel(channelType int, modelName string) []string {
 	name := strings.ToLower(strings.TrimSpace(modelName))
+	// A channel can expose both image and video abilities. Keep image-only
+	// models out of the video workspace even when the channel type itself also
+	// supports video (for example Gemini/Veo or OpenAI/Sora channels).
+	if _, imageCapability := getPlaygroundImageModelCapability(modelName); imageCapability {
+		return nil
+	}
 	switch channelType {
 	case constant.ChannelTypeAli:
 		switch {

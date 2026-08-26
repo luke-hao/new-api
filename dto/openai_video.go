@@ -19,6 +19,7 @@ type OpenAIVideo struct {
 	Object             string            `json:"object"`
 	Model              string            `json:"model"`
 	Status             string            `json:"status"` // Should use VideoStatus constants: VideoStatusQueued, VideoStatusInProgress, VideoStatusCompleted, VideoStatusFailed
+	VideoURL           string            `json:"video_url,omitempty"`
 	Progress           int               `json:"progress"`
 	CreatedAt          int64             `json:"created_at"`
 	CompletedAt        int64             `json:"completed_at,omitempty"`
@@ -39,6 +40,11 @@ func (m *OpenAIVideo) SetMetadata(k string, v any) {
 		m.Metadata = make(map[string]any)
 	}
 	m.Metadata[k] = v
+	if k == "url" {
+		if url, ok := v.(string); ok {
+			m.VideoURL = url
+		}
+	}
 }
 func NewOpenAIVideo() *OpenAIVideo {
 	return &OpenAIVideo{

@@ -133,7 +133,9 @@ function normalizeStatus(status?: string): VideoTaskStatus {
 }
 
 function taskResponseUrl(response: VideoTaskResponse) {
-  return response.url || response.metadata?.url || undefined
+  return (
+    response.video_url || response.url || response.metadata?.url || undefined
+  )
 }
 
 function ratioToPixelSize(aspectRatio: string) {
