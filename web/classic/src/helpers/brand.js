@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2023-2026 QuantumNous
+Copyright (C) 2025 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -16,23 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/**
- * Application-wide constants
- */
 
-// System Configuration Defaults
-export const DEFAULT_SYSTEM_NAME = '可乐AI'
-export const DEFAULT_LOGO = '/kele-mascot.png'
+export const DEFAULT_BRAND_LOGO = '/kele-mascot.png';
 
-export function resolveBrandLogoUrl(logo?: string | null): string {
-  const normalized = logo?.trim()
-  if (!normalized || normalized === '/logo.png') return DEFAULT_LOGO
-  return normalized
+export function resolveBrandLogoUrl(logo) {
+  const normalized = logo?.trim();
+  if (!normalized || normalized === '/logo.png') return DEFAULT_BRAND_LOGO;
+  return normalized;
 }
-
-// LocalStorage Keys
-export const STORAGE_KEYS = {
-  SYSTEM_NAME: 'system_name',
-  LOGO: 'logo',
-  FOOTER_HTML: 'footer_html',
-} as const

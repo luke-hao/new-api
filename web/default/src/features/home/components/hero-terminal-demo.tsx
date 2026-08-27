@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Activity, Route, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { DEFAULT_LOGO } from '@/lib/constants'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import type { HomeModelSummary } from '../types'
 
@@ -63,7 +64,7 @@ export function HeroTerminalDemo({ modelSummary }: HeroTerminalDemoProps) {
           <span className='landing-route-orbit-reverse absolute inset-5 rounded-full border border-cyan-300/20' />
           <span className='absolute inset-10 flex items-center justify-center rounded-full border border-white/15 bg-[#091526] shadow-[0_18px_60px_rgba(0,0,0,0.5)] max-md:inset-7'>
             <img
-              src='/logo.png'
+              src={DEFAULT_LOGO}
               alt=''
               className='h-20 w-auto max-w-none object-contain max-md:h-14'
             />

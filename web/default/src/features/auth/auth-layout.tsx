@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { Activity, Building2, Check, Route } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { DEFAULT_LOGO } from '@/lib/constants'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -64,7 +65,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className='relative z-10 my-auto max-w-lg py-12'>
           <div className='mb-7 flex h-28 w-20 items-center justify-center'>
             <img
-              src='/logo.png'
+              src={DEFAULT_LOGO}
               alt=''
               className='h-28 w-auto max-w-none object-contain'
             />

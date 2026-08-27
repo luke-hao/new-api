@@ -28,7 +28,7 @@ const defaultSiteSettings: SiteSettings = {
   'theme.frontend': 'default',
   Notice: '',
   SystemName: '可乐AI',
-  Logo: '/logo.png',
+  Logo: '/kele-mascot.png',
   Footer: '',
   About: '',
   HomePageContent: '',
