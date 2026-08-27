@@ -283,14 +283,14 @@ export function SetupWizard() {
       </div>
       <div className='container mx-auto flex max-w-5xl flex-col gap-8 px-4 sm:px-6'>
         <div className='flex flex-col items-center gap-3'>
-          <div className='relative h-12 w-12'>
+          <div className='relative flex h-14 w-10 items-center justify-center'>
             {systemConfigLoading ? (
-              <Skeleton className='absolute inset-0 rounded-full' />
+              <Skeleton className='h-12 w-8 rounded-md' />
             ) : (
               <img
                 src={logo}
                 alt={t('System logo')}
-                className='h-12 w-12 rounded-full object-cover shadow-sm'
+                className='h-14 w-auto max-w-none object-contain'
               />
             )}
           </div>

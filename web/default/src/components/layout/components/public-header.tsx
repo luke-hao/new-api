@@ -199,9 +199,9 @@ export function PublicHeader(props: PublicHeaderProps) {
               to={homeUrl}
               className='group flex shrink-0 items-center gap-2.5'
             >
-              <div className='flex size-7 shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105'>
+              <div className='flex h-9 w-7 shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105'>
                 {loading ? (
-                  <Skeleton className='size-full rounded-lg' />
+                  <Skeleton className='h-8 w-5 rounded-md' />
                 ) : customLogo ? (
                   customLogo
                 ) : (
@@ -209,7 +209,7 @@ export function PublicHeader(props: PublicHeaderProps) {
                     src={systemLogo}
                     loading={loading}
                     logoLoaded={logoLoaded}
-                    className='size-full rounded-lg object-contain'
+                    className='h-8 w-auto max-w-none object-contain'
                   />
                 )}
               </div>

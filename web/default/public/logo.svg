@@ -1,14 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 415 640" role="img" aria-labelledby="title desc">
   <title id="title">Kele AI</title>
-  <desc id="desc">A C-shaped intelligent routing mark with two connected data paths</desc>
-  <rect width="64" height="64" rx="14" fill="#07111f"/>
-  <path d="M47 17.5A22 22 0 1 0 47 46.5" fill="none" stroke="#173a72" stroke-linecap="round" stroke-width="9"/>
-  <path d="M47 15.5A22 22 0 1 0 47 44.5" fill="none" stroke="#4f8cff" stroke-linecap="round" stroke-width="7"/>
-  <path d="M32 26h14l8-7" fill="none" stroke="#22d3ee" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
-  <path d="M32 38h14l8 7" fill="none" stroke="#34d399" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
-  <rect x="27" y="27" width="10" height="10" rx="3" fill="#f8fafc"/>
-  <rect x="29.5" y="29.5" width="5" height="5" rx="1.5" fill="#2563eb"/>
-  <circle cx="55" cy="18" r="3" fill="#22d3ee"/>
-  <circle cx="55" cy="46" r="3" fill="#34d399"/>
-  <path d="M18 21c4-5 9-8 15-9" fill="none" stroke="#b9d7ff" stroke-linecap="round" stroke-width="2" opacity=".9"/>
+  <desc id="desc">Cola bottle mascot</desc>
+  <image width="415" height="640" href="logo.png" preserveAspectRatio="xMidYMid meet"/>
 </svg>

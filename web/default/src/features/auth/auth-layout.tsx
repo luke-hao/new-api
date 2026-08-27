@@ -43,14 +43,14 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           to='/'
           className='relative z-10 flex w-fit items-center gap-3 transition-opacity hover:opacity-80'
         >
-          <div className='relative size-9'>
+          <div className='relative flex h-10 w-7 items-center justify-center'>
             {loading ? (
-              <Skeleton className='absolute inset-0 rounded-lg bg-white/10' />
+              <Skeleton className='h-9 w-6 rounded-md bg-white/10' />
             ) : (
               <img
                 src={logo}
                 alt={t('Logo')}
-                className='size-9 rounded-lg object-contain'
+                className='h-10 w-auto max-w-none object-contain'
               />
             )}
           </div>
@@ -62,8 +62,12 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         </Link>
 
         <div className='relative z-10 my-auto max-w-lg py-12'>
-          <div className='mb-7 flex size-20 items-center justify-center rounded-lg border border-white/12 bg-white/[0.05] shadow-[0_20px_60px_rgba(0,0,0,0.32)]'>
-            <img src='/logo.svg' alt='' className='size-14' />
+          <div className='mb-7 flex h-28 w-20 items-center justify-center'>
+            <img
+              src='/logo.png'
+              alt=''
+              className='h-28 w-auto max-w-none object-contain'
+            />
           </div>
           <p className='text-xs font-semibold text-cyan-300'>
             UNIFIED AI ROUTING
@@ -99,7 +103,11 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       <section className='auth-form-surface flex min-h-svh flex-col bg-[#f7f9fc] text-[#101828]'>
         <div className='flex h-16 items-center border-b border-[#dfe7f1] px-5 lg:hidden'>
           <Link to='/' className='flex items-center gap-2.5'>
-            <img src={logo} alt={t('Logo')} className='size-8 rounded-lg' />
+            <img
+              src={logo}
+              alt={t('Logo')}
+              className='h-10 w-auto max-w-7 object-contain'
+            />
             <span className='font-semibold'>{systemName}</span>
           </Link>
         </div>
