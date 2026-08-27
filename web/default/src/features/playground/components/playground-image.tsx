@@ -246,6 +246,7 @@ export function PlaygroundImage({
   const { t } = useTranslation()
   const [prompt, setPrompt] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const hasPendingRequest = history.some((item) => item.status === 'pending')
 
   const selectedGroupCapability = useMemo(
     () =>
@@ -294,6 +295,7 @@ export function PlaygroundImage({
       : (parseImageSize(config.size)?.normalized ?? config.size)
   const submitDisabled =
     isSubmitting ||
+    hasPendingRequest ||
     !prompt.trim() ||
     !resolvedModel ||
     !resolvedGroup ||
@@ -358,6 +360,7 @@ export function PlaygroundImage({
       return
     }
 
+    let pendingId: string | null = null
     setIsSubmitting(true)
     try {
       const basePayload = {
@@ -377,6 +380,28 @@ export function PlaygroundImage({
           dataUrl: await filePartToDataUrl(file),
         }))
       )
+
+      const pendingItem: ImageHistoryItem = {
+        id: nanoid(),
+        mode: config.mode,
+        prompt: text,
+        model: basePayload.model,
+        group: basePayload.group,
+        protocol: selectedModelCapability?.protocol,
+        profile: selectedModelCapability?.profile,
+        size: isUsingGeminiImage ? undefined : basePayload.size,
+        quality: isUsingGeminiImage ? undefined : basePayload.quality,
+        aspectRatio: isUsingGeminiImage ? config.aspectRatio : undefined,
+        imageSize: isUsingGeminiImage ? effectiveImageSize : undefined,
+        n: isUsingGeminiImage ? Math.min(config.n, 4) : config.n,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        status: 'pending',
+        sourceImages: config.mode === 'edit' ? sourceImages : undefined,
+        results: [],
+      }
+      pendingId = pendingItem.id
+      onHistoryChange((previous) => [pendingItem, ...previous])
 
       let results: ImageResult[] = []
       const requestedCount = isUsingGeminiImage
@@ -460,29 +485,21 @@ export function PlaygroundImage({
       }
 
       if (results.length === 0) {
-        toast.error(t('No image returned'))
-        return
+        throw new Error(t('No image returned'))
       }
 
       const historyItem: ImageHistoryItem = {
-        id: nanoid(),
-        mode: config.mode,
-        prompt: text,
-        model: basePayload.model,
-        group: basePayload.group,
-        protocol: selectedModelCapability?.protocol,
-        profile: selectedModelCapability?.profile,
-        size: isUsingGeminiImage ? undefined : basePayload.size,
-        quality: isUsingGeminiImage ? undefined : basePayload.quality,
-        aspectRatio: isUsingGeminiImage ? config.aspectRatio : undefined,
-        imageSize: isUsingGeminiImage ? effectiveImageSize : undefined,
-        n: requestedCount,
-        createdAt: Date.now(),
-        sourceImages: config.mode === 'edit' ? sourceImages : undefined,
+        ...pendingItem,
+        status: 'completed',
+        updatedAt: Date.now(),
         results,
       }
 
-      onHistoryChange((prev) => [historyItem, ...prev])
+      onHistoryChange((previous) =>
+        previous.map((item) =>
+          item.id === historyItem.id ? historyItem : item
+        )
+      )
       setPrompt('')
       if (results.length < requestedCount) {
         toast.warning(
@@ -495,7 +512,22 @@ export function PlaygroundImage({
         toast.success(t('Image generated'))
       }
     } catch (error) {
-      toast.error(getErrorMessage(error, t('Image request failed')))
+      const errorMessage = getErrorMessage(error, t('Image request failed'))
+      if (pendingId) {
+        onHistoryChange((previous) =>
+          previous.map((item) =>
+            item.id === pendingId
+              ? {
+                  ...item,
+                  status: 'failed',
+                  updatedAt: Date.now(),
+                  error: errorMessage,
+                }
+              : item
+          )
+        )
+      }
+      toast.error(errorMessage)
       throw error
     } finally {
       setIsSubmitting(false)
@@ -582,7 +614,9 @@ export function PlaygroundImage({
             </div>
             <Button
               className='w-fit'
-              disabled={history.length === 0 || isSubmitting}
+              disabled={
+                history.length === 0 || isSubmitting || hasPendingRequest
+              }
               onClick={onClearHistory}
               size='sm'
               type='button'
@@ -652,7 +686,7 @@ export function PlaygroundImage({
               autoCapitalize='off'
               spellCheck={false}
               className='px-5 md:text-base'
-              disabled={isSubmitting || !hasImageModels}
+              disabled={isSubmitting || hasPendingRequest || !hasImageModels}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder={
                 config.mode === 'edit'
@@ -671,7 +705,9 @@ export function PlaygroundImage({
             <PromptInputFooter className='p-2.5'>
               <PromptInputTools>
                 {config.mode === 'edit' && (
-                  <SourceImageButton disabled={isSubmitting} />
+                  <SourceImageButton
+                    disabled={isSubmitting || hasPendingRequest}
+                  />
                 )}
               </PromptInputTools>
               <div className='flex items-center gap-1.5 md:gap-2'>
@@ -684,6 +720,7 @@ export function PlaygroundImage({
                   onGroupChange={handleGroupChange}
                   disabled={
                     isSubmitting ||
+                    hasPendingRequest ||
                     isModelLoading ||
                     imageModels.length === 0 ||
                     imageGroups.length === 0
@@ -695,7 +732,7 @@ export function PlaygroundImage({
                   type='submit'
                   variant='secondary'
                 >
-                  {isSubmitting ? (
+                  {isSubmitting || hasPendingRequest ? (
                     <Loader2Icon className='animate-spin' size={16} />
                   ) : (
                     <SendIcon size={16} />
@@ -940,67 +977,96 @@ function ImageHistoryCard({ item }: { item: ImageHistoryItem }) {
         </div>
       )}
 
-      <div
-        className={cn(
-          'grid gap-3 p-3',
-          item.results.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''
-        )}
-      >
-        {item.results.map((result, index) => {
-          const src = imageSrc(result)
-          const filename = `${item.model}-${item.id}-${index + 1}.png`
-          return (
-            <div
-              className='border-border bg-muted/20 overflow-hidden rounded-lg border'
-              key={`${item.id}-${index}`}
-            >
-              {src ? (
-                <img
+      {item.status === 'pending' ? (
+        <div className='text-muted-foreground flex min-h-44 items-center justify-center gap-2 p-6 text-sm'>
+          <Loader2Icon className='size-5 animate-spin' />
+          <span>{t('Generating...')}</span>
+        </div>
+      ) : item.status === 'failed' ? (
+        <div className='text-destructive flex min-h-32 items-center justify-center p-6 text-center text-sm'>
+          {item.error || t('Image request failed')}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'grid gap-3 p-3',
+            item.results.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''
+          )}
+        >
+          {item.results.map((result, index) => {
+            const src = imageSrc(result)
+            const filename = `${item.model}-${item.id}-${index + 1}.png`
+            return (
+              <div
+                className='border-border bg-muted/20 overflow-hidden rounded-lg border'
+                key={`${item.id}-${index}`}
+              >
+                <ImageResultPreview
                   alt={`${item.prompt} ${index + 1}`}
-                  className='bg-background aspect-square w-full object-contain'
                   src={src}
                 />
-              ) : (
-                <div className='flex aspect-square w-full items-center justify-center'>
-                  <ImageIcon className='text-muted-foreground size-8' />
+                <div className='flex items-center justify-between gap-2 p-2'>
+                  <span className='text-muted-foreground text-xs'>
+                    {t('Image')} {index + 1}
+                  </span>
+                  <div className='flex items-center gap-1'>
+                    <Button
+                      disabled={!src}
+                      onClick={() => openUrl(src)}
+                      size='icon-sm'
+                      type='button'
+                      variant='ghost'
+                    >
+                      <ExternalLinkIcon className='size-4' />
+                      <span className='sr-only'>{t('Open')}</span>
+                    </Button>
+                    <Button
+                      disabled={!src}
+                      onClick={() => downloadUrl(src, filename)}
+                      size='icon-sm'
+                      type='button'
+                      variant='ghost'
+                    >
+                      <DownloadIcon className='size-4' />
+                      <span className='sr-only'>{t('Download')}</span>
+                    </Button>
+                  </div>
                 </div>
-              )}
-              <div className='flex items-center justify-between gap-2 p-2'>
-                <span className='text-muted-foreground text-xs'>
-                  {t('Image')} {index + 1}
-                </span>
-                <div className='flex items-center gap-1'>
-                  <Button
-                    disabled={!src}
-                    onClick={() => openUrl(src)}
-                    size='icon-sm'
-                    type='button'
-                    variant='ghost'
-                  >
-                    <ExternalLinkIcon className='size-4' />
-                    <span className='sr-only'>{t('Open')}</span>
-                  </Button>
-                  <Button
-                    disabled={!src}
-                    onClick={() => downloadUrl(src, filename)}
-                    size='icon-sm'
-                    type='button'
-                    variant='ghost'
-                  >
-                    <DownloadIcon className='size-4' />
-                    <span className='sr-only'>{t('Download')}</span>
-                  </Button>
-                </div>
+                {result.revisedPrompt && (
+                  <p className='text-muted-foreground border-border border-t px-2 py-2 text-xs leading-relaxed break-words'>
+                    {result.revisedPrompt}
+                  </p>
+                )}
               </div>
-              {result.revisedPrompt && (
-                <p className='text-muted-foreground border-border border-t px-2 py-2 text-xs leading-relaxed break-words'>
-                  {result.revisedPrompt}
-                </p>
-              )}
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
+  )
+}
+
+function ImageResultPreview({ alt, src }: { alt: string; src: string }) {
+  const { t } = useTranslation()
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const failed = failedSrc === src
+
+  if (!src || failed) {
+    return (
+      <div className='text-muted-foreground flex aspect-square w-full flex-col items-center justify-center gap-2 p-4 text-center text-xs'>
+        <ImageIcon className='size-8' />
+        <span>{t('No image returned')}</span>
+      </div>
+    )
+  }
+
+  return (
+    <img
+      alt={alt}
+      className='bg-background aspect-square w-full object-contain'
+      onError={() => setFailedSrc(src)}
+      referrerPolicy='no-referrer'
+      src={src}
+    />
   )
 }

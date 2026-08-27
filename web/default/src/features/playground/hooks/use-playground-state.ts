@@ -17,11 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState, useCallback } from 'react'
-import {
-  DEFAULT_CONFIG,
-  DEFAULT_IMAGE_CONFIG,
-  DEFAULT_PARAMETER_ENABLED,
-} from '../constants'
+import { DEFAULT_CONFIG, DEFAULT_PARAMETER_ENABLED } from '../constants'
 import {
   loadConfig,
   saveConfig,
@@ -29,20 +25,15 @@ import {
   saveParameterEnabled,
   loadMessages,
   saveMessages,
-  loadImageConfig,
-  saveImageConfig,
-  loadImageHistory,
-  saveImageHistory,
 } from '../lib'
 import type {
-  ImageHistoryItem,
-  ImagePlaygroundConfig,
   Message,
   PlaygroundConfig,
   ParameterEnabled,
   ModelOption,
   GroupOption,
 } from '../types'
+import { useImagePlaygroundStore } from './use-image-playground-store'
 
 /**
  * Main state management hook for playground
@@ -65,14 +56,23 @@ export function usePlaygroundState() {
     return loadMessages() || []
   })
 
-  const [imageConfig, setImageConfig] = useState<ImagePlaygroundConfig>(() => {
-    const savedConfig = loadImageConfig()
-    return { ...DEFAULT_IMAGE_CONFIG, ...savedConfig }
-  })
-
-  const [imageHistory, setImageHistory] = useState<ImageHistoryItem[]>(() => {
-    return loadImageHistory() || []
-  })
+  const imageConfig = useImagePlaygroundStore((state) => state.imageConfig)
+  const imageHistory = useImagePlaygroundStore((state) => state.imageHistory)
+  const updateImageConfig = useImagePlaygroundStore(
+    (state) => state.updateImageConfig
+  )
+  const updateImageConfigValues = useImagePlaygroundStore(
+    (state) => state.updateImageConfigValues
+  )
+  const updateImageHistory = useImagePlaygroundStore(
+    (state) => state.updateImageHistory
+  )
+  const clearImageHistory = useImagePlaygroundStore(
+    (state) => state.clearImageHistory
+  )
+  const resetImageConfig = useImagePlaygroundStore(
+    (state) => state.resetImageConfig
+  )
 
   const [models, setModels] = useState<ModelOption[]>([])
   const [groups, setGroups] = useState<GroupOption[]>([])
@@ -114,55 +114,10 @@ export function usePlaygroundState() {
     []
   )
 
-  const updateImageConfig = useCallback(
-    <K extends keyof ImagePlaygroundConfig>(
-      key: K,
-      value: ImagePlaygroundConfig[K]
-    ) => {
-      setImageConfig((prev) => {
-        const updated = { ...prev, [key]: value }
-        saveImageConfig(updated)
-        return updated
-      })
-    },
-    []
-  )
-
-  const updateImageConfigValues = useCallback(
-    (values: Partial<ImagePlaygroundConfig>) => {
-      setImageConfig((prev) => {
-        const updated = { ...prev, ...values }
-        saveImageConfig(updated)
-        return updated
-      })
-    },
-    []
-  )
-
-  const updateImageHistory = useCallback(
-    (
-      updater:
-        | ImageHistoryItem[]
-        | ((prev: ImageHistoryItem[]) => ImageHistoryItem[])
-    ) => {
-      setImageHistory((prev) => {
-        const newHistory =
-          typeof updater === 'function' ? updater(prev) : updater
-        saveImageHistory(newHistory)
-        return newHistory
-      })
-    },
-    []
-  )
-
   // Clear all messages
   const clearMessages = useCallback(() => {
     updateMessages([])
   }, [updateMessages])
-
-  const clearImageHistory = useCallback(() => {
-    updateImageHistory([])
-  }, [updateImageHistory])
 
   // Reset config to defaults
   const resetConfig = useCallback(() => {
@@ -170,11 +125,6 @@ export function usePlaygroundState() {
     setParameterEnabled(DEFAULT_PARAMETER_ENABLED)
     saveConfig(DEFAULT_CONFIG)
     saveParameterEnabled(DEFAULT_PARAMETER_ENABLED)
-  }, [])
-
-  const resetImageConfig = useCallback(() => {
-    setImageConfig(DEFAULT_IMAGE_CONFIG)
-    saveImageConfig(DEFAULT_IMAGE_CONFIG)
   }, [])
 
   return {

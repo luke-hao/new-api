@@ -168,6 +168,8 @@ export interface ImageResult {
   revisedPrompt?: string
 }
 
+export type ImageTaskStatus = 'pending' | 'completed' | 'failed'
+
 export interface ImageHistoryItem {
   id: string
   mode: ImageMode
@@ -182,6 +184,9 @@ export interface ImageHistoryItem {
   imageSize?: GeminiImageSize
   n: number
   createdAt: number
+  updatedAt?: number
+  status?: ImageTaskStatus
+  error?: string
   sourceImages?: Array<{
     name: string
     mediaType?: string
