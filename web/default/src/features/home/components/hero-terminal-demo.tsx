@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { Activity, Route, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DEFAULT_LOGO } from '@/lib/constants'
-import { getLobeIcon } from '@/lib/lobe-icon'
 import type { HomeModelSummary } from '../types'
+import { LazyLobeIcon } from './lazy-lobe-icon'
 
 const NODE_POSITIONS = [
   { left: '57%', top: '16%' },
@@ -78,7 +78,7 @@ export function HeroTerminalDemo({ modelSummary }: HeroTerminalDemoProps) {
             style={NODE_POSITIONS[index]}
           >
             <span className='flex size-8 shrink-0 items-center justify-center rounded-md bg-white/[0.06]'>
-              {getLobeIcon(family.iconName, 19)}
+              <LazyLobeIcon iconName={family.iconName} size={19} />
             </span>
             <span className='min-w-0 max-md:hidden'>
               <span className='block text-xs font-semibold text-white'>

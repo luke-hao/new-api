@@ -19,9 +19,9 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { getLobeIcon } from '@/lib/lobe-icon'
 import { AnimateInView } from '@/components/animate-in-view'
 import type { HomeModelFamily, HomeModelSummary } from '../../types'
+import { LazyLobeIcon } from '../lazy-lobe-icon'
 
 const TONE_CLASSES: Record<HomeModelFamily['tone'], string> = {
   blue: 'border-blue-400/35 bg-blue-400/[0.045]',
@@ -74,7 +74,7 @@ export function Features({ modelSummary }: FeaturesProps) {
             >
               <div className='flex items-start justify-between gap-3'>
                 <span className='flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.055]'>
-                  {getLobeIcon(family.iconName, 22)}
+                  <LazyLobeIcon iconName={family.iconName} size={22} />
                 </span>
                 <span className='rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2 py-1 text-[9px] font-semibold text-emerald-200'>
                   {t('home.catalog.available')}

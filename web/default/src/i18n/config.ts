@@ -16,33 +16,80 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import i18n from 'i18next'
+import i18n, {
+  type BackendModule,
+  type ReadCallback,
+  type ResourceKey,
+} from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
-import en from './locales/en.json'
-import fr from './locales/fr.json'
-import ja from './locales/ja.json'
-import ru from './locales/ru.json'
-import vi from './locales/vi.json'
-import zh from './locales/zh.json'
 
-export const resources = {
-  en,
-  zh,
-  fr,
-  ru,
-  ja,
-  vi,
-} as const
+interface LocaleBundle {
+  translation: ResourceKey
+}
+
+const localeLoaders: Record<string, () => Promise<LocaleBundle>> = {
+  en: () =>
+    import('./locales/en.json').then(
+      ({ default: locale }) => locale as LocaleBundle
+    ),
+  zh: () =>
+    import('./locales/zh.json').then(
+      ({ default: locale }) => locale as LocaleBundle
+    ),
+  fr: () =>
+    import('./locales/fr.json').then(
+      ({ default: locale }) => locale as LocaleBundle
+    ),
+  ru: () =>
+    import('./locales/ru.json').then(
+      ({ default: locale }) => locale as LocaleBundle
+    ),
+  ja: () =>
+    import('./locales/ja.json').then(
+      ({ default: locale }) => locale as LocaleBundle
+    ),
+  vi: () =>
+    import('./locales/vi.json').then(
+      ({ default: locale }) => locale as LocaleBundle
+    ),
+}
+
+const localeBackend: BackendModule = {
+  type: 'backend',
+  init: () => undefined,
+  read: (language: string, _namespace: string, callback: ReadCallback) => {
+    const normalizedLanguage = language.split('-')[0]?.toLowerCase() || 'en'
+    const loadLocale = localeLoaders[normalizedLanguage] ?? localeLoaders.en
+
+    loadLocale()
+      .then(({ translation }) => callback(null, translation))
+      .catch((error: unknown) => {
+        callback(
+          error instanceof Error ? error : new Error('Failed to load locale'),
+          null
+        )
+      })
+  },
+}
+
+function applyDocumentLanguage(language: string) {
+  if (typeof document === 'undefined') return
+  document.documentElement.lang = language.split('-')[0]?.toLowerCase() || 'en'
+}
+
+i18n.on('languageChanged', applyDocumentLanguage)
 
 i18n
   .use(LanguageDetector)
+  .use(localeBackend)
   .use(initReactI18next)
   .init({
-    resources,
     fallbackLng: 'en',
     supportedLngs: ['en', 'zh', 'fr', 'ru', 'ja', 'vi'],
     load: 'languageOnly', // Convert zh-CN -> zh
+    ns: ['translation'],
+    defaultNS: 'translation',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)
     debug: import.meta.env.DEV,
     interpolation: {

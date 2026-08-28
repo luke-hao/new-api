@@ -16,30 +16,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
-import { Markdown } from '@/components/ui/markdown'
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
 import { CTA, Features, Hero, HowItWorks, Stats } from './components'
 import { useHomeModelCatalog, useHomePageContent } from './hooks'
 
+const LazyMarkdown = lazy(() =>
+  import('@/components/ui/markdown').then(({ Markdown }) => ({
+    default: Markdown,
+  }))
+)
+
 export function Home() {
   const { t } = useTranslation()
   const { auth } = useAuthStore()
   const isAuthenticated = !!auth.user
-  const { content, isLoaded, isUrl } = useHomePageContent()
+  const { content, isUrl } = useHomePageContent()
   const modelSummary = useHomeModelCatalog()
-
-  if (!isLoaded) {
-    return (
-      <PublicLayout showMainContainer={false}>
-        <main className='flex min-h-screen items-center justify-center'>
-          <div className='text-muted-foreground'>{t('Loading...')}</div>
-        </main>
-      </PublicLayout>
-    )
-  }
 
   if (content) {
     return (
@@ -53,7 +49,15 @@ export function Home() {
             />
           ) : (
             <div className='container mx-auto py-8'>
-              <Markdown className='custom-home-content'>{content}</Markdown>
+              <Suspense
+                fallback={
+                  <div className='bg-muted/40 min-h-40 animate-pulse' />
+                }
+              >
+                <LazyMarkdown className='custom-home-content'>
+                  {content}
+                </LazyMarkdown>
+              </Suspense>
             </div>
           )}
         </main>
