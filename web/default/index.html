@@ -272,6 +272,7 @@
         const root = document.getElementById('root')
         const shell = document.getElementById('boot-shell')
         if (!root || !shell) return
+        let dismissScheduled = false
 
         const dismiss = () => {
           const hasPageContent =
@@ -279,9 +280,12 @@
             Boolean(
               root.querySelector('main, header, nav, form, iframe, canvas')
             )
-          if (!hasPageContent) return
-          shell.remove()
+          if (!hasPageContent || dismissScheduled) return
+          dismissScheduled = true
           observer.disconnect()
+          window.setTimeout(() => {
+            window.requestAnimationFrame(() => shell.remove())
+          }, 900)
         }
 
         const observer = new MutationObserver(dismiss)
