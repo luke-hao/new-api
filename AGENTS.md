@@ -6,9 +6,12 @@ The canonical production source is `/opt/new-api-src/current`. All persistent
 NewAPI edits, tests, builds, and deployment preparation must happen in this Git
 working tree.
 
-This is a local production baseline without an upstream Git remote or pre-baseline
-author history. Do not pull, reset, clean, or infer historical authors; use the
-commits and archive tags in this repository as the source history.
+The production mirror is `origin` (`git@github.com:luke-hao/new-api.git`), and
+`main` tracks `origin/main`. The repository was created from a local production
+baseline and does not contain author history from before that baseline. Do not
+force-push, reset, clean, pull from an unrelated upstream, or infer historical
+authors. Use the commits and production tags in this repository as the source
+history.
 
 - Do not create task-specific full source copies under `/opt/new-api-src`.
   Historical source states belong in Git commits or tags, not sibling folders,
@@ -16,8 +19,10 @@ commits and archive tags in this repository as the source history.
 - Treat any local workstation copy as a read-only synchronized backup. Never
   upload it over this working tree without an explicit, reviewed restore plan.
 - Before editing, verify `hostname`, the active compose image, container health,
-  `git status --short --branch`, and `git diff`. Start new work from the current
-  `main` HEAD and inspect any existing changes before proceeding.
+  `git status --short --branch`, and `git diff`. Run `git fetch origin --prune`
+  and compare `main` with `origin/main` before editing. Start new work only from
+  the reviewed current production HEAD. Do not blindly pull or reset when the
+  branches differ; inspect and reconcile the commits explicitly.
 - Back up only the files being changed to a timestamped temporary directory.
   Do not replace complete files or directories from old images or snapshots;
   merge the required change against the current HEAD.
@@ -33,6 +38,94 @@ commits and archive tags in this repository as the source history.
 - Never commit or synchronize `/opt/new-api/.env`, `/opt/new-api/data`,
   `/opt/new-api/logs`, source-tree databases, credentials, or authentication
   material.
+
+## Required Production Change Workflow
+
+Every agent that changes the deployed application must complete this workflow.
+A source commit by itself is not a completed deployment, and a running container
+without committed and pushed source is not a completed change.
+
+1. **Preflight**
+   - Confirm `/opt/new-api-src/current` is clean or account for every existing
+     change before editing.
+   - Record the source HEAD, `origin/main` HEAD, current compose image, image ID,
+     container health, compose hash, and baseline behavior.
+   - Verify that runtime configuration and secrets remain under `/opt/new-api`
+     and are not tracked by Git.
+
+2. **Scoped preservation and editing**
+   - Create `/opt/new-api/backups/<timestamp>-<change>/original` containing only
+     the files that will change.
+   - Edit the canonical working tree in place. Do not build from a copied tree,
+     an archive, an old image, or a local workstation snapshot.
+   - After editing, save the final changed files under the matching `modified`
+     directory and generate a reviewable patch with `git diff` or `git format-patch`.
+
+3. **Validation**
+   - Run formatting, focused tests, and the broadest practical checks for the
+     affected area. For Go changes, run relevant `go test` packages. For default
+     frontend changes, run the applicable Bun/Rsbuild formatting, lint, type,
+     test, and production-build commands from `web/default`.
+   - If a repository-baseline failure blocks a broad check, record the exact
+     command and errors and still run focused checks that cover the changed files.
+   - For visible frontend changes, run Playwright at desktop and mobile sizes,
+     save immediate and final screenshots, and record HTTP status, console errors,
+     page errors, failed requests, and meaningful render timing.
+
+4. **Commit and immutable image**
+   - Commit the validated source before the final production build.
+   - Build from `/opt/new-api-src/current` and use a new immutable image tag that
+     contains the change name, UTC timestamp, and committed short SHA, for example
+     `local/new-api:<change>-<timestamp>-<shortsha>`.
+   - Never overwrite an existing image tag and never deploy an uncommitted working
+     tree or a floating `latest` tag.
+
+5. **Deploy and verify**
+   - Preserve the active compose file as `docker-compose.original.yml`, create
+     `docker-compose.modified.yml` referencing the immutable image, and validate
+     it with `docker compose config --quiet` before deployment.
+   - Deploy with `docker compose up -d --force-recreate new-api`, wait for
+     `healthy`, and require `/api/status` to return HTTP 200.
+   - Verify the changed user behavior and important unchanged behavior. For this
+     installation, an unauthenticated `/v1/models` request must continue to return
+     HTTP 401 through both the direct API endpoint and configured HTTPS endpoints.
+
+6. **Runnable and tested rollback**
+   - Store an executable `rollback.sh` that restores the original compose file,
+     recreates `new-api`, waits for readiness, and prints the restored image and
+     HTTP status.
+   - Execute the rollback once, confirm the previous image and HTTP 200, then
+     reapply `docker-compose.modified.yml` and repeat the new-version health and
+     behavior checks.
+
+7. **Verification record and integrity**
+   - Store one `verification.txt` containing the exact baseline, modified,
+     rollback, and reapply commands, inputs, literal outputs, and exit statuses.
+   - Generate `checksums.sha256` for the original files, modified files, patch,
+     compose files, browser record, verification record, and rollback script.
+   - Reopen every artifact and run `sha256sum -c checksums.sha256` before declaring
+     the deployment complete.
+
+8. **Tag and publish**
+   - Create an annotated `production/<UTC timestamp>-<change>` tag on the deployed
+     commit. Include the image name, image ID, compose hash, and verification path
+     in the tag message.
+   - Push `main` and the new production tag to `origin` without force. Verify with
+     `git ls-remote` that the remote branch and tag resolve to the local deployed
+     commit.
+   - Leave the production working tree clean and report the Git commit, image,
+     health, endpoint results, artifact paths, and rollback command.
+
+## Installation-Specific Web Behavior
+
+- Preserve the inline `boot-shell` first paint and its `hasPageContent` dismissal
+  check when modifying `web/default/index.html`. The shell must remain visible
+  until real page content mounts; do not reintroduce a blank initial screen.
+- Keep large home-page dependencies and non-selected locale bundles off the main
+  entry path unless a measured change justifies loading them synchronously.
+- Browser registration, login, and Turnstile flows use the configured HTTPS
+  hostname. The direct IP and port are for OpenAI-compatible API access; do not
+  bypass Turnstile based on the request Host header.
 
 ## Context Loading
 
