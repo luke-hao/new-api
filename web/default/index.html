@@ -274,7 +274,12 @@
         if (!root || !shell) return
 
         const dismiss = () => {
-          if (!root.firstElementChild) return
+          const hasPageContent =
+            Boolean(root.textContent?.trim()) ||
+            Boolean(
+              root.querySelector('main, header, nav, form, iframe, canvas')
+            )
+          if (!hasPageContent) return
           shell.remove()
           observer.disconnect()
         }
