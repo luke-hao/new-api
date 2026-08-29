@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { lazy, Suspense } from 'react'
 import type { TFunction } from 'i18next'
 import { Bell, Megaphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -31,7 +32,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { Markdown } from '@/components/ui/markdown'
 import {
   Popover,
   PopoverContent,
@@ -42,6 +42,20 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+const LazyMarkdown = lazy(() =>
+  import('@/components/ui/markdown').then(({ Markdown }) => ({
+    default: Markdown,
+  }))
+)
+
+function DeferredMarkdown({ children }: { children: string }) {
+  return (
+    <Suspense fallback={<div className='bg-muted/40 min-h-16 animate-pulse' />}>
+      <LazyMarkdown>{children}</LazyMarkdown>
+    </Suspense>
+  )
+}
 
 interface AnnouncementItem {
   type?: string
@@ -184,7 +198,7 @@ function NoticeContent({
 
   return (
     <ScrollArea className='h-[min(52vh,28rem)] pr-3'>
-      <Markdown>{notice}</Markdown>
+      <DeferredMarkdown>{notice}</DeferredMarkdown>
     </ScrollArea>
   )
 }
@@ -238,12 +252,12 @@ function AnnouncementsContent({
                   <AnnouncementDot type={item.type} />
                   <div className='flex min-w-0 flex-1 flex-col gap-2'>
                     <div className='text-sm'>
-                      <Markdown>{item.content || ''}</Markdown>
+                      <DeferredMarkdown>{item.content || ''}</DeferredMarkdown>
                     </div>
 
                     {item.extra ? (
                       <div className='text-muted-foreground text-xs'>
-                        <Markdown>{item.extra}</Markdown>
+                        <DeferredMarkdown>{item.extra}</DeferredMarkdown>
                       </div>
                     ) : null}
 

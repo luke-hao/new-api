@@ -27,6 +27,7 @@ import {
 import {
   DEFAULT_SYSTEM_NAME,
   DEFAULT_LOGO,
+  resolveBrandFaviconUrl,
   resolveBrandLogoUrl,
 } from '@/lib/constants'
 import { applyFaviconToDom } from '@/lib/dom-utils'
@@ -184,7 +185,7 @@ export function useSystemConfig(options: UseSystemConfigOptions = {}) {
       logo,
       () => {
         setLoadedLogoUrl(logo)
-        applyFaviconToDom(logo)
+        applyFaviconToDom(resolveBrandFaviconUrl(logo))
       },
       () => {
         if (logo !== DEFAULT_LOGO) {

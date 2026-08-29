@@ -21,13 +21,13 @@ For commercial licensing, please contact support@quantumnous.com
 import * as React from 'react'
 import { useMediaQuery } from '@/hooks'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
+import { HugeiconsIcon } from '@hugeicons/react'
 import {
   UnfoldMoreIcon,
   Tick02Icon,
   ArrowUp01Icon,
   ArrowDown01Icon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+} from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 
 const Select = SelectPrimitive.Root

@@ -21,9 +21,9 @@ For commercial licensing, please contact support@quantumnous.com
 import * as React from 'react'
 import { mergeProps } from '@base-ui/react/merge-props'
 import { useRender } from '@base-ui/react/use-render'
-import { SidebarLeftIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { cva, type VariantProps } from 'class-variance-authority'
+import { SidebarLeftIcon } from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
@@ -46,7 +46,7 @@ import {
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = '13rem'
+const SIDEBAR_WIDTH = '12rem'
 const SIDEBAR_WIDTH_MOBILE = '17rem'
 const SIDEBAR_WIDTH_ICON = '2.75rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'

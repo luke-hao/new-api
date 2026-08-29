@@ -21,7 +21,7 @@ import { ArrowUpRight, Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AnimateInView } from '@/components/animate-in-view'
 import type { HomeModelFamily, HomeModelSummary } from '../../types'
-import { LazyLobeIcon } from '../lazy-lobe-icon'
+import { HomeModelIcon } from '../home-model-icon'
 
 const TONE_CLASSES: Record<HomeModelFamily['tone'], string> = {
   blue: 'border-blue-400/35 bg-blue-400/[0.045]',
@@ -40,14 +40,14 @@ export function Features({ modelSummary }: FeaturesProps) {
   const { t } = useTranslation()
 
   return (
-    <section className='border-b border-white/[0.08] bg-[#070b12] px-4 py-20 sm:px-6 md:py-24'>
+    <section className='border-b border-white/[0.08] bg-[#070b12] px-4 py-14 sm:px-6 md:py-16'>
       <div className='mx-auto max-w-7xl'>
         <AnimateInView className='flex flex-col justify-between gap-5 md:flex-row md:items-end'>
           <div className='max-w-3xl'>
             <p className='mb-3 text-xs font-semibold text-cyan-300'>
               MODEL NETWORK / {modelSummary.displayTotal}
             </p>
-            <h2 className='text-3xl leading-tight font-bold text-white md:text-4xl'>
+            <h2 className='text-2xl leading-tight font-bold text-white md:text-3xl'>
               {t('home.catalog.title')}
             </h2>
           </div>
@@ -65,28 +65,28 @@ export function Features({ modelSummary }: FeaturesProps) {
           </div>
         </AnimateInView>
 
-        <div className='mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-3'>
+        <div className='mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-3'>
           {modelSummary.families.map((family, index) => (
             <AnimateInView
               key={family.id}
               delay={index * 70}
-              className={`min-h-64 rounded-lg border border-t-2 p-5 ${TONE_CLASSES[family.tone]}`}
+              className={`min-h-52 rounded-lg border border-t-2 p-4 ${TONE_CLASSES[family.tone]}`}
             >
               <div className='flex items-start justify-between gap-3'>
                 <span className='flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.055]'>
-                  <LazyLobeIcon iconName={family.iconName} size={22} />
+                  <HomeModelIcon iconName={family.iconName} size={22} />
                 </span>
                 <span className='rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2 py-1 text-[9px] font-semibold text-emerald-200'>
                   {t('home.catalog.available')}
                 </span>
               </div>
-              <h3 className='mt-5 text-xl font-bold text-white'>
+              <h3 className='mt-4 text-lg font-bold text-white'>
                 {family.title}
               </h3>
               <p className='mt-2 min-h-10 text-xs leading-5 text-white/42'>
                 {t(family.descriptionKey)}
               </p>
-              <div className='mt-5 flex flex-wrap gap-1.5'>
+              <div className='mt-4 flex flex-wrap gap-1.5'>
                 {family.models.map((model) => (
                   <span
                     key={model}

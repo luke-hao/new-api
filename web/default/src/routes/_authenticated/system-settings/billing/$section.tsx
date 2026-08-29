@@ -21,7 +21,7 @@ import { BillingSettings } from '@/features/system-settings/billing'
 import {
   BILLING_DEFAULT_SECTION,
   BILLING_SECTION_IDS,
-} from '@/features/system-settings/billing/section-registry.tsx'
+} from '@/features/system-settings/section-metadata'
 
 export const Route = createFileRoute(
   '/_authenticated/system-settings/billing/$section'

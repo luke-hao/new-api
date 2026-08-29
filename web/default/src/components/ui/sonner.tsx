@@ -18,15 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 'use client'
 
+import { HugeiconsIcon } from '@hugeicons/react'
+import { Toaster as Sonner, type ToasterProps } from 'sonner'
 import {
   CheckmarkCircle02Icon,
   InformationCircleIcon,
   Alert02Icon,
   MultiplicationSignCircleIcon,
   Loading03Icon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { Toaster as Sonner, type ToasterProps } from 'sonner'
+} from '@/lib/hugeicons'
 import { useTheme } from '@/context/theme-provider'
 
 const Toaster = (props: ToasterProps) => {

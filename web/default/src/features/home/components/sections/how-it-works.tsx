@@ -16,50 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import {
-  Building2,
-  Database,
-  Gauge,
-  Network,
-  ReceiptText,
-  ShieldCheck,
-} from 'lucide-react'
+import { Building2, Database, Network } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AnimateInView } from '@/components/animate-in-view'
 
 export function HowItWorks() {
   const { t } = useTranslation()
-  const capabilities = [
-    {
-      icon: Database,
-      title: t('home.capabilities.poolTitle'),
-      description: t('home.capabilities.poolDescription'),
-    },
-    {
-      icon: Gauge,
-      title: t('home.capabilities.speedTitle'),
-      description: t('home.capabilities.speedDescription'),
-    },
-    {
-      icon: ShieldCheck,
-      title: t('home.capabilities.stableTitle'),
-      description: t('home.capabilities.stableDescription'),
-    },
-    {
-      icon: ReceiptText,
-      title: t('home.capabilities.invoiceTitle'),
-      description: t('home.capabilities.invoiceDescription'),
-    },
-  ]
-
   return (
-    <section className='border-b border-white/[0.08] bg-[#0a101a] px-4 py-20 sm:px-6 md:py-24'>
+    <section className='border-b border-white/[0.08] bg-[#0a101a] px-4 py-14 sm:px-6 md:py-16'>
       <div className='mx-auto max-w-7xl'>
         <AnimateInView className='max-w-3xl'>
           <p className='mb-3 text-xs font-semibold text-emerald-300'>
             RELIABLE BY DESIGN
           </p>
-          <h2 className='text-3xl leading-tight font-bold text-white md:text-4xl'>
+          <h2 className='text-2xl leading-tight font-bold text-white md:text-3xl'>
             {t('home.capabilities.title')}
           </h2>
           <p className='mt-4 text-sm leading-6 text-white/48 md:text-base'>
@@ -69,7 +39,7 @@ export function HowItWorks() {
 
         <AnimateInView
           delay={80}
-          className='mt-10 grid items-stretch border-y border-white/[0.09] md:grid-cols-[1fr_auto_1fr_auto_1fr]'
+          className='mt-8 grid items-stretch border-y border-white/[0.09] md:grid-cols-[1fr_auto_1fr_auto_1fr]'
         >
           {[
             {
@@ -91,7 +61,7 @@ export function HowItWorks() {
             const Icon = step.icon
             return (
               <div key={step.label} className='contents'>
-                <div className='flex items-center gap-4 px-2 py-6 md:px-6'>
+                <div className='flex items-center gap-4 px-2 py-5 md:px-6'>
                   <span className='flex size-10 shrink-0 items-center justify-center rounded-lg border border-blue-300/15 bg-blue-300/[0.06] text-cyan-300'>
                     <Icon className='size-5' />
                   </span>
@@ -114,27 +84,6 @@ export function HowItWorks() {
             )
           })}
         </AnimateInView>
-
-        <div className='mt-12 grid border-y border-white/[0.08] md:grid-cols-4'>
-          {capabilities.map((capability, index) => {
-            const Icon = capability.icon
-            return (
-              <AnimateInView
-                key={capability.title}
-                delay={index * 80}
-                className={`py-7 md:px-6 ${index > 0 ? 'border-t border-white/[0.08] md:border-t-0 md:border-l' : ''}`}
-              >
-                <Icon className='size-6 text-blue-300' strokeWidth={1.7} />
-                <h3 className='mt-4 text-base font-semibold text-white'>
-                  {capability.title}
-                </h3>
-                <p className='mt-2 text-sm leading-6 text-white/42'>
-                  {capability.description}
-                </p>
-              </AnimateInView>
-            )
-          })}
-        </div>
       </div>
     </section>
   )

@@ -22,12 +22,18 @@ For commercial licensing, please contact support@quantumnous.com
 
 // System Configuration Defaults
 export const DEFAULT_SYSTEM_NAME = '可乐AI'
-export const DEFAULT_LOGO = '/kele-mascot.png'
+export const DEFAULT_LOGO = '/kele-mascot-v2.webp'
+export const DEFAULT_FAVICON = '/kele-mascot-v2-64.png'
 
 export function resolveBrandLogoUrl(logo?: string | null): string {
   const normalized = logo?.trim()
   if (!normalized || normalized === '/logo.png') return DEFAULT_LOGO
   return normalized
+}
+
+export function resolveBrandFaviconUrl(logo?: string | null): string {
+  const resolvedLogo = resolveBrandLogoUrl(logo)
+  return resolvedLogo === DEFAULT_LOGO ? DEFAULT_FAVICON : resolvedLogo
 }
 
 // LocalStorage Keys

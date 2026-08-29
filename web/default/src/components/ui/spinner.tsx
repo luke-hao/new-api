@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Loading03Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { Loading03Icon } from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 
 type SpinnerProps = Omit<

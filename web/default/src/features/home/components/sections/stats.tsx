@@ -56,9 +56,9 @@ export function Stats({ modelSummary }: StatsProps) {
         {stats.map((stat, index) => (
           <div
             key={stat.label}
-            className={`flex min-h-32 flex-col justify-center py-6 ${index % 2 === 1 ? 'border-l border-white/[0.08] pl-5 sm:pl-8' : 'pr-5 sm:pr-8'} ${index > 1 ? 'border-t border-white/[0.08] md:border-t-0' : ''} ${index > 0 ? 'md:border-l md:border-white/[0.08] md:px-8' : ''}`}
+            className={`flex min-h-24 flex-col justify-center py-4 ${index % 2 === 1 ? 'border-l border-white/[0.08] pl-5 sm:pl-8' : 'pr-5 sm:pr-8'} ${index > 1 ? 'border-t border-white/[0.08] md:border-t-0' : ''} ${index > 0 ? 'md:border-l md:border-white/[0.08] md:px-8' : ''}`}
           >
-            <strong className='font-mono text-2xl font-bold text-white md:text-3xl'>
+            <strong className='font-mono text-xl font-bold text-white md:text-2xl'>
               {stat.value}
             </strong>
             <span className='mt-1.5 text-xs font-semibold text-white/75'>

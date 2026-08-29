@@ -16,12 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Outlet } from '@tanstack/react-router'
 import { getCookie } from '@/lib/cookies'
 import { cn } from '@/lib/utils'
 import { LayoutProvider } from '@/context/layout-provider'
 import { SearchProvider } from '@/context/search-provider'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { AnimatedOutlet } from '@/components/page-transition'
 import { PrivateMessageDialog } from '@/components/private-message-dialog'
 import { SkipToMain } from '@/components/skip-to-main'
 import { AppHeader } from './app-header'
@@ -50,7 +50,7 @@ export function AuthenticatedLayout(props: AuthenticatedLayoutProps) {
                 'peer-data-[variant=inset]:h-[calc(100svh-var(--app-header-height,0px)-(var(--spacing)*4))]'
               )}
             >
-              {props.children ?? <AnimatedOutlet />}
+              {props.children ?? <Outlet />}
             </SidebarInset>
           </div>
           <PrivateMessageDialog />

@@ -151,46 +151,6 @@ For commercial licensing, please contact support@quantumnous.com
   --ring: #3b82f6;
 }
 
-@keyframes landing-route-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes landing-route-spin-reverse {
-  to {
-    transform: rotate(-360deg);
-  }
-}
-
-@keyframes landing-node-breathe {
-  0%,
-  100% {
-    border-color: rgb(255 255 255 / 0.1);
-  }
-  50% {
-    border-color: rgb(103 232 249 / 0.28);
-  }
-}
-
-.landing-route-orbit {
-  animation: landing-route-spin 18s linear infinite;
-  border-top-color: rgb(103 232 249 / 0.65);
-}
-
-.landing-route-orbit-reverse {
-  animation: landing-route-spin-reverse 12s linear infinite;
-  border-bottom-color: rgb(52 211 153 / 0.58);
-}
-
-.landing-model-node {
-  animation: landing-node-breathe 4.8s ease-in-out infinite;
-}
-
-.landing-model-node:nth-of-type(2n) {
-  animation-delay: 900ms;
-}
-
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
@@ -468,8 +428,8 @@ For commercial licensing, please contact support@quantumnous.com
 /* ── Landing page scroll-triggered animations ── */
 @keyframes landing-fade-up {
   from {
-    opacity: 0;
-    transform: translateY(24px);
+    opacity: 0.72;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -478,7 +438,7 @@ For commercial licensing, please contact support@quantumnous.com
 }
 @keyframes landing-fade-in {
   from {
-    opacity: 0;
+    opacity: 0.72;
   }
   to {
     opacity: 1;
@@ -486,8 +446,8 @@ For commercial licensing, please contact support@quantumnous.com
 }
 @keyframes landing-scale-in {
   from {
-    opacity: 0;
-    transform: scale(0.95);
+    opacity: 0.72;
+    transform: scale(0.985);
   }
   to {
     opacity: 1;
@@ -496,8 +456,8 @@ For commercial licensing, please contact support@quantumnous.com
 }
 @keyframes landing-fade-left {
   from {
-    opacity: 0;
-    transform: translateX(24px);
+    opacity: 0.72;
+    transform: translateX(8px);
   }
   to {
     opacity: 1;
@@ -506,8 +466,8 @@ For commercial licensing, please contact support@quantumnous.com
 }
 @keyframes landing-fade-right {
   from {
-    opacity: 0;
-    transform: translateX(-24px);
+    opacity: 0.72;
+    transform: translateX(-8px);
   }
   to {
     opacity: 1;
@@ -516,19 +476,19 @@ For commercial licensing, please contact support@quantumnous.com
 }
 
 .landing-animate-fade-up {
-  animation: landing-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: landing-fade-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .landing-animate-fade-in {
-  animation: landing-fade-in 0.6s ease-out both;
+  animation: landing-fade-in 0.2s ease-out both;
 }
 .landing-animate-scale-in {
-  animation: landing-scale-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: landing-scale-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .landing-animate-fade-left {
-  animation: landing-fade-left 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: landing-fade-left 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .landing-animate-fade-right {
-  animation: landing-fade-right 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: landing-fade-right 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -540,12 +500,6 @@ For commercial licensing, please contact support@quantumnous.com
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
-  }
-
-  .landing-route-orbit,
-  .landing-route-orbit-reverse,
-  .landing-model-node {
-    animation: none !important;
   }
 }
 

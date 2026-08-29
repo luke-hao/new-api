@@ -17,8 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
-import { UnfoldMoreIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { UnfoldMoreIcon } from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 
 type NativeSelectProps = Omit<React.ComponentProps<'select'>, 'size'> & {

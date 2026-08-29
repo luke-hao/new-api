@@ -20,7 +20,7 @@ import { Activity, Route, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DEFAULT_LOGO } from '@/lib/constants'
 import type { HomeModelSummary } from '../types'
-import { LazyLobeIcon } from './lazy-lobe-icon'
+import { HomeModelIcon } from './home-model-icon'
 
 const NODE_POSITIONS = [
   { left: '57%', top: '16%' },
@@ -60,13 +60,13 @@ export function HeroTerminalDemo({ modelSummary }: HeroTerminalDemoProps) {
         ))}
 
         <div className='absolute top-1/2 left-[62%] size-40 -translate-x-1/2 -translate-y-1/2 max-md:top-[20%] max-md:left-[84%] max-md:size-24'>
-          <span className='landing-route-orbit absolute inset-0 rounded-full border border-blue-400/20' />
-          <span className='landing-route-orbit-reverse absolute inset-5 rounded-full border border-cyan-300/20' />
+          <span className='absolute inset-0 rounded-full border border-blue-400/20' />
+          <span className='absolute inset-5 rounded-full border border-cyan-300/20' />
           <span className='absolute inset-10 flex items-center justify-center rounded-full border border-white/15 bg-[#091526] shadow-[0_18px_60px_rgba(0,0,0,0.5)] max-md:inset-7'>
             <img
               src={DEFAULT_LOGO}
               alt=''
-              className='h-20 w-auto max-w-none object-contain max-md:h-14'
+              className='h-16 w-auto max-w-none object-contain max-md:h-12'
             />
           </span>
         </div>
@@ -74,11 +74,11 @@ export function HeroTerminalDemo({ modelSummary }: HeroTerminalDemoProps) {
         {modelSummary.families.map((family, index) => (
           <div
             key={family.id}
-            className='landing-model-node absolute flex min-w-36 items-center gap-3 rounded-lg border border-white/10 bg-[#0b1422]/95 px-3 py-2.5 shadow-[0_14px_40px_rgba(0,0,0,0.35)] max-md:hidden'
+            className='absolute flex min-w-32 items-center gap-2.5 rounded-lg border border-white/10 bg-[#0b1422]/95 px-2.5 py-2 shadow-[0_14px_40px_rgba(0,0,0,0.35)] max-md:hidden'
             style={NODE_POSITIONS[index]}
           >
-            <span className='flex size-8 shrink-0 items-center justify-center rounded-md bg-white/[0.06]'>
-              <LazyLobeIcon iconName={family.iconName} size={19} />
+            <span className='flex size-7 shrink-0 items-center justify-center rounded-md bg-white/[0.06]'>
+              <HomeModelIcon iconName={family.iconName} size={18} />
             </span>
             <span className='min-w-0 max-md:hidden'>
               <span className='block text-xs font-semibold text-white'>

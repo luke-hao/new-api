@@ -26,14 +26,17 @@ import {
   ShieldAlert,
   Wrench,
 } from 'lucide-react'
-import { getAuthSectionNavItems } from '@/features/system-settings/auth/section-registry.tsx'
-import { getBillingSectionNavItems } from '@/features/system-settings/billing/section-registry.tsx'
-import { getContentSectionNavItems } from '@/features/system-settings/content/section-registry.tsx'
-import { getModelsSectionNavItems } from '@/features/system-settings/models/section-registry.tsx'
-import { getOperationsSectionNavItems } from '@/features/system-settings/operations/section-registry.tsx'
-import { getSecuritySectionNavItems } from '@/features/system-settings/security/section-registry.tsx'
-import { getSiteSectionNavItems } from '@/features/system-settings/site/section-registry.tsx'
+import { SYSTEM_SETTINGS_SECTIONS } from '@/features/system-settings/section-metadata'
 import type { NavGroup, SidebarView } from '../types'
+
+type SettingsArea = keyof typeof SYSTEM_SETTINGS_SECTIONS
+
+function getSectionNavItems(t: TFunction, area: SettingsArea) {
+  return SYSTEM_SETTINGS_SECTIONS[area].map(([id, titleKey]) => ({
+    title: t(titleKey),
+    url: `/system-settings/${area}/${id}`,
+  }))
+}
 
 /**
  * Sidebar nav groups for the System Settings nested view.
@@ -51,37 +54,37 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
         {
           title: t('Site & Branding'),
           icon: Settings,
-          items: getSiteSectionNavItems(t),
+          items: getSectionNavItems(t, 'site'),
         },
         {
           title: t('Authentication'),
           icon: Shield,
-          items: getAuthSectionNavItems(t),
+          items: getSectionNavItems(t, 'auth'),
         },
         {
           title: t('Billing & Payment'),
           icon: CreditCard,
-          items: getBillingSectionNavItems(t),
+          items: getSectionNavItems(t, 'billing'),
         },
         {
           title: t('Models & Routing'),
           icon: Box,
-          items: getModelsSectionNavItems(t),
+          items: getSectionNavItems(t, 'models'),
         },
         {
           title: t('Security & Limits'),
           icon: ShieldAlert,
-          items: getSecuritySectionNavItems(t),
+          items: getSectionNavItems(t, 'security'),
         },
         {
           title: t('Console Content'),
           icon: Layout,
-          items: getContentSectionNavItems(t),
+          items: getSectionNavItems(t, 'content'),
         },
         {
           title: t('Operations'),
           icon: Wrench,
-          items: getOperationsSectionNavItems(t),
+          items: getSectionNavItems(t, 'operations'),
         },
       ],
     },

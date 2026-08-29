@@ -9,7 +9,8 @@ import (
 func Cache() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if strings.HasPrefix(path, "/static/") || path == "/favicon.ico" || path == "/logo.png" {
+		isVersionedBrandAsset := path == "/kele-mascot-v2.webp" || path == "/kele-mascot-v2-64.png"
+		if strings.HasPrefix(path, "/static/") || isVersionedBrandAsset {
 			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		} else {
 			c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -33,7 +33,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Markdown } from '@/components/ui/markdown'
+
+const LazyMarkdown = lazy(() =>
+  import('@/components/ui/markdown').then(({ Markdown }) => ({
+    default: Markdown,
+  }))
+)
 
 const PRIVATE_MESSAGE_POLL_INTERVAL_MS = 30_000
 
@@ -85,35 +90,80 @@ function getMessageKey(userId: number, message: PrivateMessage): string {
   return `private-message-read:${userId}:${id}`
 }
 
-export function PrivateMessageDialog() {
+function isUnreadMessage(storageKey: string): boolean {
+  try {
+    return window.localStorage.getItem(storageKey) !== 'true'
+  } catch {
+    return true
+  }
+}
+
+interface PrivateMessageContentProps {
+  message: PrivateMessage
+  storageKey: string
+}
+
+function PrivateMessageContent({
+  message,
+  storageKey,
+}: PrivateMessageContentProps) {
   const { t } = useTranslation()
+  const [open, setOpen] = useState(() => isUnreadMessage(storageKey))
+
+  const close = () => {
+    try {
+      window.localStorage.setItem(storageKey, 'true')
+    } catch {
+      /* empty */
+    }
+    setOpen(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && setOpen(true)}>
+      <DialogContent
+        showCloseButton={false}
+        className='max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl'
+      >
+        <div className='bg-destructive text-destructive-foreground flex items-center gap-3 px-5 py-4'>
+          <div className='bg-destructive-foreground/15 flex size-10 shrink-0 items-center justify-center rounded-full'>
+            <AlertTriangle className='size-5' />
+          </div>
+          <DialogHeader className='gap-1'>
+            <DialogTitle className='text-xl leading-tight font-semibold'>
+              {message.title || t('Important notice')}
+            </DialogTitle>
+          </DialogHeader>
+        </div>
+
+        <div className='max-h-[min(58svh,34rem)] overflow-y-auto px-5 py-5'>
+          <Suspense
+            fallback={<div className='bg-muted/40 min-h-32 animate-pulse' />}
+          >
+            <LazyMarkdown className='prose-base prose-p:text-base prose-p:leading-7 prose-li:text-base'>
+              {message.content || ''}
+            </LazyMarkdown>
+          </Suspense>
+        </div>
+
+        <DialogFooter className='m-0 rounded-none'>
+          <Button size='lg' onClick={close} className='w-full sm:w-auto'>
+            {t('I understand')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function PrivateMessageDialog() {
   const user = useAuthStore((state) => state.auth.user)
   const setUser = useAuthStore((state) => state.auth.setUser)
-  const [open, setOpen] = useState(false)
 
-  const message = useMemo(() => {
-    if (!user) return null
-    return user.private_message || getSettingPrivateMessage(user.setting)
-  }, [user])
-
-  const storageKey = useMemo(() => {
-    if (!user?.id || !message) return ''
-    return getMessageKey(user.id, message)
-  }, [message, user?.id])
-
-  useEffect(() => {
-    if (!message || !storageKey) {
-      setOpen(false)
-      return
-    }
-
-    try {
-      const alreadyRead = window.localStorage.getItem(storageKey) === 'true'
-      setOpen(!alreadyRead)
-    } catch {
-      setOpen(true)
-    }
-  }, [message, storageKey])
+  const message = user
+    ? user.private_message || getSettingPrivateMessage(user.setting)
+    : null
+  const storageKey = user?.id && message ? getMessageKey(user.id, message) : ''
 
   useEffect(() => {
     if (!user?.id) return
@@ -138,48 +188,13 @@ export function PrivateMessageDialog() {
     }
   }, [setUser, user?.id])
 
-  if (!message) return null
-
-  const close = () => {
-    if (storageKey) {
-      try {
-        window.localStorage.setItem(storageKey, 'true')
-      } catch {
-        /* empty */
-      }
-    }
-    setOpen(false)
-  }
+  if (!message || !storageKey) return null
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && setOpen(true)}>
-      <DialogContent
-        showCloseButton={false}
-        className='max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl'
-      >
-        <div className='bg-destructive text-destructive-foreground flex items-center gap-3 px-5 py-4'>
-          <div className='bg-destructive-foreground/15 flex size-10 shrink-0 items-center justify-center rounded-full'>
-            <AlertTriangle className='size-5' />
-          </div>
-          <DialogHeader className='gap-1'>
-            <DialogTitle className='text-xl leading-tight font-semibold'>
-              {message.title || t('Important notice')}
-            </DialogTitle>
-          </DialogHeader>
-        </div>
-
-        <div className='max-h-[min(58svh,34rem)] overflow-y-auto px-5 py-5'>
-          <Markdown className='prose-base prose-p:text-base prose-p:leading-7 prose-li:text-base'>
-            {message.content || ''}
-          </Markdown>
-        </div>
-
-        <DialogFooter className='m-0 rounded-none'>
-          <Button size='lg' onClick={close} className='w-full sm:w-auto'>
-            {t('I understand')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <PrivateMessageContent
+      key={storageKey}
+      message={message}
+      storageKey={storageKey}
+    />
   )
 }

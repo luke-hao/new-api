@@ -44,38 +44,38 @@ export function Hero(props: HeroProps) {
   ]
 
   return (
-    <section className='relative isolate flex h-[calc(100svh-5rem)] max-h-[780px] min-h-[680px] items-center overflow-hidden border-b border-white/[0.08] px-4 pt-20 pb-10 sm:px-6'>
+    <section className='relative isolate flex min-h-[560px] items-center overflow-hidden border-b border-white/[0.08] px-4 pt-20 pb-8 sm:px-6 md:h-[calc(100svh-4rem)] md:max-h-[640px] md:min-h-[560px] md:py-16'>
       <HeroTerminalDemo modelSummary={props.modelSummary} />
       <div className='relative z-10 mx-auto w-full max-w-7xl'>
         <div className='max-w-[650px]'>
           <div
-            className='landing-animate-fade-up mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1.5 text-xs font-semibold text-emerald-200 opacity-0'
+            className='landing-animate-fade-up mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1.5 text-xs font-semibold text-emerald-200'
             style={{ animationDelay: '0ms' }}
           >
             <span className='relative flex size-2' aria-hidden='true'>
-              <span className='absolute inline-flex size-full rounded-full bg-emerald-400 opacity-40 motion-safe:animate-ping' />
+              <span className='absolute inline-flex size-full rounded-full bg-emerald-400 opacity-20' />
               <span className='relative inline-flex size-2 rounded-full bg-emerald-400' />
             </span>
             {t('home.hero.badge')}
           </div>
 
           <p
-            className='landing-animate-fade-up mb-3 flex items-center gap-2 text-xs font-semibold text-blue-200/75 opacity-0'
-            style={{ animationDelay: '45ms' }}
+            className='landing-animate-fade-up mb-2 flex items-center gap-2 text-xs font-semibold text-blue-200/75'
+            style={{ animationDelay: '30ms' }}
           >
             <CircleDot className='size-4 text-cyan-300' aria-hidden='true' />
             {t('home.hero.eyebrow')}
           </p>
 
           <h1
-            className='landing-animate-fade-up text-5xl leading-[1.05] font-bold text-white opacity-0 md:text-7xl'
-            style={{ animationDelay: '90ms' }}
+            className='landing-animate-fade-up text-4xl leading-[1.05] font-bold text-white md:text-6xl'
+            style={{ animationDelay: '60ms' }}
           >
             {t('home.hero.brand')}
           </h1>
           <p
-            className='landing-animate-fade-up mt-4 max-w-xl text-2xl leading-tight font-semibold text-white/92 opacity-0 md:text-4xl'
-            style={{ animationDelay: '135ms' }}
+            className='landing-animate-fade-up mt-3 max-w-xl text-xl leading-tight font-semibold text-white/92 md:text-3xl'
+            style={{ animationDelay: '90ms' }}
           >
             {t('home.hero.titlePrefix')}{' '}
             <span className='text-cyan-300'>
@@ -84,15 +84,15 @@ export function Hero(props: HeroProps) {
             {t('home.hero.titleSuffix')}
           </p>
           <p
-            className='landing-animate-fade-up mt-5 max-w-xl text-sm leading-7 text-white/58 opacity-0 md:text-base'
-            style={{ animationDelay: '180ms' }}
+            className='landing-animate-fade-up mt-4 max-w-xl text-sm leading-6 text-white/58 md:text-base'
+            style={{ animationDelay: '120ms' }}
           >
             {t('home.hero.description')}
           </p>
 
           <div
-            className='landing-animate-fade-up mt-6 grid max-w-xl grid-cols-2 gap-x-5 gap-y-3 opacity-0'
-            style={{ animationDelay: '220ms' }}
+            className='landing-animate-fade-up mt-4 grid max-w-xl grid-cols-2 gap-x-5 gap-y-2.5'
+            style={{ animationDelay: '150ms' }}
           >
             {proofPoints.map((item) => (
               <div
@@ -108,8 +108,8 @@ export function Hero(props: HeroProps) {
           </div>
 
           <div
-            className='landing-animate-fade-up mt-8 flex flex-wrap items-center gap-3 opacity-0'
-            style={{ animationDelay: '270ms' }}
+            className='landing-animate-fade-up mt-6 flex flex-wrap items-center gap-3'
+            style={{ animationDelay: '180ms' }}
           >
             <Button
               className='group h-11 rounded-lg bg-[#4f8cff] px-5 text-sm font-semibold text-white hover:bg-[#6a9cff]'

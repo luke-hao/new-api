@@ -17,11 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowDownIcon,
-} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
   DayPicker,
@@ -29,6 +24,11 @@ import {
   type DayButton,
   type Locale,
 } from 'react-day-picker'
+import {
+  ArrowLeft01Icon as ArrowLeftIcon,
+  ArrowRight01Icon as ArrowRightIcon,
+  ArrowDown01Icon as ArrowDownIcon,
+} from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 

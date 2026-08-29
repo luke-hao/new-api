@@ -17,11 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { SecuritySettings } from '@/features/system-settings/security'
 import {
   SECURITY_DEFAULT_SECTION,
   SECURITY_SECTION_IDS,
-} from '@/features/system-settings/security/section-registry.tsx'
+} from '@/features/system-settings/section-metadata'
+import { SecuritySettings } from '@/features/system-settings/security'
 
 export const Route = createFileRoute(
   '/_authenticated/system-settings/security/$section'

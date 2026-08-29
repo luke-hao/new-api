@@ -17,12 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
+import { HugeiconsIcon } from '@hugeicons/react'
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   MoreHorizontalCircle01Icon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+} from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 

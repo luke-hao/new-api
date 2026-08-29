@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-export const DEFAULT_BRAND_LOGO = '/kele-mascot.png';
+export const DEFAULT_BRAND_LOGO = '/kele-mascot-v2.webp';
 
 export function resolveBrandLogoUrl(logo) {
   const normalized = logo?.trim();

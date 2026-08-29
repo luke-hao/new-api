@@ -17,9 +17,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
-import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useTranslation } from 'react-i18next'
+import { Add01Icon } from '@/lib/hugeicons'
 import { cn } from '@/lib/utils'
 import {
   Combobox,

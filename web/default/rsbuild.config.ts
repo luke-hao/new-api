@@ -25,8 +25,20 @@ export default defineConfig(({ envMode }) => {
     plugins: [pluginReact()],
     // Rsbuild 2: replaces deprecated `performance.chunkSplit` (RSPack 2 aligned)
     splitChunks: {
-      preset: 'default',
+      preset: 'none',
       cacheGroups: {
+        default: {
+          chunks: 'async',
+          minChunks: 2,
+          priority: -20,
+          reuseExistingChunk: true,
+        },
+        defaultVendors: {
+          test: /node_modules[\\/]/,
+          chunks: 'async',
+          priority: -10,
+          reuseExistingChunk: true,
+        },
         'vendor-react': {
           test: /node_modules[\\/](react|react-dom)[\\/]/,
           name: 'vendor-react',
@@ -37,15 +49,47 @@ export default defineConfig(({ envMode }) => {
         'vendor-ui-primitives': {
           test: /node_modules[\\/](@base-ui|@radix-ui)[\\/]/,
           name: 'vendor-ui-primitives',
-          chunks: 'all',
+          chunks: 'async',
           priority: 0,
           enforce: true,
         },
         'vendor-tanstack': {
           test: /node_modules[\\/]@tanstack[\\/]/,
           name: 'vendor-tanstack',
-          chunks: 'all',
+          chunks: 'async',
           priority: 0,
+          enforce: true,
+        },
+        'vendor-lucide-async': {
+          test: /node_modules[\\/]lucide-react[\\/]/,
+          name: false,
+          chunks: 'async',
+          priority: 20,
+          reuseExistingChunk: true,
+          enforce: true,
+        },
+        'vendor-motion-async': {
+          test: /node_modules[\\/](framer-motion|motion|motion-dom|motion-utils)[\\/]/,
+          name: false,
+          chunks: 'async',
+          priority: 20,
+          reuseExistingChunk: true,
+          enforce: true,
+        },
+        'vendor-markdown-async': {
+          test: /node_modules[\\/](react-markdown|rehype-[^\\/]+|remark-[^\\/]+|unified|vfile(?:-message)?|hast-util-[^\\/]+|mdast-util-[^\\/]+|micromark(?:-[^\\/]+)?|unist-util-[^\\/]+)[\\/]/,
+          name: false,
+          chunks: 'async',
+          priority: 20,
+          reuseExistingChunk: true,
+          enforce: true,
+        },
+        'vendor-calendar-async': {
+          test: /node_modules[\\/](react-day-picker|date-fns|@date-fns[\\/]tz)[\\/]/,
+          name: false,
+          chunks: 'async',
+          priority: 20,
+          reuseExistingChunk: true,
           enforce: true,
         },
       },

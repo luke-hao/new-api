@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/kele-mascot.ico" />
+    <link rel="icon" type="image/png" href="/kele-mascot-v2-64.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Primary Meta Tags -->
@@ -285,7 +285,7 @@
           observer.disconnect()
           window.setTimeout(() => {
             window.requestAnimationFrame(() => shell.remove())
-          }, 900)
+          }, 100)
         }
 
         const observer = new MutationObserver(dismiss)
