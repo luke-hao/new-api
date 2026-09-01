@@ -115,6 +115,40 @@ func TestShouldUseRawClaudeBody(t *testing.T) {
 	}
 }
 
+func TestClaudeUsageDiagnosticChannelEnabled(t *testing.T) {
+	require.True(t, claudeUsageDiagnosticChannelEnabled("148", 148))
+	require.True(t, claudeUsageDiagnosticChannelEnabled(" 147, 148,149 ", 148))
+	require.True(t, claudeUsageDiagnosticChannelEnabled("*", 148))
+	require.False(t, claudeUsageDiagnosticChannelEnabled("", 148))
+	require.False(t, claudeUsageDiagnosticChannelEnabled("14,8148", 148))
+}
+
+func TestBuildClaudeUsageDiagnostic(t *testing.T) {
+	body := []byte(`{"model":"claude-opus-4-6","system":"system","messages":[{"role":"user","content":"hello"}],"tools":[{"name":"lookup","description":"test","input_schema":{"type":"object"}}]}`)
+	var request dto.ClaudeRequest
+	require.NoError(t, common.Unmarshal(body, &request))
+
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelId: 148}}
+	info.SetEstimatePromptTokens(190000)
+	usage := &dto.Usage{
+		PromptTokens: 2,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens:         273256,
+			CachedCreationTokens: 46772,
+		},
+	}
+
+	diagnostic := buildClaudeUsageDiagnostic(info, &request, usage, body)
+	require.Contains(t, diagnostic, "claude_usage_diagnostic channel_id=148")
+	require.Contains(t, diagnostic, fmt.Sprintf("body_bytes=%d", len(body)))
+	require.Contains(t, diagnostic, "body_sha256=")
+	require.Contains(t, diagnostic, "prompt_sha256=")
+	require.Contains(t, diagnostic, "local_estimate=190000")
+	require.Contains(t, diagnostic, "messages=1 tools=1")
+	require.Contains(t, diagnostic, "system_type=string system_blocks=1")
+	require.Contains(t, diagnostic, "upstream_input=320030 input=2 cache_read=273256 cache_creation=46772")
+}
+
 func TestClaudeHelperRecoversInvalidThinkingSignatureOnSameChannel(t *testing.T) {
 	signature := "integration-" + strings.ReplaceAll(t.Name(), "/", "-")
 	requestBody := []byte(fmt.Sprintf(`{

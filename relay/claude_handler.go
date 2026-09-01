@@ -2,10 +2,13 @@ package relay
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -302,7 +305,110 @@ func executeClaudeAttempt(
 	if !ok {
 		return nil, types.NewError(fmt.Errorf("invalid Claude usage type %T", usage), types.ErrorCodeBadResponseBody)
 	}
+	logClaudeUsageDiagnostic(c, info, request, typedUsage, useRawClaudeBody, rawBodyOverride)
 	return typedUsage, nil
+}
+
+const claudeUsageDiagnosticChannelsEnv = "CLAUDE_USAGE_DIAGNOSTIC_CHANNEL_IDS"
+
+func logClaudeUsageDiagnostic(
+	c *gin.Context,
+	info *relaycommon.RelayInfo,
+	request *dto.ClaudeRequest,
+	usage *dto.Usage,
+	useRawClaudeBody bool,
+	rawBodyOverride []byte,
+) {
+	if !useRawClaudeBody || info == nil || info.ChannelMeta == nil || request == nil || usage == nil {
+		return
+	}
+	if !claudeUsageDiagnosticChannelEnabled(os.Getenv(claudeUsageDiagnosticChannelsEnv), info.ChannelId) {
+		return
+	}
+
+	body := rawBodyOverride
+	if body == nil {
+		storage, err := common.GetBodyStorage(c)
+		if err != nil {
+			logger.LogWarn(c, fmt.Sprintf("claude_usage_diagnostic channel_id=%d error=%q", info.ChannelId, err.Error()))
+			return
+		}
+		body, err = storage.Bytes()
+		if err != nil {
+			logger.LogWarn(c, fmt.Sprintf("claude_usage_diagnostic channel_id=%d error=%q", info.ChannelId, err.Error()))
+			return
+		}
+	}
+
+	logger.LogInfo(c, buildClaudeUsageDiagnostic(info, request, usage, body))
+}
+
+func claudeUsageDiagnosticChannelEnabled(config string, channelID int) bool {
+	wanted := strconv.Itoa(channelID)
+	for _, item := range strings.Split(config, ",") {
+		item = strings.TrimSpace(item)
+		if item == "*" || item == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func buildClaudeUsageDiagnostic(
+	info *relaycommon.RelayInfo,
+	request *dto.ClaudeRequest,
+	usage *dto.Usage,
+	body []byte,
+) string {
+	rawFields := map[string]json.RawMessage{}
+	_ = common.Unmarshal(body, &rawFields)
+
+	bodyHash := sha256.Sum256(body)
+	promptHasher := sha256.New()
+	for _, key := range []string{"system", "messages", "tools"} {
+		_, _ = promptHasher.Write([]byte(key))
+		_, _ = promptHasher.Write([]byte{0})
+		_, _ = promptHasher.Write(rawFields[key])
+		_, _ = promptHasher.Write([]byte{0})
+	}
+
+	systemType := "none"
+	systemBlocks := 0
+	if request.System != nil {
+		if request.IsStringSystem() {
+			systemType = "string"
+			if request.GetStringSystem() != "" {
+				systemBlocks = 1
+			}
+		} else {
+			systemType = "blocks"
+			systemBlocks = len(request.ParseSystem())
+		}
+	}
+
+	upstreamInput := usage.PromptTokens +
+		usage.PromptTokensDetails.CachedTokens +
+		usage.PromptTokensDetails.CachedCreationTokens
+
+	return fmt.Sprintf(
+		"claude_usage_diagnostic channel_id=%d body_bytes=%d body_sha256=%x prompt_sha256=%x system_bytes=%d messages_bytes=%d tools_bytes=%d local_estimate=%d messages=%d tools=%d system_type=%s system_blocks=%d upstream_input=%d input=%d cache_read=%d cache_creation=%d",
+		info.ChannelId,
+		len(body),
+		bodyHash,
+		promptHasher.Sum(nil),
+		len(rawFields["system"]),
+		len(rawFields["messages"]),
+		len(rawFields["tools"]),
+		info.GetEstimatePromptTokens(),
+		len(request.Messages),
+		len(request.GetTools()),
+		systemType,
+		systemBlocks,
+		upstreamInput,
+		usage.PromptTokens,
+		usage.PromptTokensDetails.CachedTokens,
+		usage.PromptTokensDetails.CachedCreationTokens,
+	)
 }
 
 // Opus 4.7/4.8 default adaptive thinking to an omitted display. Preserve an
