@@ -765,11 +765,16 @@ func FormatClaudeResponseInfo(claudeResponse *dto.ClaudeResponse, oaiResponse *d
 			}
 			if claudeResponse.Usage.CacheCreationInputTokens > 0 {
 				claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens = claudeResponse.Usage.CacheCreationInputTokens
-			}
-			if cacheCreation5m := claudeResponse.Usage.GetCacheCreation5mTokens(); cacheCreation5m > 0 {
+				cacheCreation5m := claudeResponse.Usage.GetCacheCreation5mTokens()
+				cacheCreation1h := claudeResponse.Usage.GetCacheCreation1hTokens()
+				if claudeResponse.Usage.CacheCreation == nil {
+					cacheCreation5m = claudeResponse.Usage.CacheCreationInputTokens
+					cacheCreation1h = 0
+				} else if splitTotal := cacheCreation5m + cacheCreation1h; splitTotal > claudeResponse.Usage.CacheCreationInputTokens {
+					cacheCreation1h = min(cacheCreation1h, claudeResponse.Usage.CacheCreationInputTokens)
+					cacheCreation5m = claudeResponse.Usage.CacheCreationInputTokens - cacheCreation1h
+				}
 				claudeInfo.Usage.ClaudeCacheCreation5mTokens = cacheCreation5m
-			}
-			if cacheCreation1h := claudeResponse.Usage.GetCacheCreation1hTokens(); cacheCreation1h > 0 {
 				claudeInfo.Usage.ClaudeCacheCreation1hTokens = cacheCreation1h
 			}
 			if claudeResponse.Usage.OutputTokens > 0 {

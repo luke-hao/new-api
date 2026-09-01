@@ -127,3 +127,56 @@ func TestBuildMessageDeltaPatchUsage(t *testing.T) {
 		require.EqualValues(t, 0, usage.CacheCreation.Ephemeral1hInputTokens)
 	})
 }
+
+func TestFormatClaudeResponseInfoReplacesStaleCacheCreationSplit(t *testing.T) {
+	claudeInfo := &ClaudeResponseInfo{}
+	FormatClaudeResponseInfo(&dto.ClaudeResponse{
+		Type: "message_start",
+		Message: &dto.ClaudeMediaMessage{
+			Usage: &dto.ClaudeUsage{
+				InputTokens:              171689,
+				CacheReadInputTokens:     32291,
+				CacheCreationInputTokens: 118382,
+				CacheCreation: &dto.ClaudeCacheCreationUsage{
+					Ephemeral5mInputTokens: 118382,
+				},
+			},
+		},
+	}, nil, claudeInfo)
+
+	FormatClaudeResponseInfo(&dto.ClaudeResponse{
+		Type: "message_delta",
+		Usage: &dto.ClaudeUsage{
+			InputTokens:              4448,
+			OutputTokens:             844,
+			CacheReadInputTokens:     198039,
+			CacheCreationInputTokens: 100198,
+		},
+	}, nil, claudeInfo)
+
+	require.Equal(t, 100198, claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens)
+	require.Equal(t, 100198, claudeInfo.Usage.ClaudeCacheCreation5mTokens)
+	require.Zero(t, claudeInfo.Usage.ClaudeCacheCreation1hTokens)
+}
+
+func TestFormatClaudeResponseInfoUsesFinalCacheCreationSplit(t *testing.T) {
+	claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{
+		PromptTokensDetails:         dto.InputTokenDetails{CachedCreationTokens: 80},
+		ClaudeCacheCreation5mTokens: 80,
+	}}
+
+	FormatClaudeResponseInfo(&dto.ClaudeResponse{
+		Type: "message_delta",
+		Usage: &dto.ClaudeUsage{
+			CacheCreationInputTokens: 60,
+			CacheCreation: &dto.ClaudeCacheCreationUsage{
+				Ephemeral5mInputTokens: 10,
+				Ephemeral1hInputTokens: 50,
+			},
+		},
+	}, nil, claudeInfo)
+
+	require.Equal(t, 60, claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens)
+	require.Equal(t, 10, claudeInfo.Usage.ClaudeCacheCreation5mTokens)
+	require.Equal(t, 50, claudeInfo.Usage.ClaudeCacheCreation1hTokens)
+}
