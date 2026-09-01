@@ -118,6 +118,11 @@ export function useSidebarData(): SidebarData {
             icon: BadgeDollarSign,
           },
           {
+            title: t('Recharge (with WeChat, fee applies)'),
+            url: '/recharge-wechat',
+            icon: BadgeDollarSign,
+          },
+          {
             title: t('Profile'),
             url: '/profile',
             icon: User,

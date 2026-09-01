@@ -19,11 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { createFileRoute } from '@tanstack/react-router'
 import { Recharge } from '@/features/recharge'
 
-export const Route = createFileRoute('/_authenticated/recharge/')({
+export const Route = createFileRoute('/_authenticated/recharge-wechat/')({
   component: () => (
     <Recharge
-      title="Recharge (no fee)"
-      topupLinkOverride="https://catfk.com/shop/G8QK57QU"
+      title='Recharge (with WeChat, fee applies)'
+      topupLinkOverride='https://pay.ldxp.cn/shop/9ZKGXD3X'
     />
   ),
 })

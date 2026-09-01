@@ -124,6 +124,10 @@ export function SidebarModulesSection({
         title: t('Recharge (no fee)'),
         description: t('Balance and top-up management'),
       },
+      rechargeWechat: {
+        title: t('Recharge (with WeChat, fee applies)'),
+        description: t('Balance and top-up management'),
+      },
       topup: {
         title: t('Wallet'),
         description: t('Top up balance and view billing history.'),

@@ -73,6 +73,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
   personal: {
     enabled: true,
     recharge: true,
+    rechargeWechat: true,
     topup: true,
     personal: true,
   },

@@ -53,6 +53,7 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
   personal: {
     enabled: true,
     recharge: true,
+    rechargeWechat: true,
     topup: true,
     personal: true,
   },
@@ -109,6 +110,7 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/usage-logs/task': { section: 'console', module: 'task' },
   '/wallet': { section: 'personal', module: 'topup' },
   '/recharge': { section: 'personal', module: 'recharge' },
+  '/recharge-wechat': { section: 'personal', module: 'rechargeWechat' },
   '/profile': { section: 'personal', module: 'personal' },
   '/channels': { section: 'admin', module: 'channel' },
   '/models': { section: 'admin', module: 'models' },

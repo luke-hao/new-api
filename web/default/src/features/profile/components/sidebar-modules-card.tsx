@@ -119,6 +119,11 @@ export function SidebarModulesCard() {
           description: t('Balance and top-up management'),
         },
         {
+          key: 'rechargeWechat',
+          title: t('Recharge (with WeChat, fee applies)'),
+          description: t('Balance and top-up management'),
+        },
+        {
           key: 'topup',
           title: t('Wallet Management'),
           description: t('Balance and top-up management'),
