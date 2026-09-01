@@ -82,6 +82,13 @@ func TestIsInvalidClaudeThinkingSignatureError(t *testing.T) {
 	)
 	require.True(t, IsInvalidClaudeThinkingSignatureError(err))
 
+	quotedErr := types.NewOpenAIError(
+		errors.New("messages.8.content.0: Invalid `signature` in `thinking` block"),
+		types.ErrorCodeBadResponseStatusCode,
+		http.StatusBadRequest,
+	)
+	require.True(t, IsInvalidClaudeThinkingSignatureError(quotedErr))
+
 	err.StatusCode = http.StatusTooManyRequests
 	require.False(t, IsInvalidClaudeThinkingSignatureError(err))
 }

@@ -49,7 +49,9 @@ func IsInvalidClaudeThinkingSignatureError(err *types.NewAPIError) bool {
 		return false
 	}
 	message := strings.ToLower(common.StripRequestIDAnnotations(err.Error()))
-	return strings.Contains(message, "invalid signature in thinking block")
+	// Anthropic-compatible gateways may quote JSON field names with backticks.
+	normalized := strings.ReplaceAll(message, string(rune(96)), "")
+	return strings.Contains(normalized, "invalid signature in thinking block")
 }
 
 // SanitizeKnownInvalidClaudeThinking removes blocks that were learned from a
