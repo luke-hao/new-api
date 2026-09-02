@@ -1056,7 +1056,7 @@ export function VideoStudio({
                   variant='outline'
                 >
                   <AtSignIcon className='size-3.5' />
-                  {t('Reference media')}
+                  引用素材
                 </Button>
                 <span>输入 @ 也可选择素材</span>
               </div>
