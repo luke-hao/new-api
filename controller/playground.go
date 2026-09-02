@@ -24,12 +24,22 @@ func PlaygroundImage(c *gin.Context) {
 }
 
 func PlaygroundVideo(c *gin.Context) {
-	if newAPIError := preparePlaygroundContext(c, common.GetContextKeyString(c, constant.ContextKeyUsingGroup)); newAPIError != nil {
+	if newAPIError := preparePlaygroundContext(c, requestedPlaygroundGroup(c)); newAPIError != nil {
 		c.JSON(newAPIError.StatusCode, gin.H{"error": newAPIError.ToOpenAIError()})
 		return
 	}
 	c.Set("relay_mode", relayconstant.RelayModeVideoSubmit)
 	RelayTask(c)
+}
+
+func requestedPlaygroundGroup(c *gin.Context) string {
+	// Distribute parses the requested /pg group into TokenGroup before the
+	// controller runs. Prefer it to the user's default routing group.
+	group := common.GetContextKeyString(c, constant.ContextKeyTokenGroup)
+	if group != "" {
+		return group
+	}
+	return common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
 }
 
 func PlaygroundVideoTask(c *gin.Context) {
@@ -39,7 +49,7 @@ func PlaygroundVideoTask(c *gin.Context) {
 
 func preparePlaygroundContext(c *gin.Context, group string) *types.NewAPIError {
 	if c.GetBool("use_access_token") {
-		return types.NewError(errors.New("暂不支持使用 access token"), types.ErrorCodeAccessDenied, types.ErrOptionWithSkipRetry())
+		return types.NewError(errors.New("鏆備笉鏀寔浣跨敤 access token"), types.ErrorCodeAccessDenied, types.ErrOptionWithSkipRetry())
 	}
 
 	userID := c.GetInt("id")
