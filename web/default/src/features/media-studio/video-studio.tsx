@@ -1037,8 +1037,7 @@ function videoModeLabel(mode: VideoMode, t: (key: string) => string) {
 }
 
 function localizedDuration(value: number, t: (key: string) => string) {
-  const translated = t('seconds')
-  return String(value) + (translated === 'seconds' ? ' 秒' : ' ' + translated)
+  return String(value) + ' ' + t('seconds')
 }
 
 function SelectField({
