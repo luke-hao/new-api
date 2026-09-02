@@ -401,10 +401,7 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		// OpenAI-compatible video providers may briefly report status=unknown
 		// while registering an asynchronous task. Keep the current task state
 		// and let the next poll observe queued/processing/completed.
-		var rawStatus struct {
-			Status string `json:"status"`
-		}
-		if common.Unmarshal(responseBody, &rawStatus) == nil && strings.EqualFold(strings.TrimSpace(rawStatus.Status), "unknown") {
+		if isTransientUnknownVideoStatus(responseBody) {
 			logger.LogDebug(ctx, fmt.Sprintf("Task %s returned transient unknown status; keeping %s", taskId, task.Status))
 			return nil
 		}
@@ -506,6 +503,13 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 	}
 
 	return nil
+}
+
+func isTransientUnknownVideoStatus(body []byte) bool {
+	var rawStatus struct {
+		Status string `json:"status"`
+	}
+	return common.Unmarshal(body, &rawStatus) == nil && strings.EqualFold(strings.TrimSpace(rawStatus.Status), "unknown")
 }
 
 func redactVideoResponseBody(body []byte) []byte {
