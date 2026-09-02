@@ -22,25 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { getVideoTask, submitVideo } from './api'
-import {
-  buildAvailableVideoCatalog,
-  findAvailableVideoCatalogItem,
-  findAvailableVideoCatalogItemByID,
-  flattenAvailableVideoCatalog,
-  VIDEO_GROUP_NAME,
-} from './video-catalog'
-import type { AvailableVideoCatalogSection } from './video-catalog'
 import type {
   VideoGroupCapability,
   VideoHistoryItem,
@@ -51,6 +34,14 @@ import type {
   VideoTaskResponse,
   VideoTaskStatus,
 } from './types'
+import {
+  type AvailableVideoCatalogSection,
+  buildAvailableVideoCatalog,
+  findAvailableVideoCatalogItem,
+  findAvailableVideoCatalogItemByID,
+  flattenAvailableVideoCatalog,
+  VIDEO_GROUP_NAME,
+} from './video-catalog'
 
 const CONFIG_STORAGE_KEY = 'media_studio_video_config'
 const HISTORY_STORAGE_KEY = 'media_studio_video_history'
@@ -844,8 +835,8 @@ export function VideoStudio({
     !validateSubmission()
 
   return (
-    <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
-      <div className='flex-1 overflow-y-auto'>
+    <div className='flex min-h-0 flex-1 flex-col overflow-y-auto'>
+      <div className='flex-none'>
         <div className='mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-4'>
           <div className='flex items-center justify-between gap-3 border-b pb-2'>
             <div className='min-w-0'>
@@ -893,18 +884,8 @@ export function VideoStudio({
         </div>
       </div>
 
-      <div className='border-border/70 bg-background/95 shrink-0 border-t px-3 py-3 backdrop-blur md:px-4 md:pb-4'>
+      <div className='border-border/70 bg-background/95 border-t px-3 py-3 backdrop-blur md:px-4 md:pb-4'>
         <div className='border-border mx-auto w-full max-w-7xl overflow-hidden rounded-lg border'>
-          {selectedModel && allowedKinds(effectiveConfig.mode).length > 0 && (
-            <MaterialShelf
-              media={media}
-              mode={effectiveConfig.mode}
-              model={selectedModel}
-              note={selectedCatalogItem?.note ?? ''}
-              onPick={openPicker}
-              onRemove={removeMedia}
-            />
-          )}
           <Textarea
             autoCapitalize='off'
             autoComplete='off'
@@ -922,6 +903,16 @@ export function VideoStudio({
             spellCheck={false}
             value={prompt}
           />
+          {selectedModel && allowedKinds(effectiveConfig.mode).length > 0 && (
+            <MaterialShelf
+              media={media}
+              mode={effectiveConfig.mode}
+              model={selectedModel}
+              note={selectedCatalogItem?.note ?? ''}
+              onPick={openPicker}
+              onRemove={removeMedia}
+            />
+          )}
           {selectedModel?.parameters.supports_seed && (
             <div className='border-border/70 border-t px-2.5 py-2'>
               <div className='grid max-w-40 gap-1.5'>
@@ -985,7 +976,7 @@ export function VideoStudio({
               value={String(effectiveConfig.duration)}
               options={(selectedModel?.parameters.durations ?? []).map(
                 (value) => ({
-                label: String(value) + 's',
+                  label: localizedDuration(value, t),
                   value: String(value),
                 })
               )}
@@ -1045,6 +1036,11 @@ function videoModeLabel(mode: VideoMode, t: (key: string) => string) {
   return labels[mode]
 }
 
+function localizedDuration(value: number, t: (key: string) => string) {
+  const translated = t('seconds')
+  return String(value) + (translated === 'seconds' ? ' 秒' : ' ' + translated)
+}
+
 function SelectField({
   className,
   disabled = false,
@@ -1065,22 +1061,19 @@ function SelectField({
   return (
     <div className={cn('grid min-w-0 gap-1.5', className)}>
       {!hideLabel && <Label>{label}</Label>}
-      <Select
+      <select
+        aria-label={label}
+        className='border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full min-w-0 rounded-md border px-3 text-sm outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50'
         disabled={disabled}
         value={value}
-        onValueChange={(next) => onChange(next ?? '')}
+        onChange={(event) => onChange(event.target.value)}
       >
-        <SelectTrigger className='w-full min-w-0'>
-          <SelectValue className='min-w-0 truncate' />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }
@@ -1105,27 +1098,23 @@ function GroupedSelectField({
   return (
     <div className={cn('grid min-w-0 gap-1.5', className)}>
       {!hideLabel && <Label>{label}</Label>}
-      <Select
+      <select
+        aria-label={label}
+        className='border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full min-w-0 rounded-md border px-3 text-sm outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50'
         disabled={disabled}
         value={value}
-        onValueChange={(next) => onChange(next ?? '')}
+        onChange={(event) => onChange(event.target.value)}
       >
-        <SelectTrigger className='w-full min-w-0'>
-          <SelectValue className='min-w-0 truncate' />
-        </SelectTrigger>
-        <SelectContent>
-          {groups.map((group) => (
-            <SelectGroup key={group.label}>
-              <SelectLabel>{group.label}</SelectLabel>
-              {group.options.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          ))}
-        </SelectContent>
-      </Select>
+        {groups.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
     </div>
   )
 }
@@ -1154,12 +1143,15 @@ function MaterialShelf({
     audios: t('Reference audio'),
   }
   return (
-    <div className='border-border grid gap-4 border-b py-4'>
+    <div className='border-border grid gap-3 border-y px-4 py-3'>
       <div className='flex items-center justify-between gap-3'>
         <div className='min-w-0'>
           <h2 className='text-sm font-semibold'>{t('Reference media')}</h2>
           {note && (
-            <p className='text-muted-foreground mt-1 truncate text-xs' title={note}>
+            <p
+              className='text-muted-foreground mt-1 truncate text-xs'
+              title={note}
+            >
               {note}
             </p>
           )}
@@ -1174,14 +1166,14 @@ function MaterialShelf({
           {t('selected')}
         </span>
       </div>
-      <div className='grid gap-4'>
+      <div className='flex flex-wrap items-start gap-2'>
         {allowedKinds(mode)
           .filter((kind) => maxReferences(model, kind) > 0)
           .map((kind) => (
-            <div className='grid gap-2' key={kind}>
-              <div className='flex items-center justify-between gap-3'>
-                <Label>{labels[kind]}</Label>
-                <span className='text-muted-foreground text-xs'>
+            <div className='grid min-w-0 gap-1.5' key={kind}>
+              <div className='flex items-center justify-between gap-2'>
+                <Label className='text-xs'>{labels[kind]}</Label>
+                <span className='text-muted-foreground text-[11px]'>
                   {String(media[kind].length)} /{' '}
                   {String(maxReferences(model, kind))}
                 </span>
@@ -1198,7 +1190,7 @@ function MaterialShelf({
                 ))}
                 {media[kind].length < maxReferences(model, kind) && (
                   <button
-                    className='border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-20 w-28 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-xs transition-colors'
+                    className='border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-xs transition-colors'
                     onClick={() => onPick(kind)}
                     type='button'
                   >
@@ -1209,7 +1201,9 @@ function MaterialShelf({
                     ) : (
                       <ImagePlusIcon className='size-4' />
                     )}
-                    <span className='max-w-24 truncate'>{labels[kind]}</span>
+                    <span className='max-w-[4.5rem] truncate'>
+                      {labels[kind]}
+                    </span>
                     <PlusIcon className='size-3' />
                   </button>
                 )}
