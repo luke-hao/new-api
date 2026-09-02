@@ -120,7 +120,7 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
       },
       {
         id: 'sd900',
-        label: 'sd-720特惠-900合集（0.8-2元）',
+        label: 'sd-720特惠-900合集',
         note: '固定 720p、15 秒；仅支持 1-9 张多参考图。',
         variants: [
           'sd-720满血-900（不售后）',
@@ -130,7 +130,7 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
       },
       {
         id: 'sd933',
-        label: 'sd-720满血-933合集（2-5元）',
+        label: 'sd-720满血-933合集',
         note: '固定 720p；支持文生、首帧、首尾帧和多参考，时长 4-15 秒，最多 9 图、3 视频、3 音频。',
         variants: [
           'sd-720满血-933（按次）',
@@ -157,7 +157,7 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
       },
       {
         id: 'testChannel',
-        label: '测试渠道（非管理勿用）',
+        label: '测试渠道',
         note: '按具体模型固定 480p、720p 或 1080p，支持 4-30 秒和多模态参考。',
         variants: [
           '测试模型480p-按次',
@@ -214,7 +214,9 @@ export function buildAvailableVideoCatalog(
         ...item,
         models: item.variants
           .map((modelName) => modelsByName.get(modelName))
-          .filter((model): model is VideoModelCapability => model !== undefined),
+          .filter(
+            (model): model is VideoModelCapability => model !== undefined
+          ),
       }))
       .filter((item) => item.models.length > 0),
   })).filter((section) => section.items.length > 0)

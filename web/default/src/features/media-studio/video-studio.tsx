@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  AtSignIcon,
   CircleAlertIcon,
   ClapperboardIcon,
   DownloadIcon,
@@ -77,6 +78,11 @@ type SelectOption = {
   value: string
 }
 
+type VideoMentionItem = {
+  token: string
+  label: string
+}
+
 type SelectOptionGroup = {
   label: string
   options: SelectOption[]
@@ -84,6 +90,41 @@ type SelectOptionGroup = {
 
 function emptyMediaState(): MediaState {
   return { first: [], last: [], images: [], videos: [], audios: [] }
+}
+
+function videoMentionItems(
+  media: MediaState,
+  mode: VideoMode
+): VideoMentionItem[] {
+  const visualItems: VideoMentionItem[] = []
+  if (mode === 'first_frame' && media.first.length > 0) {
+    visualItems.push({ token: '@图1', label: '图1 · 首帧' })
+  } else if (mode === 'first_last') {
+    if (media.first.length > 0) {
+      visualItems.push({ token: '@图1', label: '图1 · 首帧' })
+    }
+    if (media.last.length > 0) {
+      visualItems.push({ token: '@图2', label: '图2 · 尾帧' })
+    }
+  } else if (mode === 'reference') {
+    media.images.forEach((_, index) => {
+      visualItems.push({
+        token: '@图' + String(index + 1),
+        label: '图' + String(index + 1) + ' · 参考图',
+      })
+    })
+  }
+  return [
+    ...visualItems,
+    ...media.videos.map((item, index) => ({
+      token: '@视频' + String(index + 1),
+      label: '视频' + String(index + 1) + ' · ' + item.file.name,
+    })),
+    ...media.audios.map((item, index) => ({
+      token: '@音频' + String(index + 1),
+      label: '音频' + String(index + 1) + ' · ' + item.file.name,
+    })),
+  ]
 }
 
 function catalogSelectGroups(
@@ -430,8 +471,13 @@ export function VideoStudio({
   const [history, setHistory] = useState<VideoHistoryItem[]>(loadStoredHistory)
   const [prompt, setPrompt] = useState('')
   const [media, setMedia] = useState<MediaState>(emptyMediaState)
+  const [mentionOpen, setMentionOpen] = useState(false)
+  const [mentionStart, setMentionStart] = useState(-1)
+  const [mentionQuery, setMentionQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+  const mentionRootRef = useRef<HTMLDivElement>(null)
   const pickerKindRef = useRef<MediaKind>('images')
   const mediaRef = useRef(media)
   const historyRef = useRef(history)
@@ -469,6 +515,51 @@ export function VideoStudio({
         : config,
     [config, selectedGroup, selectedModel]
   )
+  const availableMentionItems = useMemo(
+    () => videoMentionItems(media, effectiveConfig.mode),
+    [effectiveConfig.mode, media]
+  )
+  const filteredMentionItems = useMemo(() => {
+    const query = mentionQuery.replace(/^@/, '').trim().toLowerCase()
+    if (!query) return availableMentionItems
+    return availableMentionItems.filter((item) =>
+      (item.token + ' ' + item.label).toLowerCase().includes(query)
+    )
+  }, [availableMentionItems, mentionQuery])
+
+  const closeMentionMenu = useCallback(() => {
+    setMentionOpen(false)
+    setMentionStart(-1)
+    setMentionQuery('')
+  }, [])
+
+  const updateMentionFromPrompt = useCallback(
+    (value: string, caret: number | null) => {
+      const position = caret ?? value.length
+      const beforeCaret = value.slice(0, position)
+      const at = beforeCaret.lastIndexOf('@')
+      if (at < 0 || /\s/.test(beforeCaret.slice(at + 1))) {
+        closeMentionMenu()
+        return
+      }
+      setMentionStart(at)
+      setMentionQuery(beforeCaret.slice(at + 1))
+      setMentionOpen(true)
+    },
+    [closeMentionMenu]
+  )
+
+  useEffect(() => {
+    if (!mentionOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (target instanceof Node && !mentionRootRef.current?.contains(target)) {
+        closeMentionMenu()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [closeMentionMenu, mentionOpen])
 
   const updateConfig = useCallback((values: Partial<VideoStudioConfig>) => {
     setConfig((previous) => {
@@ -663,6 +754,42 @@ export function VideoStudio({
     })
   }
 
+  const openMentionMenu = () => {
+    const input = promptRef.current
+    if (!input) return
+    const start = input.selectionStart ?? prompt.length
+    const end = input.selectionEnd ?? start
+    const before = prompt.slice(0, start)
+    const prefix = before && !/\s$/.test(before) ? ' @' : '@'
+    const next = prompt.slice(0, start) + prefix + prompt.slice(end)
+    const caret = start + prefix.length
+    setPrompt(next)
+    setMentionStart(start + prefix.length - 1)
+    setMentionQuery('')
+    setMentionOpen(true)
+    window.requestAnimationFrame(() => {
+      input.focus()
+      input.setSelectionRange(caret, caret)
+    })
+  }
+
+  const insertMention = (token: string) => {
+    const input = promptRef.current
+    const start =
+      mentionStart >= 0
+        ? mentionStart
+        : (input?.selectionStart ?? prompt.length)
+    const end = input?.selectionEnd ?? start
+    const next = prompt.slice(0, start) + token + ' ' + prompt.slice(end)
+    const caret = start + token.length + 1
+    setPrompt(next)
+    closeMentionMenu()
+    window.requestAnimationFrame(() => {
+      input?.focus()
+      input?.setSelectionRange(caret, caret)
+    })
+  }
+
   const materialCount = Object.values(media).reduce(
     (total, items) => total + items.length,
     0
@@ -795,6 +922,7 @@ export function VideoStudio({
       }
       updateHistory((items) => [item, ...items])
       setPrompt('')
+      closeMentionMenu()
       toast.success(t('Video task submitted'))
     } catch (error) {
       toast.error(getErrorMessage(error, t('Video request failed')))
@@ -814,6 +942,7 @@ export function VideoStudio({
       seed: item.seed === undefined ? '' : String(item.seed),
     })
     setPrompt(item.prompt)
+    closeMentionMenu()
     setMedia((previous) => {
       for (const items of Object.values(previous)) revokeMedia(items)
       return emptyMediaState()
@@ -892,17 +1021,77 @@ export function VideoStudio({
             autoCorrect='off'
             className='max-h-40 min-h-20 resize-y rounded-none border-0 px-4 py-3 shadow-none focus-visible:ring-0 md:text-base'
             disabled={isSubmitting || !hasModels}
-            onChange={(event) => setPrompt(event.target.value)}
+            onChange={(event) => {
+              setPrompt(event.target.value)
+              updateMentionFromPrompt(
+                event.target.value,
+                event.target.selectionStart
+              )
+            }}
             onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                closeMentionMenu()
+                return
+              }
               if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
                 event.preventDefault()
                 if (!submitDisabled) void submit()
               }
             }}
             placeholder={t('Describe the video to generate')}
+            ref={promptRef}
             spellCheck={false}
             value={prompt}
           />
+          {selectedModel && (
+            <div ref={mentionRootRef} className='border-border/70 border-t'>
+              <div className='text-muted-foreground flex items-center gap-2 px-3 py-2 text-xs'>
+                <Button
+                  aria-label='在提示词中引用素材'
+                  className='h-7 gap-1.5 px-2.5 text-xs'
+                  onClick={openMentionMenu}
+                  size='sm'
+                  title='在提示词中引用素材'
+                  type='button'
+                  variant='outline'
+                >
+                  <AtSignIcon className='size-3.5' />
+                  {t('Reference media')}
+                </Button>
+                <span>输入 @ 也可选择素材</span>
+              </div>
+              {mentionOpen && (
+                <div
+                  aria-label='可引用素材'
+                  className='border-border/70 bg-background max-h-60 overflow-y-auto border-t p-1'
+                  role='listbox'
+                >
+                  {filteredMentionItems.length > 0 ? (
+                    filteredMentionItems.map((item) => (
+                      <button
+                        className='hover:bg-muted/60 focus-visible:bg-muted/60 flex w-full items-center justify-between gap-3 rounded px-2.5 py-2 text-left text-sm outline-none'
+                        key={item.token}
+                        onClick={() => insertMention(item.token)}
+                        role='option'
+                        type='button'
+                      >
+                        <span className='min-w-0 truncate'>{item.label}</span>
+                        <code className='text-primary shrink-0 text-xs font-semibold'>
+                          {item.token}
+                        </code>
+                      </button>
+                    ))
+                  ) : (
+                    <div className='text-muted-foreground px-2.5 py-2 text-sm'>
+                      {availableMentionItems.length > 0
+                        ? '没有匹配的素材'
+                        : '请先添加素材'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {selectedModel && allowedKinds(effectiveConfig.mode).length > 0 && (
             <MaterialShelf
               media={media}
