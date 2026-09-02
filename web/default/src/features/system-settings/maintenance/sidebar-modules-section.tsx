@@ -92,6 +92,12 @@ export function SidebarModulesSection({
         title: t('Image & Video Studio'),
         description: t('Create images and videos with available models.'),
       },
+      canvas: {
+        title: t('Infinite Canvas'),
+        description: t(
+          'Create and organize text, images, and videos on a shared canvas.'
+        ),
+      },
       chat: {
         title: t('Chat'),
         description: t('Access previous conversations and start new ones.'),

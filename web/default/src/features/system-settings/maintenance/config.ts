@@ -60,6 +60,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     enabled: true,
     playground: true,
     mediaStudio: true,
+    canvas: true,
     chat: true,
   },
   console: {

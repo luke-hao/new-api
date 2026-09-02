@@ -4902,6 +4902,10 @@
     "Reference videos": "参考视频",
     "Seed must be a non-negative integer": "Seed 必须为非负整数",
     "Unsupported media type": "不支持的素材类型",
-    "Video editing": "视频编辑"
+    "Video editing": "视频编辑",
+    "Infinite Canvas": "无限画布",
+    "Opening infinite canvas...": "正在打开无限画布…",
+    "Failed to open infinite canvas": "打开无限画布失败",
+    "Create and organize text, images, and videos on a shared canvas.": "在共享画布中创作和组织文本、图片与视频。"
   }
 }

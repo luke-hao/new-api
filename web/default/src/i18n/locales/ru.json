@@ -4902,6 +4902,10 @@
     "Reference videos": "Референсные видео",
     "Seed must be a non-negative integer": "Начальное значение должно быть неотрицательным целым числом",
     "Unsupported media type": "Неподдерживаемый тип материала",
-    "Video editing": "Редактирование видео"
+    "Video editing": "Редактирование видео",
+    "Infinite Canvas": "Infinite Canvas",
+    "Opening infinite canvas...": "Opening infinite canvas...",
+    "Failed to open infinite canvas": "Failed to open infinite canvas",
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
   }
 }

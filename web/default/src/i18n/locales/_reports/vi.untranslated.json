@@ -60,5 +60,7 @@
   "home.enterprise.invoiceDescription": "Business invoices and clear usage records help finance and technical teams reconcile efficiently.",
   "home.flow.enterprise": "Contracts, invoices, and verifiable usage",
   "home.flow.scheduling": "Multi-route scheduling and health checks",
-  "home.stats.procurement": "Contracts and business invoices"
+  "home.stats.procurement": "Contracts and business invoices",
+  "Failed to open infinite canvas": "Failed to open infinite canvas",
+  "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
 }

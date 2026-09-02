@@ -85,6 +85,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/models", controller.GetUserModels)
 				selfRoute.GET("/playground/image-capabilities", controller.GetPlaygroundImageCapabilities)
 				selfRoute.GET("/playground/video-capabilities", controller.GetPlaygroundVideoCapabilities)
+				selfRoute.POST("/canvas/sso-ticket", controller.CreateCanvasSSOTicket)
+				selfRoute.GET("/canvas/capabilities", controller.GetCanvasCapabilities)
 				selfRoute.PUT("/self", controller.UpdateSelf)
 				selfRoute.DELETE("/self", controller.DeleteSelf)
 				selfRoute.GET("/token", controller.GenerateAccessToken)

@@ -200,5 +200,9 @@
   "home.stats.routes": "Automated health checks",
   "home.stats.updating": "80+ models continuously expanding",
   "successful": "successful",
-  "unsupported": "unsupported"
+  "unsupported": "unsupported",
+  "Infinite Canvas": "Infinite Canvas",
+  "Opening infinite canvas...": "Opening infinite canvas...",
+  "Failed to open infinite canvas": "Failed to open infinite canvas",
+  "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
 }

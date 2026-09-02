@@ -24,6 +24,7 @@ import {
   CreditCard,
   FileText,
   FlaskConical,
+  InfinityIcon,
   Key,
   LayoutDashboard,
   ListTodo,
@@ -62,6 +63,11 @@ export function useSidebarData(): SidebarData {
             title: t('Image & Video Studio'),
             url: '/studio',
             icon: Clapperboard,
+          },
+          {
+            title: t('Infinite Canvas'),
+            url: '/canvas',
+            icon: InfinityIcon,
           },
           {
             title: t('Chat'),

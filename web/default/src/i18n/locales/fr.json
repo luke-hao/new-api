@@ -4902,6 +4902,10 @@
     "Reference videos": "Vidéos de référence",
     "Seed must be a non-negative integer": "La graine doit être un entier positif ou nul",
     "Unsupported media type": "Type de média non pris en charge",
-    "Video editing": "Montage vidéo"
+    "Video editing": "Montage vidéo",
+    "Infinite Canvas": "Infinite Canvas",
+    "Opening infinite canvas...": "Opening infinite canvas...",
+    "Failed to open infinite canvas": "Failed to open infinite canvas",
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
   }
 }

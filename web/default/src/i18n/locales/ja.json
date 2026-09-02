@@ -4902,6 +4902,10 @@
     "Reference videos": "参照動画",
     "Seed must be a non-negative integer": "シード値は0以上の整数である必要があります",
     "Unsupported media type": "サポートされていないメディア形式",
-    "Video editing": "動画編集"
+    "Video editing": "動画編集",
+    "Infinite Canvas": "Infinite Canvas",
+    "Opening infinite canvas...": "Opening infinite canvas...",
+    "Failed to open infinite canvas": "Failed to open infinite canvas",
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
   }
 }

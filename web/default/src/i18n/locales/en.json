@@ -4902,6 +4902,10 @@
     "Reference videos": "Reference videos",
     "Seed must be a non-negative integer": "Seed must be a non-negative integer",
     "Unsupported media type": "Unsupported media type",
-    "Video editing": "Video editing"
+    "Video editing": "Video editing",
+    "Infinite Canvas": "Infinite Canvas",
+    "Opening infinite canvas...": "Opening infinite canvas...",
+    "Failed to open infinite canvas": "Failed to open infinite canvas",
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
   }
 }

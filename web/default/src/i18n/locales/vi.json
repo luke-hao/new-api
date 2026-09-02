@@ -4902,6 +4902,10 @@
     "Reference videos": "Video tham chiếu",
     "Seed must be a non-negative integer": "Seed phải là số nguyên không âm",
     "Unsupported media type": "Loại tư liệu không được hỗ trợ",
-    "Video editing": "Chỉnh sửa video"
+    "Video editing": "Chỉnh sửa video",
+    "Infinite Canvas": "Infinite Canvas",
+    "Opening infinite canvas...": "Opening infinite canvas...",
+    "Failed to open infinite canvas": "Failed to open infinite canvas",
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
   }
 }
