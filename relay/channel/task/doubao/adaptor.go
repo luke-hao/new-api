@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -275,14 +276,38 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 
 	// Add images if present
 	if req.HasImage() {
-		for _, imgURL := range req.Images {
+		for index, imgURL := range req.Images {
+			role := ""
+			switch strings.ToLower(req.Mode) {
+			case "first_last":
+				if index == 0 {
+					role = "first_frame"
+				} else if index == 1 {
+					role = "last_frame"
+				}
+			case "reference", "multi_reference":
+				role = "reference_image"
+			}
 			r.Content = append(r.Content, ContentItem{
 				Type: "image_url",
 				ImageURL: &MediaURL{
 					URL: imgURL,
 				},
+				Role: role,
 			})
 		}
+	}
+	for _, videoURL := range req.Videos {
+		r.Content = append(r.Content, ContentItem{
+			Type:     "video_url",
+			VideoURL: &MediaURL{URL: videoURL},
+		})
+	}
+	for _, audioURL := range req.Audios {
+		r.Content = append(r.Content, ContentItem{
+			Type:     "audio_url",
+			AudioURL: &MediaURL{URL: audioURL},
+		})
 	}
 
 	metadata := req.Metadata

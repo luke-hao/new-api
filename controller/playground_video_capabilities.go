@@ -9,15 +9,14 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 )
 
 const (
 	playgroundVideoModeText      = "text"
-	playgroundVideoModeImage     = "image"
+	playgroundVideoModeImage     = "first_frame"
 	playgroundVideoModeFirstLast = "first_last"
+	playgroundVideoModeReference = "reference"
 )
 
 type playgroundVideoParameters struct {
@@ -26,6 +25,13 @@ type playgroundVideoParameters struct {
 	Resolutions        []string `json:"resolutions,omitempty"`
 	SupportsSeed       bool     `json:"supports_seed"`
 	MaxInputReferences int      `json:"max_input_references"`
+	MaxImageReferences int      `json:"max_image_references"`
+	MaxVideoReferences int      `json:"max_video_references"`
+	MaxAudioReferences int      `json:"max_audio_references"`
+	MaxImageBytes      int64    `json:"max_image_bytes"`
+	MaxVideoBytes      int64    `json:"max_video_bytes"`
+	MaxAudioBytes      int64    `json:"max_audio_bytes"`
+	MaxVideoEditBytes  int64    `json:"max_video_edit_bytes"`
 }
 
 type playgroundVideoModelCapability struct {
@@ -107,58 +113,49 @@ func videoModesForModel(channelType int, modelName string) []string {
 	}
 }
 
+func fullVideoModes() []string {
+	return []string{playgroundVideoModeText, playgroundVideoModeImage, playgroundVideoModeFirstLast, playgroundVideoModeReference}
+}
+
+func makeIntRange(start, end int) []int {
+	if end < start {
+		return nil
+	}
+	values := make([]int, 0, end-start+1)
+	for value := start; value <= end; value++ {
+		values = append(values, value)
+	}
+	return values
+}
+
 func getPlaygroundVideoModelCapability(channelType int, modelName string) (playgroundVideoModelCapability, bool) {
-	modes := videoModesForModel(channelType, modelName)
-	if len(modes) == 0 {
+	if len(videoModesForModel(channelType, modelName)) == 0 {
+		return playgroundVideoModelCapability{}, false
+	}
+	profile, ok := common.GetPlaygroundVideoCapability(channelType, modelName)
+	if !ok {
 		return playgroundVideoModelCapability{}, false
 	}
 
 	capability := playgroundVideoModelCapability{
 		Model:   modelName,
 		Profile: strings.ToLower(constant.GetChannelTypeName(channelType)),
-		Modes:   modes,
+		Modes:   profile.Modes,
 		Parameters: playgroundVideoParameters{
-			MaxInputReferences: 2,
+			Durations:          profile.Durations,
+			AspectRatios:       profile.AspectRatios,
+			Resolutions:        profile.Resolutions,
+			SupportsSeed:       profile.SupportsSeed,
+			MaxInputReferences: profile.MaxInputReferences,
+			MaxImageReferences: profile.MaxImageReferences,
+			MaxVideoReferences: profile.MaxVideoReferences,
+			MaxAudioReferences: profile.MaxAudioReferences,
+			MaxImageBytes:      profile.MaxImageBytes,
+			MaxVideoBytes:      profile.MaxVideoBytes,
+			MaxAudioBytes:      profile.MaxAudioBytes,
+			MaxVideoEditBytes:  profile.MaxVideoEditBytes,
 		},
 	}
-
-	switch channelType {
-	case constant.ChannelTypeAli:
-		capability.Parameters.Durations = []int{5, 10}
-		capability.Parameters.AspectRatios = []string{"16:9", "9:16", "1:1"}
-		capability.Parameters.Resolutions = []string{"480p", "720p", "1080p"}
-		capability.Parameters.SupportsSeed = true
-	case constant.ChannelTypeKling:
-		capability.Parameters.Durations = []int{5, 10}
-		capability.Parameters.AspectRatios = []string{"16:9", "9:16", "1:1"}
-	case constant.ChannelTypeJimeng:
-		capability.Parameters.Durations = []int{5, 10}
-		capability.Parameters.AspectRatios = []string{"16:9", "9:16", "1:1", "4:3", "3:4"}
-		capability.Parameters.SupportsSeed = true
-	case constant.ChannelTypeVidu:
-		capability.Parameters.Durations = []int{4, 5, 8}
-		capability.Parameters.Resolutions = []string{"720p", "1080p"}
-		capability.Parameters.SupportsSeed = true
-	case constant.ChannelTypeDoubaoVideo, constant.ChannelTypeVolcEngine:
-		capability.Parameters.Durations = []int{5, 10}
-		capability.Parameters.AspectRatios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"}
-		capability.Parameters.Resolutions = []string{"480p", "720p", "1080p"}
-		capability.Parameters.SupportsSeed = true
-	case constant.ChannelTypeGemini, constant.ChannelTypeVertexAi:
-		capability.Parameters.Durations = []int{4, 5, 6, 8}
-		capability.Parameters.AspectRatios = []string{"16:9", "9:16"}
-		capability.Parameters.Resolutions = []string{"720p", "1080p"}
-		capability.Parameters.MaxInputReferences = 1
-	case constant.ChannelTypeSora, constant.ChannelTypeOpenAI:
-		capability.Parameters.Durations = []int{4, 8, 12}
-		capability.Parameters.AspectRatios = []string{"16:9", "9:16"}
-		capability.Parameters.Resolutions = []string{"720p", "1080p"}
-		capability.Parameters.MaxInputReferences = 1
-	case constant.ChannelTypeMiniMax:
-		capability.Parameters.Durations = []int{6, 10}
-		capability.Parameters.Resolutions = []string{"720p", "768p", "1080p"}
-	}
-
 	return capability, true
 }
 
@@ -198,6 +195,27 @@ func intersectVideoCapabilities(left, right playgroundVideoModelCapability) play
 	left.Parameters.SupportsSeed = left.Parameters.SupportsSeed && right.Parameters.SupportsSeed
 	if right.Parameters.MaxInputReferences < left.Parameters.MaxInputReferences {
 		left.Parameters.MaxInputReferences = right.Parameters.MaxInputReferences
+	}
+	if right.Parameters.MaxImageReferences < left.Parameters.MaxImageReferences {
+		left.Parameters.MaxImageReferences = right.Parameters.MaxImageReferences
+	}
+	if right.Parameters.MaxVideoReferences < left.Parameters.MaxVideoReferences {
+		left.Parameters.MaxVideoReferences = right.Parameters.MaxVideoReferences
+	}
+	if right.Parameters.MaxAudioReferences < left.Parameters.MaxAudioReferences {
+		left.Parameters.MaxAudioReferences = right.Parameters.MaxAudioReferences
+	}
+	if right.Parameters.MaxImageBytes < left.Parameters.MaxImageBytes {
+		left.Parameters.MaxImageBytes = right.Parameters.MaxImageBytes
+	}
+	if right.Parameters.MaxVideoBytes < left.Parameters.MaxVideoBytes {
+		left.Parameters.MaxVideoBytes = right.Parameters.MaxVideoBytes
+	}
+	if right.Parameters.MaxAudioBytes < left.Parameters.MaxAudioBytes {
+		left.Parameters.MaxAudioBytes = right.Parameters.MaxAudioBytes
+	}
+	if right.Parameters.MaxVideoEditBytes < left.Parameters.MaxVideoEditBytes {
+		left.Parameters.MaxVideoEditBytes = right.Parameters.MaxVideoEditBytes
 	}
 	if left.Profile != right.Profile {
 		left.Profile = "mixed"
@@ -242,16 +260,10 @@ func GetPlaygroundVideoCapabilities(c *gin.Context) {
 	}
 
 	usableGroups := service.GetUserUsableGroups(user.Group)
-	visibleGroups := make([]string, 0, len(usableGroups))
-	for groupName := range ratio_setting.GetGroupRatioCopy() {
-		if _, ok := usableGroups[groupName]; ok {
-			visibleGroups = append(visibleGroups, groupName)
-		}
+	visibleGroups := make([]string, 0, 1)
+	if _, ok := usableGroups["视频生成"]; ok {
+		visibleGroups = append(visibleGroups, "视频生成")
 	}
-	if _, ok := usableGroups["auto"]; ok {
-		visibleGroups = append(visibleGroups, "auto")
-	}
-	sort.Strings(visibleGroups)
 
 	queryGroups := make([]string, 0, len(visibleGroups))
 	queryGroupSet := make(map[string]struct{}, len(visibleGroups))
@@ -268,11 +280,6 @@ func GetPlaygroundVideoCapabilities(c *gin.Context) {
 	for _, groupName := range visibleGroups {
 		addQueryGroup(groupName)
 	}
-	autoGroups := service.GetUserAutoGroup(user.Group)
-	for _, groupName := range autoGroups {
-		addQueryGroup(groupName)
-	}
-
 	rows, err := model.GetGroupsEnabledAbilitiesWithChannels(queryGroups)
 	if err != nil {
 		common.ApiError(c, err)
@@ -288,15 +295,6 @@ func GetPlaygroundVideoCapabilities(c *gin.Context) {
 		groupAbilities := abilitiesByGroup[groupName]
 		desc := usableGroups[groupName]
 		var ratio any = service.GetUserGroupRatio(user.Group, groupName)
-		if groupName == "auto" {
-			groupAbilities = nil
-			for _, autoGroup := range autoGroups {
-				groupAbilities = append(groupAbilities, abilitiesByGroup[autoGroup]...)
-			}
-			desc = setting.GetUsableGroupDescription("auto")
-			ratio = "自动"
-		}
-
 		videoModels := collectPlaygroundVideoModels(groupAbilities)
 		if len(videoModels) == 0 {
 			continue

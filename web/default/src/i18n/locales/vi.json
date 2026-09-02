@@ -4885,6 +4885,23 @@
     "Video request failed": "Yêu cầu video thất bại",
     "Video task ID was not returned": "Không nhận được ID tác vụ video",
     "Video task submitted": "Đã gửi tác vụ video",
-    "Videos will appear here": "Video sẽ xuất hiện tại đây"
+    "Videos will appear here": "Video sẽ xuất hiện tại đây",
+    "Add the required reference media": "Thêm tư liệu tham chiếu bắt buộc",
+    "exceeds": "vượt quá",
+    "First and last frame": "Khung hình đầu và cuối",
+    "First frame to video": "Tạo video từ khung hình đầu",
+    "Generation history": "Lịch sử tạo",
+    "Generation mode": "Chế độ tạo",
+    "media": "tư liệu",
+    "Media limit reached": "Đã đạt giới hạn tư liệu",
+    "Multi-reference video": "Video đa tham chiếu",
+    "Reattach source media to retry": "Đính kèm lại tư liệu nguồn để thử lại",
+    "Reference audio": "Âm thanh tham chiếu",
+    "Reference images": "Ảnh tham chiếu",
+    "Reference media": "Tư liệu tham chiếu",
+    "Reference videos": "Video tham chiếu",
+    "Seed must be a non-negative integer": "Seed phải là số nguyên không âm",
+    "Unsupported media type": "Loại tư liệu không được hỗ trợ",
+    "Video editing": "Chỉnh sửa video"
   }
 }

@@ -4885,6 +4885,23 @@
     "Video request failed": "Échec de la requête vidéo",
     "Video task ID was not returned": "L'identifiant de la tâche vidéo n'a pas été renvoyé",
     "Video task submitted": "Tâche vidéo envoyée",
-    "Videos will appear here": "Les vidéos apparaîtront ici"
+    "Videos will appear here": "Les vidéos apparaîtront ici",
+    "Add the required reference media": "Ajoutez le média de référence requis",
+    "exceeds": "dépasse",
+    "First and last frame": "Première et dernière image",
+    "First frame to video": "Première image vers vidéo",
+    "Generation history": "Historique des générations",
+    "Generation mode": "Mode de génération",
+    "media": "média(s)",
+    "Media limit reached": "Limite de médias atteinte",
+    "Multi-reference video": "Vidéo multi-références",
+    "Reattach source media to retry": "Rattachez les médias sources pour réessayer",
+    "Reference audio": "Audio de référence",
+    "Reference images": "Images de référence",
+    "Reference media": "Médias de référence",
+    "Reference videos": "Vidéos de référence",
+    "Seed must be a non-negative integer": "La graine doit être un entier positif ou nul",
+    "Unsupported media type": "Type de média non pris en charge",
+    "Video editing": "Montage vidéo"
   }
 }

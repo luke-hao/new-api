@@ -1,4 +1,9 @@
-export type VideoMode = 'text' | 'image' | 'first_last'
+export type VideoMode =
+  | 'text'
+  | 'first_frame'
+  | 'first_last'
+  | 'reference'
+  | 'video_edit'
 
 export type VideoTaskStatus =
   | 'queued'
@@ -13,6 +18,13 @@ export interface VideoParametersCapability {
   resolutions?: string[]
   supports_seed: boolean
   max_input_references: number
+  max_image_references: number
+  max_video_references: number
+  max_audio_references: number
+  max_image_bytes: number
+  max_video_bytes: number
+  max_audio_bytes: number
+  max_video_edit_bytes: number
 }
 
 export interface VideoModelCapability {
@@ -75,8 +87,10 @@ export interface VideoSubmitPayload {
   model: string
   group: string
   prompt: string
+  mode: VideoMode
   duration?: number
-  seconds?: string
+  seconds?: number | string
   size?: string
   metadata?: Record<string, unknown>
+  extra?: Record<string, unknown>
 }

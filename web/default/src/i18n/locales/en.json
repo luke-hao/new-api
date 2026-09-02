@@ -4885,6 +4885,23 @@
     "Video request failed": "Video request failed",
     "Video task ID was not returned": "Video task ID was not returned",
     "Video task submitted": "Video task submitted",
-    "Videos will appear here": "Videos will appear here"
+    "Videos will appear here": "Videos will appear here",
+    "Add the required reference media": "Add the required reference media",
+    "exceeds": "exceeds",
+    "First and last frame": "First and last frame",
+    "First frame to video": "First frame to video",
+    "Generation history": "Generation history",
+    "Generation mode": "Generation mode",
+    "media": "media",
+    "Media limit reached": "Media limit reached",
+    "Multi-reference video": "Multi-reference video",
+    "Reattach source media to retry": "Reattach source media to retry",
+    "Reference audio": "Reference audio",
+    "Reference images": "Reference images",
+    "Reference media": "Reference media",
+    "Reference videos": "Reference videos",
+    "Seed must be a non-negative integer": "Seed must be a non-negative integer",
+    "Unsupported media type": "Unsupported media type",
+    "Video editing": "Video editing"
   }
 }

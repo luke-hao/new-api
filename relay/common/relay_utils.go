@@ -18,6 +18,12 @@ import (
 	"github.com/samber/lo"
 )
 
+const (
+	maxPlaygroundImageBytes = int64(15 << 20)
+	maxPlaygroundVideoBytes = int64(160 << 20)
+	maxPlaygroundAudioBytes = int64(50 << 20)
+)
+
 type HasPrompt interface {
 	GetPrompt() string
 }
@@ -105,6 +111,19 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 		Size:     getFormValue("size"),
 		Metadata: make(map[string]interface{}),
 	}
+	for _, field := range []string{"metadata", "extra"} {
+		raw := strings.TrimSpace(getFormValue(field))
+		if raw == "" {
+			continue
+		}
+		values := make(map[string]interface{})
+		if err := common.Unmarshal([]byte(raw), &values); err != nil {
+			return req, fmt.Errorf("%s is invalid", field)
+		}
+		for key, value := range values {
+			req.Metadata[key] = value
+		}
+	}
 
 	if durationStr := getFormValue("seconds"); durationStr != "" {
 		duration, err := strconv.Atoi(durationStr)
@@ -112,12 +131,18 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 			return req, fmt.Errorf("seconds is invalid")
 		}
 		req.Duration = duration
+	} else if durationStr := getFormValue("duration"); durationStr != "" {
+		duration, err := strconv.Atoi(durationStr)
+		if err != nil {
+			return req, fmt.Errorf("duration is invalid")
+		}
+		req.Duration = duration
 	}
 
 	if images := formData["images"]; len(images) > 0 {
 		req.Images = images
 	}
-	fileImages, err := readTaskInputReferenceFiles(form)
+	fileImages, err := readTaskReferenceFiles(form, "input_reference", "image/", maxPlaygroundImageBytes)
 	if err != nil {
 		return req, err
 	}
@@ -125,6 +150,36 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 		req.Images = append(req.Images, fileImages...)
 		req.Image = req.Images[0]
 		req.InputReference = req.Images[0]
+	}
+	referenceImages, err := readTaskReferenceFiles(form, "reference_images", "image/", maxPlaygroundImageBytes)
+	if err != nil {
+		return req, err
+	}
+	if len(referenceImages) > 0 {
+		req.Images = append(req.Images, referenceImages...)
+		req.Metadata["reference_images"] = taskReferenceMetadata(referenceImages, "reference_image")
+	}
+	referenceVideos, err := readTaskReferenceFiles(form, "reference_videos", "video/", maxPlaygroundVideoBytes)
+	if err != nil {
+		return req, err
+	}
+	if len(referenceVideos) > 0 {
+		req.Videos = append(req.Videos, referenceVideos...)
+		req.Metadata["reference_videos"] = taskReferenceMetadata(referenceVideos, "")
+	}
+	referenceAudios, err := readTaskReferenceFiles(form, "reference_audios", "audio/", maxPlaygroundAudioBytes)
+	if err != nil {
+		return req, err
+	}
+	if len(referenceAudios) > 0 {
+		req.Audios = append(req.Audios, referenceAudios...)
+		req.Metadata["reference_audios"] = taskReferenceMetadata(referenceAudios, "")
+	}
+	if normalizeVideoMode(req.Mode) == "first_last" && len(req.Images) >= 2 {
+		req.Metadata["reference_images"] = []map[string]string{
+			{"url": req.Images[0], "role": "first_frame"},
+			{"url": req.Images[1], "role": "last_frame"},
+		}
 	}
 
 	for key, values := range formData {
@@ -141,10 +196,25 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 	return req, nil
 }
 
-func readTaskInputReferenceFiles(form *multipart.Form) ([]string, error) {
-	files := form.File["input_reference"]
-	images := make([]string, 0, len(files))
+func taskReferenceMetadata(references []string, role string) []map[string]string {
+	metadata := make([]map[string]string, 0, len(references))
+	for _, reference := range references {
+		item := map[string]string{"url": reference}
+		if role != "" {
+			item["role"] = role
+		}
+		metadata = append(metadata, item)
+	}
+	return metadata
+}
+
+func readTaskReferenceFiles(form *multipart.Form, field, contentPrefix string, maxBytes int64) ([]string, error) {
+	files := form.File[field]
+	references := make([]string, 0, len(files))
 	for _, fileHeader := range files {
+		if fileHeader.Size > maxBytes {
+			return nil, fmt.Errorf("%s file %s exceeds size limit", field, fileHeader.Filename)
+		}
 		file, err := fileHeader.Open()
 		if err != nil {
 			return nil, err
@@ -158,9 +228,16 @@ func readTaskInputReferenceFiles(form *multipart.Form) ([]string, error) {
 		if contentType == "" || contentType == "application/octet-stream" {
 			contentType = http.DetectContentType(data)
 		}
-		images = append(images, "data:"+contentType+";base64,"+base64.StdEncoding.EncodeToString(data))
+		if !strings.HasPrefix(strings.ToLower(contentType), contentPrefix) {
+			return nil, fmt.Errorf("%s file %s has invalid content type", field, fileHeader.Filename)
+		}
+		references = append(references, "data:"+contentType+";base64,"+base64.StdEncoding.EncodeToString(data))
 	}
-	return images, nil
+	return references, nil
+}
+
+func readTaskInputReferenceFiles(form *multipart.Form) ([]string, error) {
+	return readTaskReferenceFiles(form, "input_reference", "image/", maxPlaygroundImageBytes)
 }
 
 func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
@@ -171,7 +248,13 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	var hasInputReference bool
 
 	var req TaskSubmitReq
-	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
+	if strings.Contains(c.GetHeader("Content-Type"), "multipart/form-data") {
+		parsed, err := validateMultipartTaskRequest(c, info, constant.TaskActionGenerate)
+		if err != nil {
+			return createTaskError(err, "invalid_multipart_form", http.StatusBadRequest, true)
+		}
+		req = parsed
+	} else if err := common.UnmarshalBodyReusable(c, &req); err != nil {
 		return createTaskError(err, "invalid_json", http.StatusBadRequest, true)
 	}
 
@@ -182,27 +265,22 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	if seconds == 0 {
 		seconds = req.Duration
 	}
-	if req.InputReference != "" {
+	if req.InputReference != "" && len(req.Images) == 0 {
 		req.Images = []string{req.InputReference}
 	}
-	if strings.Contains(c.GetHeader("Content-Type"), "multipart/form-data") {
-		form, err := common.ParseMultipartFormReusable(c)
-		if err != nil {
-			return createTaskError(err, "invalid_multipart_form", http.StatusBadRequest, true)
-		}
-		fileImages, err := readTaskInputReferenceFiles(form)
-		_ = form.RemoveAll()
-		if err != nil {
-			return createTaskError(err, "invalid_multipart_form", http.StatusBadRequest, true)
-		}
-		if len(fileImages) > 0 {
-			req.Images = fileImages
-			req.Image = fileImages[0]
-			req.InputReference = fileImages[0]
-		}
+	if len(req.Images) == 0 && strings.TrimSpace(req.Image) != "" {
+		req.Images = []string{req.Image}
 	}
 	if taskErr := validateTaskQuantityLimits(&req); taskErr != nil {
 		return taskErr
+	}
+	if strings.HasPrefix(c.Request.URL.Path, "/pg/videos") {
+		if taskErr := validatePlaygroundVideoMedia(&req); taskErr != nil {
+			return taskErr
+		}
+		if taskErr := validatePlaygroundVideoParameters(c, info, &req); taskErr != nil {
+			return taskErr
+		}
 	}
 
 	if strings.TrimSpace(req.Model) == "" {
@@ -247,17 +325,21 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 
 func isKnownTaskField(field string) bool {
 	knownFields := map[string]bool{
-		"prompt":          true,
-		"model":           true,
-		"group":           true,
-		"mode":            true,
-		"image":           true,
-		"images":          true,
-		"size":            true,
-		"duration":        true,
-		"seconds":         true,
-		"metadata":        true,
-		"input_reference": true, // Sora 特有字段
+		"prompt":           true,
+		"model":            true,
+		"group":            true,
+		"mode":             true,
+		"image":            true,
+		"images":           true,
+		"size":             true,
+		"duration":         true,
+		"seconds":          true,
+		"metadata":         true,
+		"extra":            true,
+		"input_reference":  true, // Sora 特有字段
+		"reference_images": true,
+		"reference_videos": true,
+		"reference_audios": true,
 	}
 	return knownFields[field]
 }
@@ -271,13 +353,27 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 		if err != nil {
 			return createTaskError(err, "invalid_multipart_form", http.StatusBadRequest, true)
 		}
-	}
-	// 为了metadata字段的兼容性，统一UnmarshalBodyReusable
-	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
+	} else if err := common.UnmarshalBodyReusable(c, &req); err != nil {
 		return createTaskError(err, "invalid_request", http.StatusBadRequest, true)
 	}
 	if taskErr := validateTaskQuantityLimits(&req); taskErr != nil {
 		return taskErr
+	}
+	if len(req.Images) == 0 && strings.TrimSpace(req.Image) != "" {
+		// 兼容旧的 image 字段。
+		req.Images = []string{req.Image}
+	}
+	if req.InputReference != "" && len(req.Images) == 0 {
+		req.Images = []string{req.InputReference}
+	}
+
+	if strings.HasPrefix(c.Request.URL.Path, "/pg/videos") {
+		if taskErr := validatePlaygroundVideoMedia(&req); taskErr != nil {
+			return taskErr
+		}
+		if taskErr := validatePlaygroundVideoParameters(c, info, &req); taskErr != nil {
+			return taskErr
+		}
 	}
 
 	if taskErr := validatePrompt(req.Prompt); taskErr != nil {
@@ -313,6 +409,195 @@ func validateTaskQuantityLimits(req *TaskSubmitReq) *dto.TaskError {
 		if taskErr := validateTaskMetadataDuration(req.Metadata, key); taskErr != nil {
 			return taskErr
 		}
+	}
+	return nil
+}
+
+func normalizeVideoMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "image", "first_frame":
+		return "first_frame"
+	case "first_last":
+		return "first_last"
+	case "reference", "multi_reference":
+		return "reference"
+	case "video_edit":
+		return "video_edit"
+	case "text":
+		return "text"
+	default:
+		return ""
+	}
+}
+
+func validatePlaygroundVideoMedia(req *TaskSubmitReq) *dto.TaskError {
+	if req == nil {
+		return nil
+	}
+	if len(req.Images) > 30 {
+		return createTaskError(fmt.Errorf("reference_images supports at most 30 items"), "invalid_request", http.StatusBadRequest, true)
+	}
+	if len(req.Videos) > 10 {
+		return createTaskError(fmt.Errorf("reference_videos supports at most 10 items"), "invalid_request", http.StatusBadRequest, true)
+	}
+	if len(req.Audios) > 10 {
+		return createTaskError(fmt.Errorf("reference_audios supports at most 10 items"), "invalid_request", http.StatusBadRequest, true)
+	}
+
+	mode := normalizeVideoMode(req.Mode)
+	if strings.TrimSpace(req.Mode) != "" && mode == "" {
+		return createTaskError(fmt.Errorf("mode is invalid"), "invalid_request", http.StatusBadRequest, true)
+	}
+	switch mode {
+	case "text":
+		if len(req.Images)+len(req.Videos)+len(req.Audios) > 0 {
+			return createTaskError(fmt.Errorf("text mode does not accept reference media"), "invalid_request", http.StatusBadRequest, true)
+		}
+	case "first_frame":
+		if len(req.Images) != 1 || len(req.Videos)+len(req.Audios) > 0 {
+			return createTaskError(fmt.Errorf("first_frame mode requires exactly one image"), "invalid_request", http.StatusBadRequest, true)
+		}
+	case "first_last":
+		if len(req.Images) != 2 || len(req.Videos)+len(req.Audios) > 0 {
+			return createTaskError(fmt.Errorf("first_last mode requires exactly two images"), "invalid_request", http.StatusBadRequest, true)
+		}
+	case "reference":
+		if len(req.Images)+len(req.Videos)+len(req.Audios) == 0 {
+			return createTaskError(fmt.Errorf("reference mode requires at least one media item"), "invalid_request", http.StatusBadRequest, true)
+		}
+	case "video_edit":
+		if len(req.Videos) == 0 || len(req.Images)+len(req.Audios) > 0 {
+			return createTaskError(fmt.Errorf("video_edit mode requires a reference video"), "invalid_request", http.StatusBadRequest, true)
+		}
+	}
+	return nil
+}
+
+func resolvePlaygroundValidationModel(c *gin.Context, modelName string) string {
+	rawMapping := strings.TrimSpace(c.GetString("model_mapping"))
+	if rawMapping == "" || rawMapping == "{}" {
+		return modelName
+	}
+	mapping := make(map[string]string)
+	if err := common.Unmarshal([]byte(rawMapping), &mapping); err != nil {
+		return modelName
+	}
+	current := modelName
+	visited := map[string]struct{}{current: {}}
+	for {
+		next := strings.TrimSpace(mapping[current])
+		if next == "" || next == current {
+			return current
+		}
+		if _, exists := visited[next]; exists {
+			return modelName
+		}
+		visited[next] = struct{}{}
+		current = next
+	}
+}
+
+func taskMetadataString(metadata map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := metadata[key]; ok {
+			if text, ok := value.(string); ok {
+				return strings.TrimSpace(text)
+			}
+		}
+	}
+	return ""
+}
+
+func validatePlaygroundVideoParameters(c *gin.Context, info *RelayInfo, req *TaskSubmitReq) *dto.TaskError {
+	if req == nil {
+		return nil
+	}
+	modelName := resolvePlaygroundValidationModel(c, req.Model)
+	channelType := c.GetInt("channel_type")
+	if info != nil && info.ChannelType != 0 {
+		channelType = info.ChannelType
+	}
+	profile, ok := common.GetPlaygroundVideoCapability(channelType, modelName)
+	if !ok {
+		return nil
+	}
+	mode := normalizeVideoMode(req.Mode)
+	if mode != "" && !lo.Contains(profile.Modes, mode) {
+		return createTaskError(fmt.Errorf("mode is not supported by model %s", req.Model), "invalid_request", http.StatusBadRequest, true)
+	}
+	duration := req.Duration
+	if duration == 0 && strings.TrimSpace(req.Seconds) != "" {
+		duration, _ = strconv.Atoi(strings.TrimSpace(req.Seconds))
+	}
+	if duration > 0 && !lo.Contains(profile.Durations, duration) {
+		return createTaskError(fmt.Errorf("duration is not supported by model %s", req.Model), "invalid_request", http.StatusBadRequest, true)
+	}
+	ratio := taskMetadataString(req.Metadata, "aspect_ratio", "aspectRatio", "ratio")
+	if ratio != "" && len(profile.AspectRatios) > 0 && !lo.Contains(profile.AspectRatios, ratio) {
+		return createTaskError(fmt.Errorf("aspect_ratio is not supported by model %s", req.Model), "invalid_request", http.StatusBadRequest, true)
+	}
+	resolution := strings.ToLower(taskMetadataString(req.Metadata, "resolution"))
+	if resolution != "" && len(profile.Resolutions) > 0 && !lo.Contains(profile.Resolutions, resolution) {
+		return createTaskError(fmt.Errorf("resolution is not supported by model %s", req.Model), "invalid_request", http.StatusBadRequest, true)
+	}
+	if len(req.Images) > profile.MaxImageReferences || len(req.Videos) > profile.MaxVideoReferences || len(req.Audios) > profile.MaxAudioReferences {
+		return createTaskError(fmt.Errorf("reference media exceeds the limits for model %s", req.Model), "invalid_request", http.StatusBadRequest, true)
+	}
+	if taskErr := validatePlaygroundVideoReferenceBytes(req, mode, profile); taskErr != nil {
+		return taskErr
+	}
+	return nil
+}
+
+func validatePlaygroundVideoReferenceBytes(req *TaskSubmitReq, mode string, profile common.PlaygroundVideoCapability) *dto.TaskError {
+	imageLimit := profile.MaxImageBytes
+	videoLimit := profile.MaxVideoBytes
+	if mode == "video_edit" {
+		videoLimit = profile.MaxVideoEditBytes
+	}
+	for _, reference := range req.Images {
+		if err := validatePlaygroundDataReference(reference, "image/", imageLimit); err != nil {
+			return createTaskError(err, "invalid_request", http.StatusBadRequest, true)
+		}
+	}
+	for _, reference := range req.Videos {
+		if err := validatePlaygroundDataReference(reference, "video/", videoLimit); err != nil {
+			return createTaskError(err, "invalid_request", http.StatusBadRequest, true)
+		}
+	}
+	for _, reference := range req.Audios {
+		if err := validatePlaygroundDataReference(reference, "audio/", profile.MaxAudioBytes); err != nil {
+			return createTaskError(err, "invalid_request", http.StatusBadRequest, true)
+		}
+	}
+	return nil
+}
+
+func validatePlaygroundDataReference(reference, contentPrefix string, maxBytes int64) error {
+	if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(reference)), "data:") {
+		return nil
+	}
+	headerEnd := strings.IndexByte(reference, ',')
+	if headerEnd < 0 {
+		return fmt.Errorf("reference media is invalid")
+	}
+	header := strings.ToLower(reference[:headerEnd])
+	if !strings.Contains(header, contentPrefix) {
+		return fmt.Errorf("reference media has invalid content type")
+	}
+	encoded := strings.TrimSpace(reference[headerEnd+1:])
+	if strings.Contains(header, ";base64") {
+		data, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			return fmt.Errorf("reference media is invalid")
+		}
+		if maxBytes > 0 && int64(len(data)) > maxBytes {
+			return fmt.Errorf("reference media exceeds size limit")
+		}
+		return nil
+	}
+	if maxBytes > 0 && int64(len(encoded)) > maxBytes {
+		return fmt.Errorf("reference media exceeds size limit")
 	}
 	return nil
 }

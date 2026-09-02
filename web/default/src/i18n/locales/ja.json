@@ -4885,6 +4885,23 @@
     "Video request failed": "動画リクエストに失敗しました",
     "Video task ID was not returned": "動画タスク ID が返されませんでした",
     "Video task submitted": "動画タスクを送信しました",
-    "Videos will appear here": "動画はここに表示されます"
+    "Videos will appear here": "動画はここに表示されます",
+    "Add the required reference media": "必要な参照メディアを追加してください",
+    "exceeds": "が次を超えています",
+    "First and last frame": "最初と最後のフレーム",
+    "First frame to video": "開始フレームから動画",
+    "Generation history": "生成履歴",
+    "Generation mode": "生成モード",
+    "media": "メディア",
+    "Media limit reached": "メディア数の上限に達しました",
+    "Multi-reference video": "複数参照動画",
+    "Reattach source media to retry": "再試行するには参照メディアを再添付してください",
+    "Reference audio": "参照音声",
+    "Reference images": "参照画像",
+    "Reference media": "参照メディア",
+    "Reference videos": "参照動画",
+    "Seed must be a non-negative integer": "シード値は0以上の整数である必要があります",
+    "Unsupported media type": "サポートされていないメディア形式",
+    "Video editing": "動画編集"
   }
 }

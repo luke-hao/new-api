@@ -4885,6 +4885,23 @@
     "Video request failed": "Ошибка запроса видео",
     "Video task ID was not returned": "Идентификатор видеозадачи не был возвращён",
     "Video task submitted": "Видеозадача отправлена",
-    "Videos will appear here": "Видео появятся здесь"
+    "Videos will appear here": "Видео появятся здесь",
+    "Add the required reference media": "Добавьте необходимые референсные материалы",
+    "exceeds": "превышает",
+    "First and last frame": "Первый и последний кадры",
+    "First frame to video": "Видео по первому кадру",
+    "Generation history": "История генерации",
+    "Generation mode": "Режим генерации",
+    "media": "медиа",
+    "Media limit reached": "Достигнут лимит материалов",
+    "Multi-reference video": "Видео с несколькими референсами",
+    "Reattach source media to retry": "Повторно прикрепите исходные материалы для новой попытки",
+    "Reference audio": "Референсное аудио",
+    "Reference images": "Референсные изображения",
+    "Reference media": "Референсные материалы",
+    "Reference videos": "Референсные видео",
+    "Seed must be a non-negative integer": "Начальное значение должно быть неотрицательным целым числом",
+    "Unsupported media type": "Неподдерживаемый тип материала",
+    "Video editing": "Редактирование видео"
   }
 }

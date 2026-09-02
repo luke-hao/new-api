@@ -123,6 +123,8 @@ func TestTaskSubmitReqNormalizesReferenceAliasesAndPreservesRoles(t *testing.T) 
 	references, ok := req.Metadata["reference_images"].([]any)
 	require.True(t, ok)
 	require.Equal(t, "first_frame", references[0].(map[string]any)["role"])
+	require.Equal(t, []string{"https://cdn.example/motion.mp4"}, req.Videos)
+	require.Equal(t, []string{"https://cdn.example/voice.wav"}, req.Audios)
 }
 
 func TestTaskSubmitReqRejectsEmptyReference(t *testing.T) {

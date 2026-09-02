@@ -4885,6 +4885,23 @@
     "Video request failed": "视频请求失败",
     "Video task ID was not returned": "未返回视频任务 ID",
     "Video task submitted": "视频任务已提交",
-    "Videos will appear here": "生成的视频将显示在这里"
+    "Videos will appear here": "生成的视频将显示在这里",
+    "Add the required reference media": "添加所需参考素材",
+    "exceeds": "超过",
+    "First and last frame": "首尾帧",
+    "First frame to video": "首帧生视频",
+    "Generation history": "生成历史",
+    "Generation mode": "生成模式",
+    "media": "个素材",
+    "Media limit reached": "已达到素材数量上限",
+    "Multi-reference video": "多参考图生视频",
+    "Reattach source media to retry": "重新附加参考素材后重试",
+    "Reference audio": "参考音频",
+    "Reference images": "参考图片",
+    "Reference media": "参考素材",
+    "Reference videos": "参考视频",
+    "Seed must be a non-negative integer": "Seed 必须为非负整数",
+    "Unsupported media type": "不支持的素材类型",
+    "Video editing": "视频编辑"
   }
 }

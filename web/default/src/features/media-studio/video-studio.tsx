@@ -4,8 +4,11 @@ import {
   ClapperboardIcon,
   DownloadIcon,
   ExternalLinkIcon,
+  FileAudioIcon,
+  FileVideoIcon,
   ImagePlusIcon,
   Loader2Icon,
+  PlusIcon,
   RefreshCwIcon,
   SendIcon,
   Trash2Icon,
@@ -22,12 +25,22 @@ import { Progress } from '@/components/ui/progress'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { getVideoTask, submitVideo } from './api'
+import {
+  buildAvailableVideoCatalog,
+  findAvailableVideoCatalogItem,
+  findAvailableVideoCatalogItemByID,
+  flattenAvailableVideoCatalog,
+  VIDEO_GROUP_NAME,
+} from './video-catalog'
+import type { AvailableVideoCatalogSection } from './video-catalog'
 import type {
   VideoGroupCapability,
   VideoHistoryItem,
@@ -42,11 +55,14 @@ import type {
 const CONFIG_STORAGE_KEY = 'media_studio_video_config'
 const HISTORY_STORAGE_KEY = 'media_studio_video_history'
 const POLL_INTERVAL_MS = 5000
-const TASK_TIMEOUT_MS = 30 * 60 * 1000
+const TASK_TIMEOUT_MS = 2 * 60 * 60 * 1000
 const MAX_HISTORY_ITEMS = 30
+const DEFAULT_IMAGE_BYTES = 15 * 1024 * 1024
+const DEFAULT_VIDEO_BYTES = 160 * 1024 * 1024
+const DEFAULT_AUDIO_BYTES = 50 * 1024 * 1024
 
 const DEFAULT_CONFIG: VideoStudioConfig = {
-  group: 'default',
+  group: VIDEO_GROUP_NAME,
   model: '',
   mode: 'text',
   duration: 5,
@@ -55,23 +71,72 @@ const DEFAULT_CONFIG: VideoStudioConfig = {
   seed: '',
 }
 
-type SelectedFrame = {
+type MediaKind = 'first' | 'last' | 'images' | 'videos' | 'audios'
+
+type SelectedMedia = {
+  id: string
   file: File
   previewUrl: string
 }
+
+type MediaState = Record<MediaKind, SelectedMedia[]>
 
 type SelectOption = {
   label: string
   value: string
 }
 
-function loadStoredValue<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback
+type SelectOptionGroup = {
+  label: string
+  options: SelectOption[]
+}
+
+function emptyMediaState(): MediaState {
+  return { first: [], last: [], images: [], videos: [], audios: [] }
+}
+
+function catalogSelectGroups(
+  sections: AvailableVideoCatalogSection[]
+): SelectOptionGroup[] {
+  return sections.map((section) => ({
+    label: section.label,
+    options: section.items.map((item) => ({
+      label: item.label,
+      value: item.id,
+    })),
+  }))
+}
+
+function normalizeMode(value: unknown): VideoMode {
+  if (value === 'image') return 'first_frame'
+  if (
+    value === 'text' ||
+    value === 'first_frame' ||
+    value === 'first_last' ||
+    value === 'reference' ||
+    value === 'video_edit'
+  ) {
+    return value
+  }
+  return 'text'
+}
+
+function loadStoredConfig(): VideoStudioConfig {
+  if (typeof window === 'undefined') return DEFAULT_CONFIG
   try {
-    const raw = window.localStorage.getItem(key)
-    return raw ? ({ ...fallback, ...JSON.parse(raw) } as T) : fallback
+    const raw = window.localStorage.getItem(CONFIG_STORAGE_KEY)
+    if (!raw) return DEFAULT_CONFIG
+    const parsed = JSON.parse(raw) as Partial<VideoStudioConfig> & {
+      mode?: string
+    }
+    return {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+      group: VIDEO_GROUP_NAME,
+      mode: normalizeMode(parsed.mode),
+    }
   } catch {
-    return fallback
+    return DEFAULT_CONFIG
   }
 }
 
@@ -132,6 +197,13 @@ function normalizeStatus(status?: string): VideoTaskStatus {
   }
 }
 
+function normalizeProgress(value: unknown, fallback = 0) {
+  const progress =
+    typeof value === 'string' ? Number.parseFloat(value) : Number(value)
+  if (!Number.isFinite(progress)) return fallback
+  return Math.max(0, Math.min(100, progress))
+}
+
 function taskResponseUrl(response: VideoTaskResponse) {
   return (
     response.video_url || response.url || response.metadata?.url || undefined
@@ -145,7 +217,10 @@ function ratioToPixelSize(aspectRatio: string) {
     '1:1': '1024x1024',
     '4:3': '1024x768',
     '3:4': '768x1024',
+    '3:2': '1152x768',
+    '2:3': '768x1152',
     '21:9': '1792x768',
+    '9:21': '768x1792',
   }
   return sizes[aspectRatio] || '1280x720'
 }
@@ -173,12 +248,13 @@ function resolveConfigForModel(
   const durations = model.parameters.durations ?? []
   const aspectRatios = model.parameters.aspect_ratios ?? []
   const resolutions = model.parameters.resolutions ?? []
+  const currentMode = normalizeMode(config.mode)
   return {
     ...config,
     group,
     model: model.model,
-    mode: model.modes.includes(config.mode)
-      ? config.mode
+    mode: model.modes.includes(currentMode)
+      ? currentMode
       : (model.modes[0] ?? 'text'),
     duration: durations.includes(config.duration)
       ? config.duration
@@ -198,12 +274,9 @@ function normalizeTaskUpdate(
   now = Date.now()
 ): VideoHistoryItem {
   const status = normalizeStatus(response.status)
-  const progress = Math.max(
-    0,
-    Math.min(
-      100,
-      Number(response.progress ?? (status === 'completed' ? 100 : 0))
-    )
+  const progress = normalizeProgress(
+    response.progress,
+    status === 'completed' ? 100 : 0
   )
   return {
     ...item,
@@ -219,6 +292,141 @@ function isActiveTask(item: VideoHistoryItem) {
   return item.status === 'queued' || item.status === 'in_progress'
 }
 
+function maxReferences(model: VideoModelCapability, kind: MediaKind) {
+  const parameters = model.parameters
+  switch (kind) {
+    case 'first':
+    case 'last':
+      return 1
+    case 'images':
+      return (
+        parameters.max_image_references || parameters.max_input_references || 0
+      )
+    case 'videos':
+      return parameters.max_video_references || 0
+    case 'audios':
+      return parameters.max_audio_references || 0
+  }
+}
+
+function maxBytes(
+  model: VideoModelCapability,
+  kind: MediaKind,
+  mode: VideoMode
+) {
+  const parameters = model.parameters
+  if (kind === 'first' || kind === 'last' || kind === 'images') {
+    return parameters.max_image_bytes || DEFAULT_IMAGE_BYTES
+  }
+  if (kind === 'videos') {
+    if (mode === 'video_edit') {
+      return parameters.max_video_edit_bytes || 8 * 1024 * 1024
+    }
+    return parameters.max_video_bytes || DEFAULT_VIDEO_BYTES
+  }
+  return parameters.max_audio_bytes || DEFAULT_AUDIO_BYTES
+}
+
+function allowedKinds(mode: VideoMode): MediaKind[] {
+  switch (mode) {
+    case 'first_frame':
+      return ['first']
+    case 'first_last':
+      return ['first', 'last']
+    case 'reference':
+      return ['images', 'videos', 'audios']
+    case 'video_edit':
+      return ['videos']
+    default:
+      return []
+  }
+}
+
+function revokeMedia(items: SelectedMedia[]) {
+  for (const item of items) URL.revokeObjectURL(item.previewUrl)
+}
+
+function trimMediaForMode(
+  previous: MediaState,
+  mode: VideoMode,
+  model: VideoModelCapability
+) {
+  const allowed = new Set(allowedKinds(mode))
+  const next = emptyMediaState()
+  for (const kind of Object.keys(previous) as MediaKind[]) {
+    if (!allowed.has(kind)) {
+      revokeMedia(previous[kind])
+      continue
+    }
+    const limit = maxReferences(model, kind)
+    next[kind] = previous[kind].slice(0, limit)
+    revokeMedia(previous[kind].slice(limit))
+  }
+  return next
+}
+
+function formatBytes(bytes: number) {
+  const megabytes = Math.round((bytes / 1024 / 1024) * 10) / 10
+  return String(megabytes) + ' MB'
+}
+
+async function prepareReferenceImage(
+  file: File,
+  aspectRatio: string
+): Promise<Blob> {
+  const match = aspectRatio.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/)
+  if (!match) return file
+  const wanted = Number(match[1]) / Number(match[2])
+  if (!Number.isFinite(wanted) || wanted <= 0) return file
+
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () =>
+        reject(new Error('Reference image could not be read'))
+      element.src = objectUrl
+    })
+    const canvasWidth =
+      wanted >= 1 ? 1024 : Math.max(1, Math.round(1024 * wanted))
+    const canvasHeight =
+      wanted >= 1 ? Math.max(1, Math.round(1024 / wanted)) : 1024
+    const scale = Math.min(
+      canvasWidth / image.naturalWidth,
+      canvasHeight / image.naturalHeight
+    )
+    const width = Math.max(1, Math.round(image.naturalWidth * scale))
+    const height = Math.max(1, Math.round(image.naturalHeight * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Reference image could not be processed')
+    context.fillStyle = '#000'
+    context.fillRect(0, 0, canvasWidth, canvasHeight)
+    context.drawImage(
+      image,
+      Math.round((canvasWidth - width) / 2),
+      Math.round((canvasHeight - height) / 2),
+      width,
+      height
+    )
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) =>
+          blob
+            ? resolve(blob)
+            : reject(new Error('Reference image could not be processed')),
+        'image/jpeg',
+        0.86
+      )
+    })
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 export function VideoStudio({
   capabilities,
   isLoading = false,
@@ -227,29 +435,41 @@ export function VideoStudio({
   isLoading?: boolean
 }) {
   const { t } = useTranslation()
-  const [config, setConfig] = useState<VideoStudioConfig>(() =>
-    loadStoredValue(CONFIG_STORAGE_KEY, DEFAULT_CONFIG)
-  )
+  const [config, setConfig] = useState<VideoStudioConfig>(loadStoredConfig)
   const [history, setHistory] = useState<VideoHistoryItem[]>(loadStoredHistory)
   const [prompt, setPrompt] = useState('')
-  const [frames, setFrames] = useState<SelectedFrame[]>([])
+  const [media, setMedia] = useState<MediaState>(emptyMediaState)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const frameTargetRef = useRef(0)
-  const framesRef = useRef(frames)
+  const pickerKindRef = useRef<MediaKind>('images')
+  const mediaRef = useRef(media)
   const historyRef = useRef(history)
 
   const selectedGroup = useMemo(
-    () =>
-      capabilities.find((item) => item.group === config.group) ??
-      capabilities[0],
-    [capabilities, config.group]
+    () => capabilities.find((item) => item.group === VIDEO_GROUP_NAME),
+    [capabilities]
+  )
+  const availableCatalog = useMemo(
+    () => buildAvailableVideoCatalog(selectedGroup?.models ?? []),
+    [selectedGroup]
+  )
+  const availableModels = useMemo(
+    () => flattenAvailableVideoCatalog(availableCatalog),
+    [availableCatalog]
   )
   const selectedModel = useMemo(
     () =>
-      selectedGroup?.models.find((item) => item.model === config.model) ??
-      selectedGroup?.models[0],
-    [config.model, selectedGroup]
+      availableModels.find((item) => item.model === config.model) ??
+      availableModels[0],
+    [availableModels, config.model]
+  )
+  const selectedCatalogItem = useMemo(
+    () =>
+      findAvailableVideoCatalogItem(
+        availableCatalog,
+        selectedModel?.model ?? ''
+      ),
+    [availableCatalog, selectedModel]
   )
   const effectiveConfig = useMemo(
     () =>
@@ -289,14 +509,12 @@ export function VideoStudio({
   }, [history])
 
   useEffect(() => {
-    framesRef.current = frames
-  }, [frames])
+    mediaRef.current = media
+  }, [media])
 
   useEffect(() => {
     return () => {
-      for (const frame of framesRef.current) {
-        URL.revokeObjectURL(frame.previewUrl)
-      }
+      for (const items of Object.values(mediaRef.current)) revokeMedia(items)
     }
   }, [])
 
@@ -304,7 +522,6 @@ export function VideoStudio({
     const now = Date.now()
     const active = historyRef.current.filter(isActiveTask)
     if (active.length === 0) return
-
     const timedOutIds = new Set(
       active
         .filter((item) => now - item.createdAt >= TASK_TIMEOUT_MS)
@@ -324,13 +541,11 @@ export function VideoStudio({
         )
       )
     }
-
     const pollable = active.filter((item) => !timedOutIds.has(item.id))
     const updates = await Promise.all(
       pollable.map(async (item) => {
         try {
-          const response = await getVideoTask(item.taskId)
-          return { id: item.id, response }
+          return { id: item.id, response: await getVideoTask(item.taskId) }
         } catch {
           return null
         }
@@ -357,117 +572,167 @@ export function VideoStudio({
     return () => window.clearInterval(timer)
   }, [pollActiveTasks])
 
-  const trimFramesForMode = useCallback((mode: VideoMode) => {
-    const requiredFrames = mode === 'text' ? 0 : mode === 'image' ? 1 : 2
-    setFrames((items) => {
-      if (items.length <= requiredFrames) return items
-      for (const frame of items.slice(requiredFrames)) {
-        URL.revokeObjectURL(frame.previewUrl)
-      }
-      return items.slice(0, requiredFrames)
-    })
-  }, [])
-
   const applyModelConfig = useCallback(
-    (groupName: string, model: VideoModelCapability) => {
-      const next = resolveConfigForModel(effectiveConfig, groupName, model)
+    (model: VideoModelCapability) => {
+      const next = resolveConfigForModel(
+        effectiveConfig,
+        VIDEO_GROUP_NAME,
+        model
+      )
       updateConfig(next)
-      trimFramesForMode(next.mode)
+      setMedia((previous) => trimMediaForMode(previous, next.mode, model))
     },
-    [effectiveConfig, trimFramesForMode, updateConfig]
+    [effectiveConfig, updateConfig]
   )
 
-  const handleGroupChange = (groupName: string) => {
-    const group = capabilities.find((item) => item.group === groupName)
-    if (!group) return
-    const model =
-      group.models.find((item) => item.model === effectiveConfig.model) ??
-      group.models[0]
-    if (!model) return
-    applyModelConfig(group.group, model)
+  const handleCatalogChange = (catalogID: string) => {
+    const catalogItem = findAvailableVideoCatalogItemByID(
+      availableCatalog,
+      catalogID
+    )
+    const model = catalogItem?.models[0]
+    if (model) applyModelConfig(model)
   }
 
   const handleModelChange = (modelName: string) => {
-    const model = selectedGroup?.models.find((item) => item.model === modelName)
-    if (!selectedGroup || !model) return
-    applyModelConfig(selectedGroup.group, model)
+    const model = availableModels.find((item) => item.model === modelName)
+    if (model) applyModelConfig(model)
   }
 
   const handleModeChange = (mode: VideoMode) => {
+    if (!selectedModel) return
     updateConfig({ mode })
-    trimFramesForMode(mode)
+    setMedia((previous) => trimMediaForMode(previous, mode, selectedModel))
   }
 
-  const handleFrameFile = (file?: File) => {
-    if (!file) return
-    const target = frameTargetRef.current
-    setFrames((previous) => {
-      const next = [...previous]
-      if (next[target]) URL.revokeObjectURL(next[target].previewUrl)
-      next[target] = { file, previewUrl: URL.createObjectURL(file) }
-      return next.filter(Boolean)
+  const openPicker = (kind: MediaKind) => {
+    const input = fileInputRef.current
+    if (!input) return
+    pickerKindRef.current = kind
+    input.accept =
+      kind === 'videos' ? 'video/*' : kind === 'audios' ? 'audio/*' : 'image/*'
+    input.multiple = kind === 'images' || kind === 'videos' || kind === 'audios'
+    input.value = ''
+    input.click()
+  }
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files || !selectedModel) return
+    const kind = pickerKindRef.current
+    const expectedPrefix =
+      kind === 'videos' ? 'video/' : kind === 'audios' ? 'audio/' : 'image/'
+    const byteLimit = maxBytes(selectedModel, kind, effectiveConfig.mode)
+    const accepted = Array.from(files).filter((file) => {
+      if (!file.type.toLowerCase().startsWith(expectedPrefix)) {
+        toast.error(t('Unsupported media type') + ': ' + file.name)
+        return false
+      }
+      if (file.size > byteLimit) {
+        toast.error(
+          file.name + ' ' + t('exceeds') + ' ' + formatBytes(byteLimit)
+        )
+        return false
+      }
+      return true
     })
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
+    if (accepted.length === 0) return
 
-  const removeFrame = (index: number) => {
-    setFrames((items) => {
-      if (items[index]) URL.revokeObjectURL(items[index].previewUrl)
-      return items.filter((_, itemIndex) => itemIndex !== index)
+    setMedia((previous) => {
+      const next = { ...previous }
+      const limit = maxReferences(selectedModel, kind)
+      const additions = accepted.map((file) => ({
+        id: nanoid(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }))
+      if (kind === 'first' || kind === 'last') {
+        revokeMedia(previous[kind])
+        next[kind] = additions.slice(0, 1)
+        revokeMedia(additions.slice(1))
+        return next
+      }
+      const remaining = Math.max(0, limit - previous[kind].length)
+      next[kind] = [...previous[kind], ...additions.slice(0, remaining)]
+      revokeMedia(additions.slice(remaining))
+      if (additions.length > remaining) {
+        toast.error(t('Media limit reached') + ': ' + String(limit))
+      }
+      return next
     })
   }
 
-  const openFramePicker = (index: number) => {
-    frameTargetRef.current = index
-    fileInputRef.current?.click()
+  const removeMedia = (kind: MediaKind, id: string) => {
+    setMedia((previous) => {
+      const item = previous[kind].find((entry) => entry.id === id)
+      if (item) URL.revokeObjectURL(item.previewUrl)
+      return {
+        ...previous,
+        [kind]: previous[kind].filter((entry) => entry.id !== id),
+      }
+    })
+  }
+
+  const materialCount = Object.values(media).reduce(
+    (total, items) => total + items.length,
+    0
+  )
+
+  const validateSubmission = () => {
+    switch (effectiveConfig.mode) {
+      case 'first_frame':
+        return media.first.length === 1
+      case 'first_last':
+        return media.first.length === 1 && media.last.length === 1
+      case 'reference':
+        return (
+          media.images.length + media.videos.length + media.audios.length > 0
+        )
+      case 'video_edit':
+        return media.videos.length > 0
+      default:
+        return materialCount === 0
+    }
   }
 
   const submit = async () => {
     if (!selectedGroup || !selectedModel || !prompt.trim()) return
-    const requiredFrames =
-      effectiveConfig.mode === 'text'
-        ? 0
-        : effectiveConfig.mode === 'image'
-          ? 1
-          : 2
-    if (frames.length !== requiredFrames) {
-      toast.error(
-        effectiveConfig.mode === 'first_last'
-          ? t('Add both first and last frames')
-          : t('Add a source image')
-      )
+    if (!validateSubmission()) {
+      toast.error(t('Add the required reference media'))
       return
     }
-
     const seedValue = effectiveConfig.seed.trim()
       ? Number(effectiveConfig.seed)
       : undefined
-    const size = requestSize(selectedModel, effectiveConfig)
-    const metadata: Record<string, unknown> = {
-      aspect_ratio: effectiveConfig.aspectRatio,
-      aspectRatio: effectiveConfig.aspectRatio,
-      ratio: effectiveConfig.aspectRatio,
-      resolution: effectiveConfig.resolution,
-      seed: seedValue,
-      parameters: {
-        duration: effectiveConfig.duration,
-        resolution: effectiveConfig.resolution,
-        seed: seedValue,
-      },
+    if (
+      seedValue !== undefined &&
+      (!Number.isInteger(seedValue) || seedValue < 0)
+    ) {
+      toast.error(t('Seed must be a non-negative integer'))
+      return
     }
+    const size = requestSize(selectedModel, effectiveConfig)
+    const extra: Record<string, unknown> = {}
+    if (selectedModel.parameters.aspect_ratios?.length) {
+      extra.aspect_ratio = effectiveConfig.aspectRatio
+    }
+    if (selectedModel.parameters.resolutions?.length) {
+      extra.resolution = effectiveConfig.resolution
+    }
+    if (seedValue !== undefined) extra.seed = seedValue
 
     setIsSubmitting(true)
     try {
       let response: VideoTaskResponse
-      if (requiredFrames === 0) {
+      if (materialCount === 0) {
         const payload: VideoSubmitPayload = {
           model: selectedModel.model,
           group: selectedGroup.group,
           prompt: prompt.trim(),
+          mode: effectiveConfig.mode,
           duration: effectiveConfig.duration,
-          seconds: String(effectiveConfig.duration),
+          seconds: effectiveConfig.duration,
           size,
-          metadata,
+          extra,
         }
         response = await submitVideo(payload)
       } else {
@@ -475,23 +740,49 @@ export function VideoStudio({
         form.append('model', selectedModel.model)
         form.append('group', selectedGroup.group)
         form.append('prompt', prompt.trim())
+        form.append('mode', effectiveConfig.mode)
         form.append('duration', String(effectiveConfig.duration))
         form.append('seconds', String(effectiveConfig.duration))
         form.append('size', size)
-        form.append('metadata', JSON.stringify(metadata))
-        for (const frame of frames) {
-          form.append('input_reference', frame.file, frame.file.name)
+        form.append('extra', JSON.stringify(extra))
+        const appendImage = async (
+          item: SelectedMedia,
+          field: 'input_reference' | 'reference_images'
+        ) => {
+          const blob = await prepareReferenceImage(
+            item.file,
+            effectiveConfig.aspectRatio
+          )
+          const basename = item.file.name.replace(/\.[^.]+$/, '') || 'image'
+          form.append(field, blob, basename + '.jpg')
+        }
+        if (effectiveConfig.mode === 'first_frame') {
+          await appendImage(media.first[0], 'input_reference')
+        } else if (effectiveConfig.mode === 'first_last') {
+          await appendImage(media.first[0], 'input_reference')
+          await appendImage(media.last[0], 'input_reference')
+        } else {
+          for (const item of media.images) {
+            await appendImage(item, 'reference_images')
+          }
+          for (const item of media.videos) {
+            form.append('reference_videos', item.file, item.file.name)
+          }
+          for (const item of media.audios) {
+            form.append('reference_audios', item.file, item.file.name)
+          }
         }
         response = await submitVideo(form)
       }
-
       const taskId = response.id || response.task_id
       if (!taskId) throw new Error(t('Video task ID was not returned'))
 
       const now = Date.now()
-      const status = response.error
-        ? 'failed'
-        : normalizeStatus(response.status)
+      const sourceNames = (
+        Object.entries(media) as [MediaKind, SelectedMedia[]][]
+      ).flatMap(([kind, items]) =>
+        items.map((item) => kind + ': ' + item.file.name)
+      )
       const item: VideoHistoryItem = {
         id: nanoid(),
         taskId,
@@ -503,8 +794,8 @@ export function VideoStudio({
         aspectRatio: effectiveConfig.aspectRatio,
         resolution: effectiveConfig.resolution,
         seed: seedValue,
-        sourceNames: frames.map((frame) => frame.file.name),
-        status,
+        sourceNames,
+        status: response.error ? 'failed' : normalizeStatus(response.status),
         progress: Number(response.progress ?? 0),
         resultUrl: taskResponseUrl(response),
         error: response.error?.message,
@@ -525,123 +816,45 @@ export function VideoStudio({
     updateConfig({
       group: item.group,
       model: item.model,
-      mode: item.mode,
+      mode: normalizeMode(item.mode),
       duration: item.duration ?? config.duration,
       aspectRatio: item.aspectRatio ?? config.aspectRatio,
       resolution: item.resolution ?? config.resolution,
       seed: item.seed === undefined ? '' : String(item.seed),
     })
     setPrompt(item.prompt)
-    setFrames((items) => {
-      for (const frame of items) URL.revokeObjectURL(frame.previewUrl)
-      return []
+    setMedia((previous) => {
+      for (const items of Object.values(previous)) revokeMedia(items)
+      return emptyMediaState()
     })
     toast.info(
       item.mode === 'text'
         ? t('Ready to retry')
-        : t('Reattach source frames to retry')
+        : t('Reattach source media to retry')
     )
   }
 
-  const hasModels = capabilities.some((group) => group.models.length > 0)
-  const requiredFrames =
-    effectiveConfig.mode === 'text'
-      ? 0
-      : effectiveConfig.mode === 'image'
-        ? 1
-        : 2
+  const hasModels = availableModels.length > 0
   const submitDisabled =
     isSubmitting ||
     isLoading ||
     !hasModels ||
     !selectedModel ||
     !prompt.trim() ||
-    frames.length !== requiredFrames
+    !validateSubmission()
 
   return (
     <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
       <div className='flex-1 overflow-y-auto'>
-        <div className='mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4'>
-          <div className='flex items-end justify-between gap-3'>
-            <div className='grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7'>
-              <ModeControl
-                modes={selectedModel?.modes ?? ['text']}
-                value={effectiveConfig.mode}
-                onChange={handleModeChange}
-              />
-              <SelectField
-                disabled={capabilities.length <= 1}
-                label={t('Group')}
-                value={selectedGroup?.group ?? ''}
-                options={capabilities.map((group) => ({
-                  label: group.group,
-                  value: group.group,
-                }))}
-                onChange={handleGroupChange}
-              />
-              <SelectField
-                className='sm:col-span-2 lg:col-span-1 xl:col-span-2'
-                label={t('Model')}
-                value={selectedModel?.model ?? ''}
-                options={(selectedGroup?.models ?? []).map((model) => ({
-                  label: model.model,
-                  value: model.model,
-                }))}
-                onChange={handleModelChange}
-              />
-              {!!selectedModel?.parameters.durations?.length && (
-                <SelectField
-                  label={t('Duration')}
-                  value={String(effectiveConfig.duration)}
-                  options={selectedModel.parameters.durations.map((value) => ({
-                    label: `${value}s`,
-                    value: String(value),
-                  }))}
-                  onChange={(value) =>
-                    updateConfig({ duration: Number(value) })
-                  }
-                />
-              )}
-              {!!selectedModel?.parameters.aspect_ratios?.length && (
-                <SelectField
-                  label={t('Aspect ratio')}
-                  value={effectiveConfig.aspectRatio}
-                  options={selectedModel.parameters.aspect_ratios.map(
-                    (value) => ({ label: value, value })
-                  )}
-                  onChange={(aspectRatio) => updateConfig({ aspectRatio })}
-                />
-              )}
-              {!!selectedModel?.parameters.resolutions?.length &&
-                !(
-                  selectedModel.profile === 'ali' &&
-                  effectiveConfig.mode === 'text'
-                ) && (
-                  <SelectField
-                    label={t('Resolution')}
-                    value={effectiveConfig.resolution}
-                    options={selectedModel.parameters.resolutions.map(
-                      (value) => ({ label: value, value })
-                    )}
-                    onChange={(resolution) => updateConfig({ resolution })}
-                  />
-                )}
-              {selectedModel?.parameters.supports_seed && (
-                <div className='grid gap-1.5'>
-                  <Label htmlFor='video-seed'>{t('Seed')}</Label>
-                  <Input
-                    id='video-seed'
-                    inputMode='numeric'
-                    min={0}
-                    onChange={(event) =>
-                      updateConfig({ seed: event.target.value })
-                    }
-                    placeholder={t('Random')}
-                    type='number'
-                    value={effectiveConfig.seed}
-                  />
-                </div>
-              )}
+        <div className='mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-4'>
+          <div className='flex items-center justify-between gap-3 border-b pb-2'>
+            <div className='min-w-0'>
+              <h2 className='text-sm font-semibold'>
+                {t('Generation history')}
+              </h2>
+              <p className='text-muted-foreground truncate text-xs'>
+                {selectedModel?.model ?? t('No model')}
+              </p>
             </div>
             <Button
               aria-label={t('Clear history')}
@@ -681,20 +894,16 @@ export function VideoStudio({
       </div>
 
       <div className='border-border/70 bg-background/95 shrink-0 border-t px-3 py-3 backdrop-blur md:px-4 md:pb-4'>
-        <div className='border-border mx-auto w-full max-w-5xl overflow-hidden rounded-lg border'>
-          {requiredFrames > 0 && (
-            <div className='border-border/70 flex min-h-20 gap-2 overflow-x-auto border-b p-2'>
-              {Array.from({ length: requiredFrames }, (_, index) => (
-                <FrameSlot
-                  frame={frames[index]}
-                  index={index}
-                  key={index}
-                  mode={effectiveConfig.mode}
-                  onPick={() => openFramePicker(index)}
-                  onRemove={() => removeFrame(index)}
-                />
-              ))}
-            </div>
+        <div className='border-border mx-auto w-full max-w-7xl overflow-hidden rounded-lg border'>
+          {selectedModel && allowedKinds(effectiveConfig.mode).length > 0 && (
+            <MaterialShelf
+              media={media}
+              mode={effectiveConfig.mode}
+              model={selectedModel}
+              note={selectedCatalogItem?.note ?? ''}
+              onPick={openPicker}
+              onRemove={removeMedia}
+            />
           )}
           <Textarea
             autoCapitalize='off'
@@ -713,9 +922,92 @@ export function VideoStudio({
             spellCheck={false}
             value={prompt}
           />
+          {selectedModel?.parameters.supports_seed && (
+            <div className='border-border/70 border-t px-2.5 py-2'>
+              <div className='grid max-w-40 gap-1.5'>
+                <Label htmlFor='video-seed'>{t('Seed')}</Label>
+                <Input
+                  id='video-seed'
+                  inputMode='numeric'
+                  min={0}
+                  onChange={(event) =>
+                    updateConfig({ seed: event.target.value })
+                  }
+                  placeholder={t('Random')}
+                  type='number'
+                  value={effectiveConfig.seed}
+                />
+              </div>
+            </div>
+          )}
+          <div className='border-border/70 grid gap-2 border-t p-2.5 sm:grid-cols-2 xl:grid-cols-[1.2fr_1.3fr_1fr_.75fr_.7fr_.7fr]'>
+            <GroupedSelectField
+              groups={catalogSelectGroups(availableCatalog)}
+              hideLabel
+              label={t('Model category')}
+              value={selectedCatalogItem?.id ?? ''}
+              onChange={handleCatalogChange}
+            />
+            <SelectField
+              hideLabel
+              label={t('Specific model')}
+              value={selectedModel?.model ?? ''}
+              options={(selectedCatalogItem?.models ?? []).map((model) => ({
+                label: model.model,
+                value: model.model,
+              }))}
+              onChange={handleModelChange}
+            />
+            <SelectField
+              hideLabel
+              label={t('Generation mode')}
+              value={effectiveConfig.mode}
+              options={(selectedModel?.modes ?? ['text']).map((mode) => ({
+                label: videoModeLabel(mode, t),
+                value: mode,
+              }))}
+              onChange={(mode) => handleModeChange(normalizeMode(mode))}
+            />
+            <SelectField
+              disabled={!selectedModel?.parameters.aspect_ratios?.length}
+              hideLabel
+              label={t('Aspect ratio')}
+              value={effectiveConfig.aspectRatio}
+              options={(selectedModel?.parameters.aspect_ratios ?? []).map(
+                (value) => ({ label: value, value })
+              )}
+              onChange={(aspectRatio) => updateConfig({ aspectRatio })}
+            />
+            <SelectField
+              disabled={!selectedModel?.parameters.durations?.length}
+              hideLabel
+              label={t('Duration')}
+              value={String(effectiveConfig.duration)}
+              options={(selectedModel?.parameters.durations ?? []).map(
+                (value) => ({
+                label: String(value) + 's',
+                  value: String(value),
+                })
+              )}
+              onChange={(value) => updateConfig({ duration: Number(value) })}
+            />
+            <SelectField
+              disabled={!selectedModel?.parameters.resolutions?.length}
+              hideLabel
+              label={t('Resolution')}
+              value={effectiveConfig.resolution}
+              options={(selectedModel?.parameters.resolutions ?? []).map(
+                (value) => ({ label: value, value })
+              )}
+              onChange={(resolution) => updateConfig({ resolution })}
+            />
+          </div>
           <div className='flex items-center justify-between gap-3 px-2.5 pb-2.5'>
             <div className='text-muted-foreground min-w-0 truncate text-xs'>
               {selectedModel?.model ?? t('No model')}
+              {materialCount > 0
+                ? ' · ' + String(materialCount) + ' ' + t('media')
+                : ''}
             </div>
             <Button
               disabled={submitDisabled}
@@ -732,9 +1024,8 @@ export function VideoStudio({
           </div>
         </div>
         <input
-          accept='image/*'
           className='hidden'
-          onChange={(event) => handleFrameFile(event.target.files?.[0])}
+          onChange={(event) => handleFiles(event.target.files)}
           ref={fileInputRef}
           type='file'
         />
@@ -743,54 +1034,21 @@ export function VideoStudio({
   )
 }
 
-function ModeControl({
-  modes,
-  value,
-  onChange,
-}: {
-  modes: VideoMode[]
-  value: VideoMode
-  onChange: (mode: VideoMode) => void
-}) {
-  const { t } = useTranslation()
+function videoModeLabel(mode: VideoMode, t: (key: string) => string) {
   const labels: Record<VideoMode, string> = {
     text: t('Text to video'),
-    image: t('Image to video'),
-    first_last: t('First & last frame'),
+    first_frame: t('First frame to video'),
+    first_last: t('First and last frame'),
+    reference: t('Multi-reference video'),
+    video_edit: t('Video editing'),
   }
-  return (
-    <div className='grid gap-1.5 sm:col-span-2 lg:col-span-2'>
-      <Label>{t('Mode')}</Label>
-      <div
-        className='bg-muted grid h-8 rounded-lg p-[3px]'
-        style={{
-          gridTemplateColumns: `repeat(${modes.length}, minmax(0, 1fr))`,
-        }}
-      >
-        {modes.map((mode) => (
-          <button
-            className={cn(
-              'min-w-0 truncate rounded-md px-2 text-xs font-medium transition-colors',
-              mode === value
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            key={mode}
-            onClick={() => onChange(mode)}
-            title={labels[mode]}
-            type='button'
-          >
-            {labels[mode]}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
+  return labels[mode]
 }
 
 function SelectField({
   className,
   disabled = false,
+  hideLabel = false,
   label,
   value,
   options,
@@ -798,6 +1056,7 @@ function SelectField({
 }: {
   className?: string
   disabled?: boolean
+  hideLabel?: boolean
   label: string
   value: string
   options: SelectOption[]
@@ -805,7 +1064,7 @@ function SelectField({
 }) {
   return (
     <div className={cn('grid min-w-0 gap-1.5', className)}>
-      <Label>{label}</Label>
+      {!hideLabel && <Label>{label}</Label>}
       <Select
         disabled={disabled}
         value={value}
@@ -826,58 +1085,196 @@ function SelectField({
   )
 }
 
-function FrameSlot({
-  frame,
-  index,
+function GroupedSelectField({
+  className,
+  disabled = false,
+  hideLabel = false,
+  label,
+  value,
+  groups,
+  onChange,
+}: {
+  className?: string
+  disabled?: boolean
+  hideLabel?: boolean
+  label: string
+  value: string
+  groups: SelectOptionGroup[]
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className={cn('grid min-w-0 gap-1.5', className)}>
+      {!hideLabel && <Label>{label}</Label>}
+      <Select
+        disabled={disabled}
+        value={value}
+        onValueChange={(next) => onChange(next ?? '')}
+      >
+        <SelectTrigger className='w-full min-w-0'>
+          <SelectValue className='min-w-0 truncate' />
+        </SelectTrigger>
+        <SelectContent>
+          {groups.map((group) => (
+            <SelectGroup key={group.label}>
+              <SelectLabel>{group.label}</SelectLabel>
+              {group.options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function MaterialShelf({
+  media,
   mode,
+  model,
+  note,
   onPick,
   onRemove,
 }: {
-  frame?: SelectedFrame
-  index: number
+  media: MediaState
   mode: VideoMode
-  onPick: () => void
+  model: VideoModelCapability
+  note: string
+  onPick: (kind: MediaKind) => void
+  onRemove: (kind: MediaKind, id: string) => void
+}) {
+  const { t } = useTranslation()
+  const labels: Record<MediaKind, string> = {
+    first: t('First frame'),
+    last: t('Last frame'),
+    images: t('Reference images'),
+    videos: t('Reference videos'),
+    audios: t('Reference audio'),
+  }
+  return (
+    <div className='border-border grid gap-4 border-b py-4'>
+      <div className='flex items-center justify-between gap-3'>
+        <div className='min-w-0'>
+          <h2 className='text-sm font-semibold'>{t('Reference media')}</h2>
+          {note && (
+            <p className='text-muted-foreground mt-1 truncate text-xs' title={note}>
+              {note}
+            </p>
+          )}
+        </div>
+        <span className='text-muted-foreground text-xs'>
+          {String(
+            allowedKinds(mode).reduce(
+              (total, kind) => total + media[kind].length,
+              0
+            )
+          )}{' '}
+          {t('selected')}
+        </span>
+      </div>
+      <div className='grid gap-4'>
+        {allowedKinds(mode)
+          .filter((kind) => maxReferences(model, kind) > 0)
+          .map((kind) => (
+            <div className='grid gap-2' key={kind}>
+              <div className='flex items-center justify-between gap-3'>
+                <Label>{labels[kind]}</Label>
+                <span className='text-muted-foreground text-xs'>
+                  {String(media[kind].length)} /{' '}
+                  {String(maxReferences(model, kind))}
+                </span>
+              </div>
+              <div className='flex min-h-20 gap-2 overflow-x-auto pb-1'>
+                {media[kind].map((item) => (
+                  <MediaPreview
+                    item={item}
+                    key={item.id}
+                    kind={kind}
+                    label={labels[kind]}
+                    onRemove={() => onRemove(kind, item.id)}
+                  />
+                ))}
+                {media[kind].length < maxReferences(model, kind) && (
+                  <button
+                    className='border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-20 w-28 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-xs transition-colors'
+                    onClick={() => onPick(kind)}
+                    type='button'
+                  >
+                    {kind === 'videos' ? (
+                      <FileVideoIcon className='size-4' />
+                    ) : kind === 'audios' ? (
+                      <FileAudioIcon className='size-4' />
+                    ) : (
+                      <ImagePlusIcon className='size-4' />
+                    )}
+                    <span className='max-w-24 truncate'>{labels[kind]}</span>
+                    <PlusIcon className='size-3' />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  )
+}
+
+function MediaPreview({
+  item,
+  kind,
+  label,
+  onRemove,
+}: {
+  item: SelectedMedia
+  kind: MediaKind
+  label: string
   onRemove: () => void
 }) {
   const { t } = useTranslation()
-  const label =
-    mode === 'first_last'
-      ? index === 0
-        ? t('First frame')
-        : t('Last frame')
-      : t('Source image')
-
-  if (!frame) {
-    return (
-      <button
-        className='border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-16 w-28 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed text-xs transition-colors'
-        onClick={onPick}
-        type='button'
-      >
-        <ImagePlusIcon className='size-4' />
-        {label}
-      </button>
-    )
-  }
-
   return (
-    <div className='border-border relative h-16 w-28 shrink-0 overflow-hidden rounded-lg border'>
-      <img
-        alt={label}
-        className='size-full object-cover'
-        src={frame.previewUrl}
-      />
+    <div
+      className={cn(
+        'border-border relative h-20 shrink-0 overflow-hidden rounded-md border bg-black',
+        kind === 'audios' ? 'bg-muted/40 w-52' : 'w-28'
+      )}
+    >
+      {kind === 'videos' ? (
+        <video
+          className='size-full object-cover'
+          muted
+          playsInline
+          preload='metadata'
+          src={item.previewUrl}
+        />
+      ) : kind === 'audios' ? (
+        <div className='flex size-full items-center gap-2 px-2 pt-5'>
+          <FileAudioIcon className='text-muted-foreground size-5 shrink-0' />
+          <audio
+            className='h-8 min-w-0 flex-1'
+            controls
+            src={item.previewUrl}
+          />
+        </div>
+      ) : (
+        <img
+          alt={label}
+          className='size-full object-cover'
+          src={item.previewUrl}
+        />
+      )}
       <button
         aria-label={t('Remove')}
-        className='bg-background/85 hover:bg-background absolute top-1 right-1 flex size-6 items-center justify-center rounded-md'
+        className='bg-background/90 hover:bg-background absolute top-1 right-1 flex size-6 items-center justify-center rounded-md'
         onClick={onRemove}
         title={t('Remove')}
         type='button'
       >
         <XIcon className='size-3.5' />
       </button>
-      <div className='bg-background/85 absolute right-1 bottom-1 left-1 truncate rounded px-1 py-0.5 text-[10px]'>
-        {label}
+      <div className='bg-background/90 absolute right-1 bottom-1 left-1 truncate rounded px-1 py-0.5 text-[10px]'>
+        {item.file.name}
       </div>
     </div>
   )
@@ -959,7 +1356,18 @@ function VideoHistoryCard({
             <p className='line-clamp-2 text-sm font-medium'>{item.prompt}</p>
             <p className='text-muted-foreground mt-1 truncate text-xs'>
               {item.model} · {item.group}
+              {item.sourceNames?.length
+                ? ' · ' + String(item.sourceNames.length) + ' ' + t('media')
+                : ''}
             </p>
+            {item.sourceNames?.length ? (
+              <p
+                className='text-muted-foreground mt-1 truncate text-[11px]'
+                title={item.sourceNames.join(', ')}
+              >
+                {item.sourceNames.join(', ')}
+              </p>
+            ) : null}
           </div>
           <span className='bg-muted shrink-0 rounded-md px-2 py-1 text-[11px] font-medium'>
             {statusLabels[item.status]}

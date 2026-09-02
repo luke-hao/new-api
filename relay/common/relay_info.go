@@ -876,7 +876,11 @@ func normalizeTaskSubmitJSON(data []byte) ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("extra.%s is invalid", key)
 			}
-			_ = references // validate aliases while preserving object roles in metadata
+			payloadKey := "videos"
+			if key == "reference_audios" {
+				payloadKey = "audios"
+			}
+			payload[payloadKey] = appendUniqueTaskReferences(payload[payloadKey], references)
 		}
 	}
 
