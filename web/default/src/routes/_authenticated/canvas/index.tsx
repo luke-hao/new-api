@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { InfinityIcon, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -30,8 +30,14 @@ function CanvasPage() {
   const [iframeSrc, setIframeSrc] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const openingRef = useRef(false)
+  const lastOpenedAtRef = useRef(0)
 
   const openCanvas = useCallback(async () => {
+    const now = Date.now()
+    if (openingRef.current || now - lastOpenedAtRef.current < 1500) return
+    openingRef.current = true
+    lastOpenedAtRef.current = now
     setError('')
     setLoading(true)
     setIframeSrc('')
@@ -53,6 +59,8 @@ function CanvasPage() {
           ? requestError.message
           : t('Failed to open infinite canvas')
       )
+    } finally {
+      openingRef.current = false
     }
   }, [t])
 
@@ -89,7 +97,7 @@ function CanvasPage() {
               <h2 className='text-lg font-semibold'>{t('Infinite Canvas')}</h2>
               <p className='text-muted-foreground mt-1 text-sm'>{error}</p>
             </div>
-            <Button onClick={() => void openCanvas()}>
+            <Button onClick={() => void openCanvas()} disabled={loading}>
               <RefreshCw className='size-4' />
               {t('Retry')}
             </Button>

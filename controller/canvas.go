@@ -18,7 +18,7 @@ import (
 const (
 	canvasSSODefaultIssuer   = "new-api"
 	canvasSSODefaultAudience = "infinite-canvas"
-	canvasSSOTicketTTL       = 60 * time.Second
+	canvasSSOTicketTTL       = 5 * time.Minute
 )
 
 type canvasSSOClaims struct {
@@ -156,5 +156,23 @@ func GetCanvasCapabilities(c *gin.Context) {
 		return groups[i].Group < groups[j].Group
 	})
 
-	common.ApiSuccess(c, gin.H{"groups": groups})
+	videoAbilities := make([]model.AbilityWithChannel, 0)
+	for _, ability := range abilities {
+		if ability.Group == "视频生成" {
+			videoAbilities = append(videoAbilities, ability)
+		}
+	}
+	videoCapabilities := make([]playgroundVideoGroupCapability, 0, 1)
+	if _, visible := usableGroups["视频生成"]; visible {
+		if videoModels := collectPlaygroundVideoModels(videoAbilities); len(videoModels) > 0 {
+			videoCapabilities = append(videoCapabilities, playgroundVideoGroupCapability{
+				Group:  "视频生成",
+				Desc:   usableGroups["视频生成"],
+				Ratio:  service.GetUserGroupRatio(user.Group, "视频生成"),
+				Models: videoModels,
+			})
+		}
+	}
+
+	common.ApiSuccess(c, gin.H{"groups": groups, "video_capabilities": videoCapabilities})
 }
