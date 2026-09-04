@@ -244,12 +244,29 @@ export function Recharge({
                   <Skeleton className='h-[52vh] w-full rounded-lg' />
                 </div>
               ) : topupLink ? (
-                <iframe
-                  title={pageTitle}
-                  src={topupLink}
-                  className='bg-background h-[70vh] min-h-[520px] w-full border-0'
-                  referrerPolicy='no-referrer-when-downgrade'
-                />
+                <div className='flex min-h-[240px] flex-col items-center justify-center gap-4 px-4 py-10 text-center sm:px-6'>
+                  <div className='bg-muted flex h-12 w-12 items-center justify-center rounded-full'>
+                    <ShoppingBag className='text-muted-foreground h-6 w-6' />
+                  </div>
+                  <p className='text-muted-foreground max-w-xl text-sm leading-6'>
+                    {t(
+                      'After payment, copy the card code and return here to redeem it.'
+                    )}
+                  </p>
+                  <Button
+                    className='gap-2'
+                    render={
+                      <a
+                        href={topupLink}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                      />
+                    }
+                  >
+                    <ExternalLink className='h-4 w-4' />
+                    {t('Open in new tab')}
+                  </Button>
+                </div>
               ) : (
                 <div className='p-3 sm:p-5'>
                   <Alert>
