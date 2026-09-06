@@ -24,6 +24,7 @@ type Pricing struct {
 	QuotaType              int                     `json:"quota_type"`
 	ModelRatio             float64                 `json:"model_ratio"`
 	ModelPrice             float64                 `json:"model_price"`
+	PriceUnit              string                  `json:"price_unit,omitempty"`
 	OwnerBy                string                  `json:"owner_by"`
 	CompletionRatio        float64                 `json:"completion_ratio"`
 	CacheRatio             *float64                `json:"cache_ratio,omitempty"`
@@ -105,6 +106,45 @@ func GetModelSupportEndpointTypes(model string) []constant.EndpointType {
 		return endpoints
 	}
 	return make([]constant.EndpointType, 0)
+}
+
+var videoPricePerSecondModels = map[string]struct{}{
+	"happyhorse-1.1-i2v-1080p": {},
+	"happyhorse-1.1-i2v-720p":  {},
+	"happyhorse-1.1-r2v-1080p": {},
+	"happyhorse-1.1-r2v-720p":  {},
+	"happyhorse-1.1-t2v-1080p": {},
+	"happyhorse-1.1-t2v-720p":  {},
+	"sd-2.5-720p不卡脸(按秒)": {},
+	"sd2.0-1080fast-不卡脸（按秒）": {},
+	"sd2.0-1080mini-不卡脸（按秒）": {},
+	"sd2.0-1080满血-不卡脸（按秒）": {},
+	"sd2.0-720fast-不卡脸（按秒）": {},
+	"sd2.0-720mini-不卡脸（按秒）": {},
+	"sd2.0-720满血-不卡脸（按秒）": {},
+	"sd2.5-720均衡版": {},
+	"wang-3.0-480p": {},
+	"wang-3.0-720p": {},
+	"【官方稳定版】2.5-480p": {},
+	"【官方稳定版】2.5-720p": {},
+	"【官方稳定版】sd2.0-720p-fast": {},
+	"【官方稳定版】sd2.0-720p-满血": {},
+	"【稳定】sd2.0-720fast（按秒）": {},
+	"【稳定】sd2.0-720满血（按秒）": {},
+	"【稳定】sd2.5-720p（按秒）": {},
+	"官方h3-1080p": {},
+	"官方h3-2k": {},
+	"官方h3-720p": {},
+}
+
+func getVideoPriceUnit(model string, groups []string) string {
+	if !common.StringsContains(groups, "视频生成") {
+		return ""
+	}
+	if _, ok := videoPricePerSecondModels[model]; ok {
+		return "秒"
+	}
+	return "次"
 }
 
 func updatePricing() {
@@ -287,9 +327,11 @@ func updatePricing() {
 
 	pricingMap = make([]Pricing, 0)
 	for model, groups := range modelGroupsMap {
+		enableGroups := groups.Items()
 		pricing := Pricing{
 			ModelName:              model,
-			EnableGroup:            groups.Items(),
+			EnableGroup:            enableGroups,
+			PriceUnit:              getVideoPriceUnit(model, enableGroups),
 			SupportedEndpointTypes: modelSupportEndpointTypes[model],
 		}
 

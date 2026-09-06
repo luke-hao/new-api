@@ -40,6 +40,8 @@ export type PricingModel = {
   model_ratio: number
   completion_ratio: number
   model_price?: number
+  /** Fixed-price billing unit, e.g. 秒 or 次. */
+  price_unit?: string
   cache_ratio?: number | null
   create_cache_ratio?: number | null
   image_ratio?: number | null

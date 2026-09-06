@@ -193,7 +193,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                       usdExchangeRate
                     )}
                   </span>{' '}
-                  / {t('request')}
+                  / {props.model.price_unit || t('request')}
                 </span>
               )}
             </div>
