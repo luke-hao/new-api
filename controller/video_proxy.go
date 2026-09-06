@@ -110,8 +110,10 @@ func VideoProxy(c *gin.Context) {
 		videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
 		req.Header.Set("Authorization", "Bearer "+channel.Key)
 	default:
-		// Video URL is stored in PrivateData.ResultURL (fallback to FailReason for old data)
-		videoURL = task.GetResultURL()
+		// Successful tasks expose a stable proxy URL in PrivateData.ResultURL.
+		// Resolve the original upstream URL from the stored task payload before
+		// fetching; otherwise the proxy would request itself recursively.
+		videoURL = resolveStoredVideoURL(task)
 	}
 
 	videoURL = strings.TrimSpace(videoURL)
@@ -183,6 +185,37 @@ func VideoProxy(c *gin.Context) {
 	if _, err = io.Copy(c.Writer, resp.Body); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to stream video content: %s", err.Error()))
 	}
+}
+
+func resolveStoredVideoURL(task *model.Task) string {
+	if task == nil {
+		return ""
+	}
+	if url := strings.TrimSpace(task.GetResultURL()); url != "" && !isTaskProxyContentURL(url, task.TaskID) {
+		return url
+	}
+
+	var payload map[string]any
+	if len(task.Data) > 0 && common.Unmarshal(task.Data, &payload) == nil {
+		for _, key := range []string{"video_url", "url"} {
+			if url, ok := payload[key].(string); ok && strings.TrimSpace(url) != "" {
+				return strings.TrimSpace(url)
+			}
+		}
+		if metadata, ok := payload["metadata"].(map[string]any); ok {
+			if url, ok := metadata["url"].(string); ok && strings.TrimSpace(url) != "" {
+				return strings.TrimSpace(url)
+			}
+		}
+		if response, ok := payload["response"].(map[string]any); ok {
+			for _, key := range []string{"video_url", "url"} {
+				if url, ok := response[key].(string); ok && strings.TrimSpace(url) != "" {
+					return strings.TrimSpace(url)
+				}
+			}
+		}
+	}
+	return strings.TrimSpace(task.GetResultURL())
 }
 
 func writeVideoDataURL(c *gin.Context, dataURL string) error {
