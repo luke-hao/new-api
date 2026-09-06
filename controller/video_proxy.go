@@ -143,6 +143,15 @@ func VideoProxy(c *gin.Context) {
 		return
 	}
 
+	// Browser media elements use byte-range requests. Preserve the range and
+	// cache validators so the upstream CDN can return 206 Partial Content.
+	for _, header := range []string{"Range", "If-Range", "If-None-Match", "If-Modified-Since"} {
+		if value := c.GetHeader(header); value != "" {
+			req.Header.Set(header, value)
+		}
+	}
+	req.Header.Set("Accept-Encoding", "identity")
+
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to fetch video from %s: %s", videoURL, err.Error()))
@@ -151,7 +160,9 @@ func VideoProxy(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	// 200 is a complete response, 206 is the normal response for a browser
+	// Range request, and 304/416 must pass through for cache/range semantics.
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusNotModified && resp.StatusCode != http.StatusRequestedRangeNotSatisfiable {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Upstream returned status %d for %s", resp.StatusCode, videoURL))
 		videoProxyError(c, http.StatusBadGateway, "server_error",
 			fmt.Sprintf("Upstream service returned status %d", resp.StatusCode))
@@ -164,6 +175,9 @@ func VideoProxy(c *gin.Context) {
 		}
 	}
 
+	if c.Writer.Header().Get("Accept-Ranges") == "" {
+		c.Writer.Header().Set("Accept-Ranges", "bytes")
+	}
 	c.Writer.Header().Set("Cache-Control", "public, max-age=86400")
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err = io.Copy(c.Writer, resp.Body); err != nil {
