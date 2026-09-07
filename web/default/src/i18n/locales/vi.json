@@ -4906,10 +4906,10 @@
     "Infinite Canvas": "Infinite Canvas",
     "Opening infinite canvas...": "Opening infinite canvas...",
     "Failed to open infinite canvas": "Failed to open infinite canvas",
-    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
-  },
-  "Unverified specifications are shown as Unknown; channel limits may differ.": "Thông số chưa xác minh được hiển thị là không rõ; giới hạn của kênh có thể khác.",
-  "Official documentation": "Tài liệu chính thức",
-  "Verified on": "Ngày xác minh",
-  "Data handling depends on the configured upstream channel.": "Việc xử lý dữ liệu phụ thuộc vào kênh thượng nguồn được cấu hình."
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas.",
+    "Unverified specifications are shown as Unknown; channel limits may differ.": "Thông số chưa xác minh được hiển thị là không rõ; giới hạn của kênh có thể khác.",
+    "Verified on": "Ngày xác minh",
+    "Data handling depends on the configured upstream channel.": "Việc xử lý dữ liệu phụ thuộc vào kênh thượng nguồn được cấu hình.",
+    "Context window": "Cửa sổ ngữ cảnh"
+  }
 }

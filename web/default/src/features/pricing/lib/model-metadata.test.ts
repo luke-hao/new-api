@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import assert from 'node:assert/strict'
+// Locale resources use a translation namespace; root-level keys are ignored by i18next.
+import { readFileSync } from 'node:fs'
 import { describe, it as test } from 'node:test'
 import type { PricingModel } from '../types'
 import {
@@ -233,3 +235,25 @@ describe('specification formatting', () => {
     assert.equal(formatYearMonth(''), '—')
   })
 })
+
+for (const locale of ['en', 'zh', 'fr', 'ru', 'ja', 'vi']) {
+  test(`specification messages resolve in the ${locale} translation namespace`, () => {
+    const resource = JSON.parse(
+      readFileSync(
+        new URL(`../../../i18n/locales/${locale}.json`, import.meta.url),
+        'utf8'
+      )
+    )
+    for (const key of [
+      'Context window',
+      'Unverified specifications are shown as Unknown; channel limits may differ.',
+      'Official documentation',
+      'Verified on',
+      'Data handling depends on the configured upstream channel.',
+    ]) {
+      assert.equal(typeof resource.translation[key], 'string')
+      assert.ok(resource.translation[key].length > 0)
+    }
+    assert.deepEqual(Object.keys(resource), ['translation'])
+  })
+}

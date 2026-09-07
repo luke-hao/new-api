@@ -4906,10 +4906,10 @@
     "Infinite Canvas": "Infinite Canvas",
     "Opening infinite canvas...": "Opening infinite canvas...",
     "Failed to open infinite canvas": "Failed to open infinite canvas",
-    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
-  },
-  "Unverified specifications are shown as Unknown; channel limits may differ.": "未確認の仕様は不明と表示されます。チャネルの制限は異なる場合があります。",
-  "Official documentation": "公式ドキュメント",
-  "Verified on": "確認日",
-  "Data handling depends on the configured upstream channel.": "データの取り扱いは設定された上流チャネルによって異なります。"
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas.",
+    "Unverified specifications are shown as Unknown; channel limits may differ.": "未確認の仕様は不明と表示されます。チャネルの制限は異なる場合があります。",
+    "Verified on": "確認日",
+    "Data handling depends on the configured upstream channel.": "データの取り扱いは設定された上流チャネルによって異なります。",
+    "Context window": "コンテキストウィンドウ"
+  }
 }

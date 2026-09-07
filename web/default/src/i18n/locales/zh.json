@@ -2651,7 +2651,7 @@
     "Official": "官方",
     "Official Repository": "官方仓库",
     "Official Sync": "官方同步",
-    "Official documentation": "官方说明",
+    "Official documentation": "官方资料",
     "OhMyGPT": "OhMyGPT",
     "Old Format Template": "旧格式模板",
     "Old format: Direct override. New format: Supports conditional judgment and custom JSON operations.": "旧格式：直接覆盖。新格式：支持条件判断和自定义 JSON 操作。",
@@ -4906,10 +4906,10 @@
     "Infinite Canvas": "无限画布",
     "Opening infinite canvas...": "正在打开无限画布…",
     "Failed to open infinite canvas": "打开无限画布失败",
-    "Create and organize text, images, and videos on a shared canvas.": "在共享画布中创作和组织文本、图片与视频。"
-  },
-  "Unverified specifications are shown as Unknown; channel limits may differ.": "未核实的规格显示为未知；实际渠道限制可能不同。",
-  "Official documentation": "官方资料",
-  "Verified on": "核对日期",
-  "Data handling depends on the configured upstream channel.": "数据处理方式取决于所配置的上游渠道。"
+    "Create and organize text, images, and videos on a shared canvas.": "在共享画布中创作和组织文本、图片与视频。",
+    "Unverified specifications are shown as Unknown; channel limits may differ.": "未核实的规格显示为未知；实际渠道限制可能不同。",
+    "Verified on": "核对日期",
+    "Data handling depends on the configured upstream channel.": "数据处理方式取决于所配置的上游渠道。",
+    "Context window": "上下文窗口"
+  }
 }

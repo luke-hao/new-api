@@ -4906,10 +4906,10 @@
     "Infinite Canvas": "Infinite Canvas",
     "Opening infinite canvas...": "Opening infinite canvas...",
     "Failed to open infinite canvas": "Failed to open infinite canvas",
-    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
-  },
-  "Unverified specifications are shown as Unknown; channel limits may differ.": "Unverified specifications are shown as Unknown; channel limits may differ.",
-  "Official documentation": "Official documentation",
-  "Verified on": "Verified on",
-  "Data handling depends on the configured upstream channel.": "Data handling depends on the configured upstream channel."
+    "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas.",
+    "Unverified specifications are shown as Unknown; channel limits may differ.": "Unverified specifications are shown as Unknown; channel limits may differ.",
+    "Verified on": "Verified on",
+    "Data handling depends on the configured upstream channel.": "Data handling depends on the configured upstream channel.",
+    "Context window": "Context window"
+  }
 }
