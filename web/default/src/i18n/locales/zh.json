@@ -4619,7 +4619,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相关项目",
     "footer.defaultCopyright": "版权所有。",
-    "footer.new\u0061pi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
+    "footer.newapi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
     "gpt-3.5-turbo": "gpt-3.5-turbo",
     "gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
     "gpt-4": "gpt-4",
@@ -4907,5 +4907,9 @@
     "Opening infinite canvas...": "正在打开无限画布…",
     "Failed to open infinite canvas": "打开无限画布失败",
     "Create and organize text, images, and videos on a shared canvas.": "在共享画布中创作和组织文本、图片与视频。"
-  }
+  },
+  "Unverified specifications are shown as Unknown; channel limits may differ.": "未核实的规格显示为未知；实际渠道限制可能不同。",
+  "Official documentation": "官方资料",
+  "Verified on": "核对日期",
+  "Data handling depends on the configured upstream channel.": "数据处理方式取决于所配置的上游渠道。"
 }

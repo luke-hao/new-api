@@ -4619,7 +4619,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Các Dự Án Liên Quan",
     "footer.defaultCopyright": "Bản quyền được bảo lưu.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
+    "footer.newapi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
     "gpt-3.5-turbo": "gpt-3.5-turbo",
     "gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
     "gpt-4": "gpt-4",
@@ -4907,5 +4907,9 @@
     "Opening infinite canvas...": "Opening infinite canvas...",
     "Failed to open infinite canvas": "Failed to open infinite canvas",
     "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
-  }
+  },
+  "Unverified specifications are shown as Unknown; channel limits may differ.": "Thông số chưa xác minh được hiển thị là không rõ; giới hạn của kênh có thể khác.",
+  "Official documentation": "Tài liệu chính thức",
+  "Verified on": "Ngày xác minh",
+  "Data handling depends on the configured upstream channel.": "Việc xử lý dữ liệu phụ thuộc vào kênh thượng nguồn được cấu hình."
 }

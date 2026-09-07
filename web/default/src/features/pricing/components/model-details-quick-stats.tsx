@@ -24,85 +24,121 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
 import {
   formatTokenCount,
   formatYearMonth,
   type ModelMetadata,
 } from '../lib/model-metadata'
-import type { Modality } from '../types'
 import { ModalityIcons } from './model-details-modalities'
 
-type QuickStatsProps = {
-  metadata: ModelMetadata
-}
-
+type QuickStatsProps = { metadata: ModelMetadata }
 type Stat = {
   key: string
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: React.ReactNode
+  title?: string
   hint?: string
+}
+
+function tokenValue(
+  value: number,
+  officialLabel: string,
+  unknown: string
+): string {
+  if (officialLabel) return officialLabel
+  if (value > 0) return formatTokenCount(value)
+  return unknown
+}
+
+function exactTokenTitle(
+  value: number,
+  label: string,
+  unknown: string
+): string {
+  if (value > 0) return `${new Intl.NumberFormat().format(value)} tokens`
+  return label || unknown
 }
 
 function buildStats(
   metadata: ModelMetadata,
   t: (key: string) => string
 ): Stat[] {
-  const stats: Stat[] = [
+  const unknown = t('Unknown')
+  const hasModalities =
+    metadata.input_modalities.length > 0 &&
+    metadata.output_modalities.length > 0
+  return [
     {
       key: 'context',
       icon: Layers,
       label: t('Context'),
-      value: formatTokenCount(metadata.context_length),
-      hint: t('Maximum input window'),
+      value: tokenValue(
+        metadata.context_length,
+        metadata.context_display,
+        unknown
+      ),
+      title: exactTokenTitle(
+        metadata.context_length,
+        metadata.context_display,
+        unknown
+      ),
+      hint: t('Context window'),
     },
-  ]
-
-  if (metadata.max_output_tokens > 0) {
-    stats.push({
+    {
       key: 'max-output',
       icon: Maximize2,
       label: t('Max output'),
-      value: formatTokenCount(metadata.max_output_tokens),
+      value: tokenValue(
+        metadata.max_output_tokens,
+        metadata.max_output_display,
+        unknown
+      ),
+      title: exactTokenTitle(
+        metadata.max_output_tokens,
+        metadata.max_output_display,
+        unknown
+      ),
       hint: t('Maximum tokens per response'),
-    })
-  }
-
-  stats.push({
-    key: 'modalities',
-    icon: FileText,
-    label: t('Modalities'),
-    value: (
-      <ModalityFlow
-        input={metadata.input_modalities}
-        output={metadata.output_modalities}
-      />
-    ),
-  })
-
-  if (metadata.knowledge_cutoff) {
-    stats.push({
+    },
+    {
+      key: 'modalities',
+      icon: FileText,
+      label: t('Modalities'),
+      value: hasModalities ? (
+        <ModalityFlow
+          input={metadata.input_modalities}
+          output={metadata.output_modalities}
+        />
+      ) : (
+        unknown
+      ),
+    },
+    {
       key: 'knowledge',
       icon: Sparkles,
       label: t('Knowledge cutoff'),
-      value: formatYearMonth(metadata.knowledge_cutoff),
-    })
-  }
-
-  if (metadata.release_date) {
-    stats.push({
+      value: metadata.knowledge_cutoff
+        ? formatYearMonth(metadata.knowledge_cutoff)
+        : unknown,
+      title: metadata.knowledge_cutoff || undefined,
+    },
+    {
       key: 'release',
       icon: CalendarClock,
       label: t('Released'),
-      value: formatYearMonth(metadata.release_date),
-    })
-  }
-
-  return stats
+      value: metadata.release_date
+        ? formatYearMonth(metadata.release_date)
+        : unknown,
+      title: metadata.release_date || undefined,
+    },
+  ]
 }
 
-function ModalityFlow(props: { input: Modality[]; output: Modality[] }) {
+function ModalityFlow(props: {
+  input: ModelMetadata['input_modalities']
+  output: ModelMetadata['output_modalities']
+}) {
   return (
     <span className='inline-flex items-center gap-1 align-middle'>
       <ModalityIcons modalities={props.input} className='size-3.5' />
@@ -115,33 +151,59 @@ function ModalityFlow(props: { input: Modality[]; output: Modality[] }) {
 export function ModelDetailsQuickStats(props: QuickStatsProps) {
   const { t } = useTranslation()
   const stats = buildStats(props.metadata, t)
-
   return (
-    <div className='bg-muted/20 grid grid-cols-2 gap-px overflow-hidden rounded-lg border @md/details:grid-cols-3 @2xl/details:grid-cols-5'>
-      {stats.map((stat) => {
-        const Icon = stat.icon
-        return (
-          <div
-            key={stat.key}
-            className={cn(
-              'bg-background flex min-w-0 flex-col gap-0.5 px-3 py-2.5'
-            )}
-          >
-            <span className='text-muted-foreground inline-flex min-w-0 items-center gap-1 text-[10px] font-medium tracking-wider uppercase'>
-              <Icon className='size-3 shrink-0' />
-              <span className='truncate'>{stat.label}</span>
-            </span>
-            <span className='text-foreground truncate text-sm font-semibold tabular-nums'>
-              {stat.value}
-            </span>
-            {stat.hint && (
-              <span className='text-muted-foreground/60 truncate text-[10px]'>
-                {stat.hint}
+    <section className='space-y-2' data-testid='model-specifications'>
+      <div className='bg-muted/20 grid grid-cols-2 gap-px overflow-hidden rounded-lg border @md/details:grid-cols-3 @2xl/details:grid-cols-5'>
+        {stats.map((stat) => {
+          const Icon = stat.icon
+          return (
+            <div
+              key={stat.key}
+              data-stat={stat.key}
+              className='bg-background flex min-w-0 flex-col gap-0.5 px-3 py-2.5'
+            >
+              <span className='text-muted-foreground inline-flex min-w-0 items-center gap-1 text-[10px] font-medium tracking-wider uppercase'>
+                <Icon className='size-3 shrink-0' />
+                <span className='truncate'>{stat.label}</span>
               </span>
-            )}
-          </div>
-        )
-      })}
-    </div>
+              <span
+                className='text-foreground truncate text-sm font-semibold tabular-nums'
+                title={stat.title}
+              >
+                {stat.value}
+              </span>
+              {stat.hint && (
+                <span className='text-muted-foreground/60 truncate text-[10px]'>
+                  {stat.hint}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <div className='text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]'>
+        <span>
+          {t(
+            'Unverified specifications are shown as Unknown; channel limits may differ.'
+          )}
+        </span>
+        {props.metadata.sources.map((url, index) => (
+          <a
+            key={url}
+            href={url}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='text-primary underline underline-offset-2'
+          >
+            {t('Official documentation')} {index + 1}
+          </a>
+        ))}
+        {props.metadata.checked_at && (
+          <span>
+            {t('Verified on')} {props.metadata.checked_at}
+          </span>
+        )}
+      </div>
+    </section>
   )
 }

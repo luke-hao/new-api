@@ -30,3 +30,10 @@
 - 新增系统配置：`setting` 默认值、option API、前端 settings section、i18n、持久化兼容都要检查。
 - 新增前端页面：routes、feature、导航权限、接口封装、i18n、loading/error/empty 状态一起看。
 - 新增支付或 webhook：金额单位、签名验证、幂等、失败响应、测试覆盖优先确认。
+
+## 模型广场规格数据（2026-09-07）
+
+- `web/default/src/features/pricing/lib/official-model-metadata.ts` 保存按精确型号核实的官方规格，逐条记录来源和核对日期。
+- `model-metadata.ts` 只采用显式后端字段或精确型号资料；缺失规格、日期、参数量、许可证、数据留存或训练政策必须保持未知，禁止按名称、分组、价格或随机种子生成。
+- 官方仅公布 K/M 文本时保留原始标签，不猜测十进制/二进制换算。精确 token 数通过 tooltip 展示；日期保留来源精度并按 UTC 格式化。
+- 渠道别名没有确认映射时不得借用相似型号规格。官方能力与本站渠道实际限制分开说明。

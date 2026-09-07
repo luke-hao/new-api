@@ -58,11 +58,8 @@ export type PricingModel = {
   billing_expr?: string
   /** Pricing version returned by backend, useful for cache busting */
   pricing_version?: string
-  /**
-   * Optional model metadata fields. These are not yet returned by the backend
-   * and are populated client-side from {@link inferModelMetadata}.
-   * When the backend ships these fields, the inference layer becomes a
-   * fallback rather than the source of truth.
+  /** Explicit metadata takes precedence over the exact-model official catalog.
+   * Missing values remain unknown; no name-derived or random defaults.
    */
   context_length?: number
   max_output_tokens?: number

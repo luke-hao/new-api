@@ -4619,7 +4619,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Related Projects",
     "footer.defaultCopyright": "All rights reserved.",
-    "footer.new\u0061pi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
+    "footer.newapi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
     "gpt-3.5-turbo": "gpt-3.5-turbo",
     "gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
     "gpt-4": "gpt-4",
@@ -4907,5 +4907,9 @@
     "Opening infinite canvas...": "Opening infinite canvas...",
     "Failed to open infinite canvas": "Failed to open infinite canvas",
     "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
-  }
+  },
+  "Unverified specifications are shown as Unknown; channel limits may differ.": "Unverified specifications are shown as Unknown; channel limits may differ.",
+  "Official documentation": "Official documentation",
+  "Verified on": "Verified on",
+  "Data handling depends on the configured upstream channel.": "Data handling depends on the configured upstream channel."
 }

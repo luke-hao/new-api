@@ -742,7 +742,11 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
       <div className='border-border/60 bg-border/60 grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2'>
         <InfoCell label={t('Provider')}>
           <div className='flex items-center gap-1.5'>
-            <span className='text-sm font-medium'>{info.vendor_label}</span>
+            <span className='text-sm font-medium'>
+              {info.vendor_label === 'Unknown'
+                ? t('Unknown')
+                : info.vendor_label}
+            </span>
             {info.homepage && (
               <a
                 href={info.homepage}
@@ -759,7 +763,9 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
 
         <InfoCell label={t('Tokenizer')}>
           <div className='flex flex-col gap-0.5'>
-            <code className='font-mono text-xs'>{info.tokenizer}</code>
+            <code className='font-mono text-xs'>
+              {info.tokenizer === 'Unknown' ? t('Unknown') : info.tokenizer}
+            </code>
             {info.tokenizer_note && (
               <span className='text-muted-foreground text-[10px]'>
                 {info.tokenizer_note}
@@ -770,7 +776,9 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
 
         <InfoCell label={t('License')}>
           <div className='flex flex-col gap-1'>
-            <span className='text-sm'>{info.license}</span>
+            <span className='text-sm'>
+              {info.license === 'Unknown' ? t('Unknown') : info.license}
+            </span>
             <Badge
               variant='outline'
               className={cn(
@@ -796,14 +804,12 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
 
         <InfoCell label={t('Data retention')}>
           <span className='text-sm'>
-            {info.data_retention_days === 0
-              ? t('Zero retention')
+            {info.data_retention_days == null
+              ? t('Unknown')
               : `${info.data_retention_days} ${t('days')}`}
           </span>
           <span className='text-muted-foreground text-[10px]'>
-            {info.training_opt_out
-              ? t('Not used for upstream training by default')
-              : t('May be used for training by upstream provider')}
+            {t('Data handling depends on the configured upstream channel.')}
           </span>
         </InfoCell>
       </div>

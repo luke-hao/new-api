@@ -4619,7 +4619,7 @@
     "footer.columns.related.links.oneApi": "Один API",
     "footer.columns.related.title": "Связанные проекты",
     "footer.defaultCopyright": "Все права защищены.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
+    "footer.newapi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
     "gpt-3.5-turbo": "gpt-3.5-turbo",
     "gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
     "gpt-4": "gpt-4",
@@ -4907,5 +4907,9 @@
     "Opening infinite canvas...": "Opening infinite canvas...",
     "Failed to open infinite canvas": "Failed to open infinite canvas",
     "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
-  }
+  },
+  "Unverified specifications are shown as Unknown; channel limits may differ.": "Непроверенные характеристики отмечены как неизвестные; ограничения канала могут отличаться.",
+  "Official documentation": "Официальная документация",
+  "Verified on": "Дата проверки",
+  "Data handling depends on the configured upstream channel.": "Обработка данных зависит от настроенного вышестоящего канала."
 }
