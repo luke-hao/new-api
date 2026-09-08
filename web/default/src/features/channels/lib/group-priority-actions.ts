@@ -32,6 +32,8 @@ export type GroupPriorityUpdateSummary = {
   updated: number
   unchanged: number
   failedUpdates: number
+  skippedLocked: number
+  participating: number
 }
 
 export type PricePriorityResult = GroupPriorityUpdateSummary & {
@@ -106,16 +108,24 @@ async function applyPriorityUpdates(
   }, [])
 
   let failedUpdates = 0
+  let updated = 0
+  let skippedLocked = 0
   if (updates.length > 0) {
     try {
       const response = await updateChannelGroupRouting({
         group,
+        mode: 'rerank',
         updates: updates.map((update) => ({
           channel_id: update.id,
           priority: update.priority,
         })),
       })
-      if (!response.success) failedUpdates = updates.length
+      if (!response.success) {
+        failedUpdates = updates.length
+      } else {
+        updated = response.data?.updated ?? updates.length
+        skippedLocked = response.data?.skipped_locked ?? 0
+      }
     } catch {
       failedUpdates = updates.length
     }
@@ -123,7 +133,9 @@ async function applyPriorityUpdates(
 
   return {
     total: channels.length,
-    updated: updates.length - failedUpdates,
+    updated,
+    skippedLocked,
+    participating: channels.length - skippedLocked,
     unchanged: channels.length - updates.length,
     failedUpdates,
   }
@@ -132,7 +144,8 @@ async function applyPriorityUpdates(
 export async function rankGroupChannelsByLowestPrice(
   group: string
 ): Promise<PricePriorityResult> {
-  const channels = await fetchAllChannelsForGroup(group)
+  const allChannels = await fetchAllChannelsForGroup(group)
+  const channels = allChannels.filter((channel) => !channel.priority_locked)
   const priorities = new Map<number, number>()
 
   const pricedChannels = channels
@@ -153,6 +166,8 @@ export async function rankGroupChannelsByLowestPrice(
   const summary = await applyPriorityUpdates(group, channels, priorities)
   return {
     ...summary,
+    total: allChannels.length,
+    skippedLocked: allChannels.length - channels.length + summary.skippedLocked,
     priced: pricedChannels.length,
     unpriced: channels.length - pricedChannels.length,
   }

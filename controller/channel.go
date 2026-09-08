@@ -763,11 +763,13 @@ type ChannelGroupRoutingUpdateItem struct {
 	Weight          *uint  `json:"weight"`
 	InheritPriority bool   `json:"inherit_priority"`
 	InheritWeight   bool   `json:"inherit_weight"`
+	PriorityLocked  *bool  `json:"priority_locked"`
 }
 
 type ChannelGroupRoutingUpdateRequest struct {
 	Group   string                          `json:"group"`
 	Updates []ChannelGroupRoutingUpdateItem `json:"updates"`
+	Mode    string                          `json:"mode"`
 }
 
 func UpdateChannelGroupRouting(c *gin.Context) {
@@ -784,23 +786,23 @@ func UpdateChannelGroupRouting(c *gin.Context) {
 			Weight:          update.Weight,
 			InheritPriority: update.InheritPriority,
 			InheritWeight:   update.InheritWeight,
+			PriorityLocked:  update.PriorityLocked,
 		})
 	}
-	updated, err := model.UpdateChannelGroupRoutings(request.Group, patches)
+	result, err := model.UpdateChannelGroupRoutingsWithMode(request.Group, patches, request.Mode)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
+	if result.LockChanged {
+		channelGroupStabilityRuns.cancel(strings.TrimSpace(request.Group))
+	}
 	model.InitChannelCache()
 	recordManageAudit(c, "channel.group_routing_update", map[string]interface{}{
-		"group": request.Group,
-		"count": updated,
+		"group": request.Group, "mode": request.Mode,
+		"count": result.Updated, "skipped_locked": result.SkippedLocked, "lock_changed": result.LockChanged,
 	})
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    gin.H{"updated": updated},
-	})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": result})
 }
 
 func DisableTagChannels(c *gin.Context) {

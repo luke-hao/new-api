@@ -13,3 +13,26 @@ docs
 /web/classic/node_modules
 /web/classic/dist
 !THIRD-PARTY-LICENSES.md
+
+# Keep protected runtime data and transient verification files out of images.
+.env
+.env.*
+!.env.example
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite3
+**/*.log
+/data
+/logs
+/auths
+/config.yaml
+**/.cache
+**/coverage
+**/test-results
+**/playwright-report
+**/*.tar
+**/*.tar.gz
+**/*.zip
+**/id_ed25519*
+**/id_rsa*

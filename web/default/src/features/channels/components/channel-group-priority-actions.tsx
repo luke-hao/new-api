@@ -257,24 +257,26 @@ export function ChannelGroupPriorityActions({
       })
       if (result.total === 0) {
         toast.info(t('当前分组没有渠道'))
+      } else if (result.participating === 0 && result.failedUpdates === 0) {
+        toast.info(
+          t('channels.priorityLock.allSkipped', { count: result.skippedLocked })
+        )
       } else if (result.failedUpdates > 0) {
         toast.error(
-          t('价格排序完成，但 {{count}} 个渠道优先级更新失败', {
-            count: result.failedUpdates,
+          t('channels.priorityLock.priceFailed', {
+            failed: result.failedUpdates,
+            skipped: result.skippedLocked,
           })
         )
-      } else if (result.priced === 0) {
-        toast.info(t('未找到名称末尾带倍率数字的渠道，已将优先级设为 0'))
       } else {
         toast.success(
-          t(
-            '价格排序完成：{{priced}} 个参与排序，{{unpriced}} 个设为 0，已更新 {{updated}} 个优先级',
-            {
-              priced: result.priced,
-              unpriced: result.unpriced,
-              updated: result.updated,
-            }
-          )
+          t('channels.priorityLock.priceResult', {
+            participating: result.participating,
+            priced: result.priced,
+            unpriced: result.unpriced,
+            updated: result.updated,
+            skipped: result.skippedLocked,
+          })
         )
       }
     } catch (error) {
@@ -350,7 +352,8 @@ export function ChannelGroupPriorityActions({
           </div>
           {Boolean(stabilityStatus?.last_primary_channel_id) && (
             <div>
-              {t('主通道')}: #{stabilityStatus?.last_primary_channel_id} ·{' '}
+              {t('channels.priorityLock.scheduledPrimary')}: #
+              {stabilityStatus?.last_primary_channel_id} ·{' '}
               {stabilityStatus?.last_primary_latency_ms}ms
             </div>
           )}

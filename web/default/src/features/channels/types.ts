@@ -59,6 +59,7 @@ export const channelSchema = z.object({
   effective_priority: z.number().nullish(),
   effective_weight: z.number().nullish(),
   priority_overridden: z.boolean().optional(),
+  priority_locked: z.boolean().optional(),
   weight_overridden: z.boolean().optional(),
   auto_ban: z.number().nullish(),
   other_info: z.string().default(''),
@@ -365,11 +366,13 @@ export interface ChannelGroupRoutingUpdateItem {
   weight?: number
   inherit_priority?: boolean
   inherit_weight?: boolean
+  priority_locked?: boolean
 }
 
 export interface ChannelGroupRoutingUpdateParams {
   group: string
   updates: ChannelGroupRoutingUpdateItem[]
+  mode?: 'manual' | 'rerank'
 }
 
 export interface ChannelGroupStabilityStatus {

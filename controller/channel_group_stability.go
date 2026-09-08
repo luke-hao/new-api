@@ -90,6 +90,7 @@ type channelGroupStabilityOutcome struct {
 	result           string
 	message          string
 	primaryChannelId int
+	clearPrimary     bool
 	primaryLatencyMs int64
 	reorderedAt      int64
 }
@@ -114,6 +115,14 @@ func (registry *channelGroupStabilityRunRegistry) tryStart(group string, automat
 		runner(ctx)
 	})
 	return true
+}
+
+func (registry *channelGroupStabilityRunRegistry) cancel(group string) {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+	if run, exists := registry.runs[group]; exists {
+		run.cancel()
+	}
 }
 
 func (registry *channelGroupStabilityRunRegistry) cancelAutomatic(group string) {
@@ -283,13 +292,22 @@ func runChannelGroupStabilitySafely(ctx context.Context, policy model.ChannelGro
 	outcome = executeChannelGroupStability(ctx, policy, automatic, forceFull)
 }
 
-func executeChannelGroupStability(parent context.Context, policy model.ChannelGroupStabilityPolicy, automatic bool, forceFull bool) channelGroupStabilityOutcome {
+func executeChannelGroupStability(parent context.Context, policy model.ChannelGroupStabilityPolicy, automatic bool, forceFull bool) (outcome channelGroupStabilityOutcome) {
 	channels, err := model.GetEnabledChannelsForGroupStability(policy.Group)
 	if err != nil {
 		return channelGroupStabilityOutcome{result: model.ChannelGroupStabilityResultError, message: err.Error()}
 	}
+	skippedLocked := 0
+	channels, skippedLocked = channelGroupStabilityCandidates(channels)
+	defer func() {
+		outcome.message = fmt.Sprintf("%s（参与调度 %d 个，跳过固定渠道 %d 个）", outcome.message, len(channels), skippedLocked)
+	}()
 	if len(channels) == 0 {
-		return channelGroupStabilityOutcome{result: model.ChannelGroupStabilityResultNoChannels, message: "当前分组没有启用渠道"}
+		message := "当前分组没有启用渠道"
+		if skippedLocked > 0 {
+			message = "当前分组的启用渠道均已固定优先级，跳过检测和重排"
+		}
+		return channelGroupStabilityOutcome{result: model.ChannelGroupStabilityResultNoChannels, message: message, clearPrimary: true}
 	}
 	phaseCount := 1 + (len(channels)+channelGroupStabilityConcurrency-1)/channelGroupStabilityConcurrency
 	runTimeout := time.Duration(phaseCount*policy.ProbeTimeoutSeconds)*time.Second + channelGroupStabilityGracePeriod
@@ -361,7 +379,7 @@ func executeChannelGroupStability(parent context.Context, policy model.ChannelGr
 }
 
 func persistChannelGroupStabilityOutcome(policy model.ChannelGroupStabilityPolicy, automatic bool, outcome channelGroupStabilityOutcome) {
-	if outcome.primaryChannelId == 0 {
+	if outcome.primaryChannelId == 0 && !outcome.clearPrimary {
 		outcome.primaryChannelId = policy.LastPrimaryChannelId
 		outcome.primaryLatencyMs = policy.LastPrimaryLatencyMs
 	}
@@ -400,7 +418,21 @@ func channelGroupStabilityContextOutcome(ctx context.Context) channelGroupStabil
 	return channelGroupStabilityOutcome{result: model.ChannelGroupStabilityResultCancelled, message: ctx.Err().Error()}
 }
 
+func channelGroupStabilityCandidates(channels []*model.Channel) ([]*model.Channel, int) {
+	eligible := make([]*model.Channel, 0, len(channels))
+	skipped := 0
+	for _, channel := range channels {
+		if channel.PriorityLocked {
+			skipped++
+			continue
+		}
+		eligible = append(eligible, channel)
+	}
+	return eligible, skipped
+}
+
 func selectChannelGroupStabilityPrimary(channels []*model.Channel) (*model.Channel, bool) {
+	channels, _ = channelGroupStabilityCandidates(channels)
 	if len(channels) == 0 {
 		return nil, false
 	}
@@ -519,6 +551,7 @@ func probeChannelForStability(parent context.Context, channel *model.Channel, te
 }
 
 func buildChannelGroupStabilityPriorities(channels []*model.Channel, results map[int]channelStabilityProbeResult, currentPrimaryID int) ([]channelStabilityProbeResult, []model.ChannelGroupRoutingPatch) {
+	channels, _ = channelGroupStabilityCandidates(channels)
 	successful := make([]channelStabilityProbeResult, 0, len(channels))
 	for _, channel := range channels {
 		if result, exists := results[channel.Id]; exists && result.success {

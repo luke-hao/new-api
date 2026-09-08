@@ -55,6 +55,7 @@ type Channel struct {
 
 	OtherSettings string `json:"settings" gorm:"column:settings"` // 其他设置，存储azure版本等不需要检索的信息，详见dto.ChannelOtherSettings
 
+	PriorityLocked     bool   `json:"priority_locked" gorm:"-"`
 	EffectivePriority  *int64 `json:"effective_priority,omitempty" gorm:"-"`
 	EffectiveWeight    *uint  `json:"effective_weight,omitempty" gorm:"-"`
 	PriorityOverridden bool   `json:"priority_overridden,omitempty" gorm:"-"`

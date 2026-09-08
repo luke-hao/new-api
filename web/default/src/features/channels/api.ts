@@ -174,7 +174,7 @@ export async function updateChannelGroupRouting(
 ): Promise<{
   success: boolean
   message?: string
-  data?: { updated: number }
+  data?: { updated: number; skipped_locked?: number }
 }> {
   const res = await api.put(
     '/api/channel/group-routing',

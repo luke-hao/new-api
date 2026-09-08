@@ -4913,6 +4913,19 @@
     "Unverified specifications are shown as Unknown; channel limits may differ.": "Unverified specifications are shown as Unknown; channel limits may differ.",
     "Verified on": "Verified on",
     "Data handling depends on the configured upstream channel.": "Data handling depends on the configured upstream channel.",
-    "Context window": "Context window"
+    "Context window": "Context window",
+    "channels.priorityLock.lock": "Fix priority in this group",
+    "channels.priorityLock.unlock": "Unlock priority in this group",
+    "channels.priorityLock.fixed": "Fixed",
+    "channels.priorityLock.locked": "Priority fixed for this group",
+    "channels.priorityLock.unlocked": "Priority unlocked; this channel will join subsequent scheduling",
+    "channels.priorityLock.failed": "Failed to update fixed priority",
+    "channels.priorityLock.unlockFirst": "Unlock priority before restoring defaults",
+    "channels.priorityLock.fixedHint": "Priority stays fixed in this group. Scheduled checks, full checks and price ranking skip this channel. Manual edits and normal requests still work.",
+    "channels.priorityLock.lockHint": "Fix the current priority for this group and exclude this channel from scheduled checks, full checks and price ranking.",
+    "channels.priorityLock.allSkipped": "All {{count}} channels have fixed priorities; checks and ranking skipped",
+    "channels.priorityLock.priceFailed": "Price ranking: {{failed}} updates failed; {{skipped}} fixed channels skipped",
+    "channels.priorityLock.priceResult": "Price ranking: {{participating}} participants, {{priced}} priced, {{unpriced}} without price; {{updated}} updated; {{skipped}} fixed channels skipped",
+    "channels.priorityLock.scheduledPrimary": "Primary among scheduled channels"
   }
 }

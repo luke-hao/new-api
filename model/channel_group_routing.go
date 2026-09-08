@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"gorm.io/gorm"
@@ -16,6 +17,7 @@ type ChannelGroupRouting struct {
 	Group            string `json:"group" gorm:"type:varchar(64);primaryKey;autoIncrement:false;index"`
 	PriorityOverride *int64 `json:"priority_override" gorm:"bigint"`
 	WeightOverride   *uint  `json:"weight_override"`
+	PriorityLocked   bool   `json:"priority_locked" gorm:"not null;default:false"`
 }
 
 type ChannelGroupRoutingPatch struct {
@@ -24,6 +26,18 @@ type ChannelGroupRoutingPatch struct {
 	Weight          *uint
 	InheritPriority bool
 	InheritWeight   bool
+	PriorityLocked  *bool
+}
+
+const (
+	ChannelGroupRoutingManual = "manual"
+	ChannelGroupRoutingRerank = "rerank"
+)
+
+type ChannelGroupRoutingUpdateResult struct {
+	Updated       int  `json:"updated"`
+	SkippedLocked int  `json:"skipped_locked"`
+	LockChanged   bool `json:"-"`
 }
 
 func channelGroups(groupList string) []string {
@@ -140,107 +154,145 @@ func PopulateEffectiveChannelRoutings(channels []*Channel, group string) error {
 		priority, weight, priorityOverridden, weightOverridden := resolveChannelGroupRouting(channel, group, routingMap)
 		channel.EffectivePriority = &priority
 		channel.EffectiveWeight = &weight
+		channel.PriorityLocked = routingByChannel[channel.Id].PriorityLocked
 		channel.PriorityOverridden = priorityOverridden
 		channel.WeightOverridden = weightOverridden
 	}
 	return nil
 }
 
-func updateChannelGroupRoutingsTx(tx *gorm.DB, group string, patches []ChannelGroupRoutingPatch) (int, error) {
-	group = strings.TrimSpace(group)
-	if group == "" {
-		return 0, errors.New("group cannot be empty")
-	}
-	if utf8.RuneCountInString(group) > 64 {
-		return 0, errors.New("group is too long")
-	}
+func updateChannelGroupRoutingsTx(tx *gorm.DB, group string, patches []ChannelGroupRoutingPatch, mode string) (ChannelGroupRoutingUpdateResult, error) {
+	result := ChannelGroupRoutingUpdateResult{}
 	if len(patches) == 0 {
-		return 0, errors.New("updates cannot be empty")
+		return result, errors.New("updates cannot be empty")
 	}
-
 	channelIds := make([]int, 0, len(patches))
 	seen := make(map[int]struct{}, len(patches))
 	for _, patch := range patches {
 		if patch.ChannelId <= 0 {
-			return 0, errors.New("invalid channel id")
+			return result, errors.New("invalid channel id")
 		}
 		if _, ok := seen[patch.ChannelId]; ok {
-			return 0, fmt.Errorf("duplicate channel id: %d", patch.ChannelId)
+			return result, fmt.Errorf("duplicate channel id: %d", patch.ChannelId)
 		}
 		seen[patch.ChannelId] = struct{}{}
 		if patch.Priority != nil && patch.InheritPriority {
-			return 0, fmt.Errorf("channel %d cannot set and inherit priority at the same time", patch.ChannelId)
+			return result, errors.New("cannot set and inherit priority at the same time")
 		}
 		if patch.Weight != nil && patch.InheritWeight {
-			return 0, fmt.Errorf("channel %d cannot set and inherit weight at the same time", patch.ChannelId)
+			return result, errors.New("cannot set and inherit weight at the same time")
 		}
-		if patch.Priority == nil && patch.Weight == nil && !patch.InheritPriority && !patch.InheritWeight {
-			return 0, fmt.Errorf("channel %d has no routing changes", patch.ChannelId)
+		if patch.Priority == nil && patch.Weight == nil && !patch.InheritPriority && !patch.InheritWeight && patch.PriorityLocked == nil {
+			return result, errors.New("no routing changes")
+		}
+		if mode == ChannelGroupRoutingRerank && (patch.Priority == nil || patch.Weight != nil || patch.InheritPriority || patch.InheritWeight || patch.PriorityLocked != nil) {
+			return result, errors.New("rerank only accepts priority updates")
 		}
 		channelIds = append(channelIds, patch.ChannelId)
 	}
-
 	var channels []*Channel
 	if err := tx.Where("id IN ?", channelIds).Find(&channels).Error; err != nil {
-		return 0, err
+		return result, err
 	}
 	if len(channels) != len(channelIds) {
-		return 0, errors.New("one or more channels do not exist")
+		return result, errors.New("one or more channels do not exist")
 	}
 	channelById := make(map[int]*Channel, len(channels))
 	for _, channel := range channels {
 		if !channelHasGroup(channel, group) {
-			return 0, fmt.Errorf("channel %d is not attached to group %s", channel.Id, group)
+			return result, fmt.Errorf("channel %d is not attached to group %s", channel.Id, group)
 		}
 		channelById[channel.Id] = channel
 	}
-
 	for _, patch := range patches {
 		channel := channelById[patch.ChannelId]
 		routing := ChannelGroupRouting{ChannelId: patch.ChannelId, Group: group}
 		err := tx.Where("channel_id = ? AND "+commonGroupCol+" = ?", patch.ChannelId, group).First(&routing).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, err
+			return result, err
+		}
+		if mode == ChannelGroupRoutingRerank && routing.PriorityLocked {
+			result.SkippedLocked++
+			continue
+		}
+		if patch.PriorityLocked != nil {
+			result.LockChanged = result.LockChanged || routing.PriorityLocked != *patch.PriorityLocked
+			routing.PriorityLocked = *patch.PriorityLocked
 		}
 		if patch.InheritPriority {
+			if routing.PriorityLocked {
+				return result, errors.New("unlock priority before restoring the channel default")
+			}
 			routing.PriorityOverride = nil
 		} else if patch.Priority != nil {
 			routing.PriorityOverride = patch.Priority
+		}
+		// A lock snapshots the effective group priority, rather than inheriting future global edits.
+		if routing.PriorityLocked && routing.PriorityOverride == nil {
+			priority := channel.GetPriority()
+			routing.PriorityOverride = &priority
 		}
 		if patch.InheritWeight {
 			routing.WeightOverride = nil
 		} else if patch.Weight != nil {
 			routing.WeightOverride = patch.Weight
 		}
-
-		if routing.PriorityOverride == nil && routing.WeightOverride == nil {
+		if routing.PriorityOverride == nil && routing.WeightOverride == nil && !routing.PriorityLocked {
 			if err := tx.Where("channel_id = ? AND "+commonGroupCol+" = ?", patch.ChannelId, group).Delete(&ChannelGroupRouting{}).Error; err != nil {
-				return 0, err
+				return result, err
 			}
 		} else if err := tx.Save(&routing).Error; err != nil {
-			return 0, err
+			return result, err
 		}
-
-		routingMap := map[string]ChannelGroupRouting{}
-		if routing.PriorityOverride != nil || routing.WeightOverride != nil {
-			routingMap[group] = routing
-		}
+		routingMap := map[string]ChannelGroupRouting{group: routing}
 		priority, weight, _, _ := resolveChannelGroupRouting(channel, group, routingMap)
-		if err := tx.Model(&Ability{}).
-			Where("channel_id = ? AND "+commonGroupCol+" = ?", patch.ChannelId, group).
-			Updates(map[string]interface{}{"priority": priority, "weight": weight}).Error; err != nil {
-			return 0, err
+		if err := tx.Model(&Ability{}).Where("channel_id = ? AND "+commonGroupCol+" = ?", patch.ChannelId, group).Updates(map[string]interface{}{"priority": priority, "weight": weight}).Error; err != nil {
+			return result, err
 		}
+		result.Updated++
 	}
-	return len(patches), nil
+	return result, nil
+}
+
+func UpdateChannelGroupRoutingsWithMode(group string, patches []ChannelGroupRoutingPatch, mode string) (ChannelGroupRoutingUpdateResult, error) {
+	result := ChannelGroupRoutingUpdateResult{}
+	group = strings.TrimSpace(group)
+	if group == "" || utf8.RuneCountInString(group) > 64 {
+		return result, errors.New("invalid group")
+	}
+	if mode == "" {
+		mode = ChannelGroupRoutingManual
+	}
+	if mode != ChannelGroupRoutingManual && mode != ChannelGroupRoutingRerank {
+		return result, errors.New("invalid routing update mode")
+	}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		policy, err := lockChannelGroupStabilityPolicyTx(tx, group)
+		if err != nil {
+			return err
+		}
+		result, err = updateChannelGroupRoutingsTx(tx, group, patches, mode)
+		if err != nil {
+			return err
+		}
+		if result.LockChanged {
+			// The shared write lock and version fence reject in-flight results on every DB engine.
+			nextCheckAt := ChannelGroupStabilityNextCheckAt(*policy, time.Now().UnixMilli())
+			return tx.Model(&ChannelGroupStabilityPolicy{}).Where(commonGroupCol+" = ?", group).Updates(map[string]interface{}{
+				"config_version": gorm.Expr("config_version + 1"), "next_check_at": nextCheckAt,
+				"last_primary_channel_id": 0, "last_primary_latency_ms": 0,
+				"last_result": ChannelGroupStabilityResultNever, "last_message": "分组固定优先级已更新，等待下一次检测",
+			}).Error
+		}
+		return nil
+	})
+	if err != nil {
+		return ChannelGroupRoutingUpdateResult{}, err
+	}
+	return result, nil
 }
 
 func UpdateChannelGroupRoutings(group string, patches []ChannelGroupRoutingPatch) (int, error) {
-	updated := 0
-	err := DB.Transaction(func(tx *gorm.DB) error {
-		var err error
-		updated, err = updateChannelGroupRoutingsTx(tx, group, patches)
-		return err
-	})
-	return updated, err
+	result, err := UpdateChannelGroupRoutingsWithMode(group, patches, ChannelGroupRoutingManual)
+	return result.Updated, err
 }

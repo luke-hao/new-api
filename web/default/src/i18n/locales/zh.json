@@ -4913,6 +4913,19 @@
     "Unverified specifications are shown as Unknown; channel limits may differ.": "未核实的规格显示为未知；实际渠道限制可能不同。",
     "Verified on": "核对日期",
     "Data handling depends on the configured upstream channel.": "数据处理方式取决于所配置的上游渠道。",
-    "Context window": "上下文窗口"
+    "Context window": "上下文窗口",
+    "channels.priorityLock.lock": "固定当前分组优先级",
+    "channels.priorityLock.unlock": "解除当前分组优先级固定",
+    "channels.priorityLock.fixed": "已固定",
+    "channels.priorityLock.locked": "已固定当前分组优先级",
+    "channels.priorityLock.unlocked": "已解除固定，将参与后续调度",
+    "channels.priorityLock.failed": "固定优先级设置失败",
+    "channels.priorityLock.unlockFirst": "请先解除固定，再恢复默认优先级",
+    "channels.priorityLock.fixedHint": "仅固定当前分组优先级；定时检测、立即全测及低价优先均跳过此渠道。仍可手动编辑、单独测试，正常请求不受影响。",
+    "channels.priorityLock.lockHint": "固定当前分组的现有优先级，退出定时检测、立即全测及低价优先重排。",
+    "channels.priorityLock.allSkipped": "全部 {{count}} 个渠道均已固定优先级，跳过检测和重排",
+    "channels.priorityLock.priceFailed": "价格排序：{{failed}} 个更新失败，跳过 {{skipped}} 个固定渠道",
+    "channels.priorityLock.priceResult": "价格排序：{{participating}} 个参与，{{priced}} 个带价格、{{unpriced}} 个无价格；更新 {{updated}} 个，跳过 {{skipped}} 个固定渠道",
+    "channels.priorityLock.scheduledPrimary": "参与调度渠道中的主通道"
   }
 }

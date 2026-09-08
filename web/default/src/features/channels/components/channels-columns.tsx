@@ -18,13 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
 import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
   ListOrdered,
+  LockKeyhole,
+  LockKeyholeOpen,
   RotateCcw,
   Shuffle,
   SlidersHorizontal,
@@ -52,9 +54,10 @@ import { ProviderBadge } from '@/components/provider-badge'
 import { StatusBadge } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
 import { TruncatedText } from '@/components/truncated-text'
-import { getCodexUsage } from '../api'
+import { getCodexUsage, updateChannelGroupRouting } from '../api'
 import { CHANNEL_STATUS_CONFIG, MODEL_FETCHABLE_TYPES } from '../constants'
 import {
+  channelsQueryKeys,
   formatBalance,
   formatRelativeTime,
   formatResponseTime,
@@ -166,13 +169,21 @@ function UpstreamUpdateTags({ channel }: { channel: Channel }) {
 /**
  * Priority cell component with inline editing
  */
-function RestoreDefaultButton({ onRestore }: { onRestore: () => void }) {
+function RestoreDefaultButton({
+  onRestore,
+  disabled = false,
+}: {
+  onRestore: () => void
+  disabled?: boolean
+}) {
   const { t } = useTranslation()
 
   return (
     <Button
       variant='outline'
       size='xs'
+      disabled={disabled}
+      title={disabled ? t('channels.priorityLock.unlockFirst') : undefined}
       className='border-amber-300 bg-amber-50 px-2 text-amber-700 shadow-sm hover:bg-amber-100 hover:text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60'
       onClick={(event) => {
         event.stopPropagation()
@@ -182,6 +193,88 @@ function RestoreDefaultButton({ onRestore }: { onRestore: () => void }) {
       <RotateCcw className='size-3.5' />
       <span>{t('Restore defaults')}</span>
     </Button>
+  )
+}
+
+function PriorityLockButton({
+  channel,
+  group,
+}: {
+  channel: Channel
+  group: string
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const locked = Boolean(channel.priority_locked)
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const response = await updateChannelGroupRouting({
+        group,
+        mode: 'manual',
+        updates: [{ channel_id: channel.id, priority_locked: !locked }],
+      })
+      if (!response.success)
+        throw new Error(response.message || t('channels.priorityLock.failed'))
+    },
+    onSuccess: async () => {
+      toast.success(
+        t(
+          locked
+            ? 'channels.priorityLock.unlocked'
+            : 'channels.priorityLock.locked'
+        )
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: channelsQueryKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: ['channel-group-stability', group],
+        }),
+      ])
+    },
+    onError: (error: Error) =>
+      toast.error(error.message || t('channels.priorityLock.failed')),
+  })
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant={locked ? 'outline' : 'ghost'}
+            size='xs'
+            className={
+              locked
+                ? 'text-amber-700 dark:text-amber-300'
+                : 'text-muted-foreground'
+            }
+            aria-label={t(
+              locked
+                ? 'channels.priorityLock.unlock'
+                : 'channels.priorityLock.lock'
+            )}
+            aria-pressed={locked}
+            disabled={mutation.isPending}
+            onClick={(event) => {
+              event.stopPropagation()
+              mutation.mutate()
+            }}
+          />
+        }
+      >
+        {locked ? (
+          <LockKeyhole className='size-3.5' />
+        ) : (
+          <LockKeyholeOpen className='size-3.5' />
+        )}
+        {locked && <span>{t('channels.priorityLock.fixed')}</span>}
+      </TooltipTrigger>
+      <TooltipContent className='max-w-72'>
+        {t(
+          locked
+            ? 'channels.priorityLock.fixedHint'
+            : 'channels.priorityLock.lockHint'
+        )}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -207,6 +300,10 @@ function PriorityCell({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingValue, setPendingValue] = useState<number | null>(null)
 
+  const restoreLocked = isTagRow
+    ? Boolean(channel.children?.some((child) => child.priority_locked))
+    : Boolean(channel.priority_locked)
+
   // Tag row - editable with confirmation for all tag channels
   if (isTagRow) {
     const tag = channel.tag || ''
@@ -214,7 +311,7 @@ function PriorityCell({
 
     return (
       <>
-        <div className='flex items-center gap-1'>
+        <div className='flex flex-wrap items-center gap-1 sm:flex-nowrap'>
           <NumericSpinnerInput
             value={priority ?? 0}
             onChange={(value) => {
@@ -225,6 +322,7 @@ function PriorityCell({
           />
           {overridden && (
             <RestoreDefaultButton
+              disabled={restoreLocked}
               onRestore={() =>
                 void handleUpdateChannelGroupRoutingField(
                   channelIds,
@@ -268,7 +366,10 @@ function PriorityCell({
 
   // Regular channel row - editable
   return (
-    <div className='flex items-center gap-1'>
+    <div className='flex flex-wrap items-center gap-1 sm:flex-nowrap'>
+      {selectedGroup && (
+        <PriorityLockButton channel={channel} group={selectedGroup} />
+      )}
       <NumericSpinnerInput
         value={priority ?? 0}
         onChange={(value) => {
@@ -289,6 +390,7 @@ function PriorityCell({
       />
       {overridden && (
         <RestoreDefaultButton
+          disabled={restoreLocked}
           onRestore={() =>
             void handleUpdateChannelGroupRoutingField(
               [channel.id],
@@ -1091,11 +1193,11 @@ export function useChannelsColumns(
     {
       accessorKey: 'priority',
       header: t('Priority'),
-      meta: { mobileHidden: true },
+      meta: { mobileHidden: !selectedGroup },
       cell: ({ row }) => (
         <PriorityCell channel={row.original} selectedGroup={selectedGroup} />
       ),
-      size: 190,
+      size: selectedGroup ? 280 : 190,
     },
 
     // Weight column

@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -86,6 +87,22 @@ func GetOrCreateChannelGroupStabilityPolicy(group string) (*ChannelGroupStabilit
 	return &policy, nil
 }
 
+// A real write acquires the group's transaction lock on SQLite, MySQL and PostgreSQL.
+// All priority writes and policy configuration writes take this lock before reading.
+func lockChannelGroupStabilityPolicyTx(tx *gorm.DB, group string) (*ChannelGroupStabilityPolicy, error) {
+	policy := defaultChannelGroupStabilityPolicy(group)
+	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&policy).Error; err != nil {
+		return nil, err
+	}
+	if err := tx.Model(&ChannelGroupStabilityPolicy{}).Where(commonGroupCol+" = ?", group).UpdateColumn("config_version", gorm.Expr("config_version")).Error; err != nil {
+		return nil, err
+	}
+	if err := tx.Where(commonGroupCol+" = ?", group).First(&policy).Error; err != nil {
+		return nil, err
+	}
+	return &policy, nil
+}
+
 func SaveChannelGroupStabilityConfig(config ChannelGroupStabilityConfig, now int64) (*ChannelGroupStabilityPolicy, error) {
 	config.Group = strings.TrimSpace(config.Group)
 	if config.Group == "" {
@@ -97,20 +114,11 @@ func SaveChannelGroupStabilityConfig(config ChannelGroupStabilityConfig, now int
 
 	policy := defaultChannelGroupStabilityPolicy(config.Group)
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Where(commonGroupCol+" = ?", config.Group).First(&policy).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			policy.Enabled = config.Enabled
-			policy.IntervalMinutes = config.IntervalMinutes
-			policy.HealthyThresholdSeconds = config.HealthyThresholdSeconds
-			policy.ProbeTimeoutSeconds = config.ProbeTimeoutSeconds
-			if config.Enabled {
-				policy.NextCheckAt = now
-			}
-			return tx.Create(&policy).Error
-		}
+		current, err := lockChannelGroupStabilityPolicyTx(tx, config.Group)
 		if err != nil {
 			return err
 		}
+		policy = *current
 
 		policy.Enabled = config.Enabled
 		policy.IntervalMinutes = config.IntervalMinutes
@@ -160,19 +168,15 @@ func UpdateChannelGroupStabilityRun(policy ChannelGroupStabilityPolicy, automati
 func ApplyChannelGroupStabilityPriorities(policy ChannelGroupStabilityPolicy, automatic bool, patches []ChannelGroupRoutingPatch) (int, error) {
 	updated := 0
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		query := tx.Where(commonGroupCol+" = ? AND config_version = ?", policy.Group, policy.ConfigVersion)
-		if automatic {
-			query = query.Where("enabled = ?", true)
-		}
-		var current ChannelGroupStabilityPolicy
-		if err := query.First(&current).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrChannelGroupStabilityPolicyStale
-			}
+		current, err := lockChannelGroupStabilityPolicyTx(tx, policy.Group)
+		if err != nil {
 			return err
 		}
-		var err error
-		updated, err = updateChannelGroupRoutingsTx(tx, policy.Group, patches)
+		if current.ConfigVersion != policy.ConfigVersion || (automatic && !current.Enabled) {
+			return ErrChannelGroupStabilityPolicyStale
+		}
+		result, err := updateChannelGroupRoutingsTx(tx, policy.Group, patches, ChannelGroupRoutingRerank)
+		updated = result.Updated
 		return err
 	})
 	return updated, err
