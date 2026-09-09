@@ -189,7 +189,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	conversionCount := len(info.RequestConversionChain)
 	paramAuditCount := len(info.ParamOverrideAudit)
 	usage, newAPIError := executeClaudeAttempt(c, info, adaptor, request, useRawClaudeBody, rawBodyOverride)
-	if service.IsInvalidClaudeThinkingSignatureError(newAPIError) {
+	if !service.HasBillableClaudeUsage(usage) && service.IsInvalidClaudeThinkingSignatureError(newAPIError) {
 		recoveredRaw, sanitizeErr := service.SanitizeAllClaudeThinking(rawClaudeBody)
 		if sanitizeErr != nil {
 			return types.NewErrorWithStatusCode(fmt.Errorf("failed to recover Claude thinking history: %w", sanitizeErr), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
@@ -221,11 +221,21 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			}
 		}
 	}
-	if newAPIError != nil {
-		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-		return newAPIError
-	}
+	return finishClaudeAttempt(c, info, usage, newAPIError, statusCodeMappingStr)
+}
 
+// A failed transport and a nonzero upstream bill are independent outcomes.
+func finishClaudeAttempt(c *gin.Context, info *relaycommon.RelayInfo, usage *dto.Usage, apiErr *types.NewAPIError, statusCodeMapping string) *types.NewAPIError {
+	if apiErr != nil {
+		if service.HasBillableClaudeUsage(usage) {
+			types.ErrOptionWithSkipRetry()(apiErr)
+			if err := service.PostInterruptedTextConsumeQuota(c, info, usage); err != nil {
+				logger.LogError(c, "interrupted Claude billing failed: "+err.Error())
+			}
+		}
+		service.ResetStatusCode(apiErr, statusCodeMapping)
+		return apiErr
+	}
 	service.PostTextConsumeQuota(c, info, usage, nil)
 	return nil
 }
@@ -298,10 +308,10 @@ func executeClaudeAttempt(
 	}
 
 	usage, newAPIError := adaptor.DoResponse(c, httpResp, info)
-	if newAPIError != nil {
-		return nil, newAPIError
-	}
 	typedUsage, ok := usage.(*dto.Usage)
+	if newAPIError != nil {
+		return typedUsage, newAPIError
+	}
 	if !ok {
 		return nil, types.NewError(fmt.Errorf("invalid Claude usage type %T", usage), types.ErrorCodeBadResponseBody)
 	}

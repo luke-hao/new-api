@@ -47,3 +47,11 @@
 - 分组策略行上的事务写锁序列化锁定与重排；锁定变化递增配置版本并取消在途检测，过期结果不写回。
 - 全部启用渠道固定时跳过测试、清除过期候选主通道并保持正常调度间隔；固定数值不等于永久主通道。
 - 默认主题在单分组渠道列表提供锁定按钮，标签聚合行只在展开的子渠道中逐项操作；手机端保留优先级入口。
+
+## Claude passthrough interruption billing
+
+- Native Claude SSE passthrough observes upstream usage before writing original event bytes; cancellations and read/write failures return both confirmed usage and the stream error.
+- `relay/claude_handler.go` preserves that usage through `executeClaudeAttempt` and settles it once before returning the error; a billable interrupted attempt is never retried.
+- `service/text_quota.go` uses the existing BillingSession and pricing for interrupted consumption, including cache-only Anthropic usage. Settled funding is protected from the request-error refund path.
+- Partial-consumption logs retain the request IDs and stream status and set `billing_reason=stream_interrupted`, `usage_partial=true`, and `usage_source=upstream_partial`. No usage means no estimated interruption charge.
+- Historical customer balances and bills are not reconciled or modified by this fix.

@@ -322,7 +322,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		summary.Quota = safeRoundedTextQuota(ctx, relayInfo, "text quota", quotaCalculateDecimal)
 	}
 
-	if summary.TotalTokens == 0 {
+	if !hasBillableTextQuota(summary) {
 		summary.Quota = 0
 	} else if !ratio.IsZero() && summary.Quota == 0 {
 		summary.Quota = 1
@@ -341,7 +341,37 @@ func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) 
 	return "openai"
 }
 
+// HasBillableClaudeUsage deliberately does not rely on TotalTokens, which can
+// be absent in message_start and excludes Anthropic cache input counters.
+func HasBillableClaudeUsage(usage *dto.Usage) bool {
+	return usage != nil && (usage.PromptTokens > 0 || usage.CompletionTokens > 0 ||
+		usage.PromptTokensDetails.CachedTokens > 0 || usage.PromptTokensDetails.CachedCreationTokens > 0 ||
+		usage.ClaudeCacheCreation5mTokens > 0 || usage.ClaudeCacheCreation1hTokens > 0)
+}
+
+func hasBillableTextQuota(summary textQuotaSummary) bool {
+	return summary.TotalTokens > 0 || (summary.IsClaudeUsageSemantic &&
+		(summary.CacheTokens > 0 || summary.CacheCreationTokens > 0 || summary.CacheCreationTokens5m > 0 || summary.CacheCreationTokens1h > 0))
+}
+
 func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string) {
+	_ = postTextConsumeQuota(ctx, relayInfo, usage, extraContent, false)
+}
+
+// PostInterruptedTextConsumeQuota settles only observed usage. Funding must be
+// settled before recording consumption; the BillingSession then guards refunds.
+func PostInterruptedTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage) error {
+	if !HasBillableClaudeUsage(usage) || ctx.GetBool("claude_interrupted_usage_settled") {
+		return nil
+	}
+	err := postTextConsumeQuota(ctx, relayInfo, usage, []string{"stream interrupted; billed confirmed upstream usage"}, true)
+	if err == nil {
+		ctx.Set("claude_interrupted_usage_settled", true)
+	}
+	return err
+}
+
+func postTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string, interrupted bool) error {
 	originUsage := usage
 	if usage == nil {
 		extraContent = append(extraContent, "上游无计费信息")
@@ -392,7 +422,13 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		extraContent = append(extraContent, fmt.Sprintf("Image Generation Call 花费 %s", decimal.NewFromFloat(summary.ImageGenerationCallPrice).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
 
-	if summary.TotalTokens == 0 {
+	if interrupted {
+		if err := SettleBilling(ctx, relayInfo, summary.Quota); err != nil {
+			logger.LogError(ctx, "interrupted text billing settlement failed: "+err.Error())
+			return err
+		}
+	}
+	if !hasBillableTextQuota(summary) {
 		extraContent = append(extraContent, "上游没有返回计费信息，无法扣费（可能是上游超时）")
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, summary.ModelName, relayInfo.FinalPreConsumedQuota))
 	} else {
@@ -400,8 +436,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		model.UpdateChannelUsedQuota(relayInfo.ChannelId, summary.Quota)
 	}
 
-	if err := SettleBilling(ctx, relayInfo, summary.Quota); err != nil {
-		logger.LogError(ctx, "error settling billing: "+err.Error())
+	if !interrupted {
+		if err := SettleBilling(ctx, relayInfo, summary.Quota); err != nil {
+			logger.LogError(ctx, "error settling billing: "+err.Error())
+		}
 	}
 
 	logModel := summary.ModelName
@@ -427,6 +465,11 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		other["usage_semantic"] = "anthropic"
 	} else {
 		other = GenerateTextOtherInfo(ctx, relayInfo, summary.ModelRatio, summary.GroupRatio, summary.CompletionRatio, summary.CacheTokens, summary.CacheRatio, summary.ModelPrice, relayInfo.PriceData.GroupRatioInfo.GroupSpecialRatio)
+	}
+	if interrupted {
+		other["billing_reason"] = "stream_interrupted"
+		other["usage_partial"] = true
+		other["usage_source"] = "upstream_partial"
 	}
 	if adminRejectReason != "" {
 		other["reject_reason"] = adminRejectReason
@@ -503,7 +546,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		Group:            relayInfo.UsingGroup,
 		Other:            other,
 	})
-	gopool.Go(func() {
-		perfmetrics.RecordRelaySample(relayInfo, true, int64(summary.CompletionTokens))
-	})
+	if !interrupted {
+		gopool.Go(func() {
+			perfmetrics.RecordRelaySample(relayInfo, true, int64(summary.CompletionTokens))
+		})
+	}
+	return nil
 }

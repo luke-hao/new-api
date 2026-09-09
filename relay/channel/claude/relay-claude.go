@@ -1,6 +1,8 @@
 package claude
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -587,12 +589,14 @@ func ResponseClaude2OpenAI(claudeResponse *dto.ClaudeResponse) *dto.OpenAITextRe
 }
 
 type ClaudeResponseInfo struct {
-	ResponseId   string
-	Created      int64
-	Model        string
-	ResponseText strings.Builder
-	Usage        *dto.Usage
-	Done         bool
+	ResponseId    string
+	Created       int64
+	Model         string
+	ResponseText  strings.Builder
+	Usage         *dto.Usage
+	Done          bool
+	UsageObserved bool
+	StreamStopped bool
 }
 
 func cacheCreationTokensForOpenAIUsage(usage *dto.Usage) int {
@@ -923,6 +927,13 @@ func observeClaudeStreamPassthroughData(c *gin.Context, info *relaycommon.RelayI
 		maybeMarkClaudeRefusal(c, *claudeResponse.Delta.StopReason)
 	}
 
+	if (claudeResponse.Type == "message_start" && claudeResponse.Message != nil && claudeResponse.Message.Usage != nil) ||
+		(claudeResponse.Type == "message_delta" && claudeResponse.Usage != nil) {
+		claudeInfo.UsageObserved = true
+	}
+	if claudeResponse.Type == "message_stop" {
+		claudeInfo.StreamStopped = true
+	}
 	FormatClaudeResponseInfo(&claudeResponse, nil, claudeInfo)
 	if claudeResponse.Type == "message_start" && claudeResponse.Message != nil {
 		info.UpstreamModelName = claudeResponse.Message.Model
@@ -930,48 +941,120 @@ func observeClaudeStreamPassthroughData(c *gin.Context, info *relaycommon.RelayI
 	return nil
 }
 
-// ClaudeStreamPassthroughHandler copies the upstream Anthropic SSE body
-// byte-for-byte. A TeeReader lets us observe data lines for usage accounting
-// without rebuilding event frames, dropping comments, or changing line endings.
+// splitClaudePassthroughFrames retains every upstream byte, including CRLF and
+// comments. The shared scanner still enforces the configured maximum buffer.
+func splitClaudePassthroughFrames(data []byte, atEOF bool) (int, []byte, error) {
+	for start := 0; start < len(data); {
+		newline := bytes.IndexByte(data[start:], '\n')
+		if newline < 0 {
+			break
+		}
+		end := start + newline + 1
+		line := bytes.TrimSuffix(data[start:end-1], []byte{'\r'})
+		if len(line) == 0 {
+			return end, data[:end], nil
+		}
+		start = end
+	}
+	if atEOF && len(data) > 0 {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
+func observeClaudePassthroughFrame(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, frame []byte) *types.NewAPIError {
+	var dataLines []string
+	for _, raw := range bytes.Split(frame, []byte{'\n'}) {
+		line := strings.TrimSuffix(string(raw), "\r")
+		if strings.HasPrefix(line, "data:") {
+			dataLines = append(dataLines, strings.TrimPrefix(line[5:], " "))
+		}
+	}
+	data := strings.TrimSpace(strings.Join(dataLines, "\n"))
+	if data == "" {
+		return nil
+	}
+	if data == "[DONE]" {
+		claudeInfo.StreamStopped = true
+		return nil
+	}
+	info.SetFirstResponseTime()
+	info.ReceivedResponseCount++
+	return observeClaudeStreamPassthroughData(c, info, claudeInfo, data)
+}
+
+// ClaudeStreamPassthroughHandler observes confirmed upstream usage BEFORE writing
+// each original SSE frame. Transport failure must not discard already billed work.
 func ClaudeStreamPassthroughHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.NewAPIError) {
 	defer service.CloseResponseBodyGracefully(resp)
-
+	if c.Request != nil {
+		stopClosing := context.AfterFunc(c.Request.Context(), func() { _ = resp.Body.Close() })
+		defer stopClosing()
+	}
 	claudeInfo := &ClaudeResponseInfo{
-		ResponseId:   helper.GetResponseID(c),
-		Created:      common.GetTimestamp(),
-		Model:        info.UpstreamModelName,
-		ResponseText: strings.Builder{},
-		Usage:        &dto.Usage{},
+		ResponseId: helper.GetResponseID(c), Created: common.GetTimestamp(),
+		Model: info.UpstreamModelName, ResponseText: strings.Builder{}, Usage: &dto.Usage{},
 	}
 	info.StreamStatus = relaycommon.NewStreamStatus()
 	helper.SetEventStreamHeaders(c)
-
-	scanner := helper.NewStreamScanner(io.TeeReader(resp.Body, c.Writer))
+	fail := func(reason relaycommon.StreamEndReason, apiErr *types.NewAPIError) (*dto.Usage, *types.NewAPIError) {
+		info.StreamStatus.SetEndReason(reason, apiErr)
+		billable := claudeInfo.UsageObserved && service.HasBillableClaudeUsage(claudeInfo.Usage)
+		if billable || c.Writer.Written() || (c.Request != nil && c.Request.Context().Err() != nil) {
+			types.ErrOptionWithSkipRetry()(apiErr)
+		}
+		if !billable {
+			return nil, apiErr
+		}
+		claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
+		claudeInfo.Usage.UsageSemantic = "anthropic"
+		claudeInfo.Usage.UsageSource = "upstream_partial"
+		return claudeInfo.Usage, apiErr
+	}
+	canceled := func() error {
+		if c.Request != nil {
+			return c.Request.Context().Err()
+		}
+		return nil
+	}
+	if err := canceled(); err != nil {
+		return fail(relaycommon.StreamEndReasonClientGone, types.NewError(err, types.ErrorCodeBadResponseBody))
+	}
+	scanner := helper.NewStreamScanner(resp.Body)
+	scanner.Split(splitClaudePassthroughFrames)
 	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "data:") {
-			data := strings.TrimSpace(line[5:])
-			if data != "" && !strings.HasPrefix(data, "[DONE]") {
-				info.SetFirstResponseTime()
-				info.ReceivedResponseCount++
-				if err := observeClaudeStreamPassthroughData(c, info, claudeInfo, data); err != nil {
-					info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonScannerErr, err)
-					return nil, err
-				}
-			}
+		frame := scanner.Bytes()
+		if apiErr := observeClaudePassthroughFrame(c, info, claudeInfo, frame); apiErr != nil {
+			return fail(relaycommon.StreamEndReasonScannerErr, apiErr)
+		}
+		if err := canceled(); err != nil {
+			return fail(relaycommon.StreamEndReasonClientGone, types.NewError(err, types.ErrorCodeBadResponseBody))
+		}
+		n, err := c.Writer.Write(frame)
+		if err == nil && n != len(frame) {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
+			return fail(relaycommon.StreamEndReasonClientGone, types.NewError(err, types.ErrorCodeBadResponseBody))
 		}
 		if err := helper.FlushWriter(c); err != nil {
-			info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, err)
-			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+			return fail(relaycommon.StreamEndReasonClientGone, types.NewError(err, types.ErrorCodeBadResponseBody))
 		}
 	}
-
+	if err := canceled(); err != nil {
+		return fail(relaycommon.StreamEndReasonClientGone, types.NewError(err, types.ErrorCodeBadResponseBody))
+	}
 	if err := scanner.Err(); err != nil {
-		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonScannerErr, err)
-		return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+		return fail(relaycommon.StreamEndReasonScannerErr, types.NewError(err, types.ErrorCodeBadResponseBody))
+	}
+	if !claudeInfo.StreamStopped {
+		return fail(relaycommon.StreamEndReasonScannerErr, types.NewError(io.ErrUnexpectedEOF, types.ErrorCodeBadResponseBody))
 	}
 	info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonEOF, nil)
-	HandleStreamFinalResponse(c, info, claudeInfo)
+	// Raw passthrough billing uses upstream counters, never a guessed prompt or
+	// estimated output when an upstream counter is explicitly zero or absent.
+	claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
+	claudeInfo.Usage.UsageSemantic = "anthropic"
 	return claudeInfo.Usage, nil
 }
 
