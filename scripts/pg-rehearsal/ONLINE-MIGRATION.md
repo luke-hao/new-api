@@ -66,3 +66,14 @@ go test -race ./pkg/migrationgate ./cmd/migration-gate
 immutable old application image to produce real synthetic relay/billing writes,
 then verifies all 29 tables and uninstalls capture from that copy. It does not
 write the live database.
+
+## Candidate billing drain support
+
+The candidate source now includes transaction receipts for batch quota updates,
+retains a failed batch for retry, and tracks both asynchronous refund paths.
+`MIGRATION_CONTROL_SOCKET` opt-in exposes GET `/status` and POST `/flush` only on
+a mode-0600 Unix socket in a private directory. The reply always includes
+`cutover_ready: false`: ingress coverage and background-writer fencing remain
+separate requirements. These application changes are not deployed to the live
+source while its capture generation is active. In-memory work still needs an
+orderly handoff; receipts do not make unflushed work crash-durable.

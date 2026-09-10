@@ -162,6 +162,10 @@ func main() {
 		common.SysError(fmt.Sprintf("start pyroscope error : %v", err))
 	}
 
+	if err := service.StartMigrationControl(); err != nil {
+		common.FatalLog("failed to start migration control: " + err.Error())
+	}
+
 	// Initialize HTTP server
 	server := gin.New()
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {

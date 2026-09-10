@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -21,10 +22,14 @@ func ReturnPreConsumedQuota(c *gin.Context, relayInfo *relaycommon.RelayInfo) {
 	}
 	if relayInfo.FinalPreConsumedQuota > 0 {
 		logger.LogInfo(c, fmt.Sprintf("用户 %d 请求失败, 返还预扣费额度 %s", relayInfo.UserId, logger.FormatQuota(relayInfo.FinalPreConsumedQuota)))
+		finishRefund := refundWork.begin()
+		relayInfoCopy := *relayInfo
 		gopool.Go(func() {
-			relayInfoCopy := *relayInfo
+			refundErr := errors.New("refund task did not complete")
+			defer func() { finishRefund(refundErr) }()
 
 			err := refundPostConsumeQuota(&relayInfoCopy, relayInfoCopy.FinalPreConsumedQuota)
+			refundErr = err
 			if err != nil {
 				common.SysLog("error return pre-consumed quota: " + err.Error())
 			}
