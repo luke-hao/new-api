@@ -6,6 +6,10 @@ The canonical production source is `/opt/new-api-src/current`. All persistent
 NewAPI edits, tests, builds, and deployment preparation must happen in this Git
 working tree.
 
+The user has approved `luke-hao/new-api` as a public source synchronization repository.
+Public visibility is permitted for reviewed non-sensitive source and documentation;
+credentials, environment files, databases and runtime data remain excluded.
+
 The production mirror is `origin` (`git@github.com:luke-hao/new-api.git`), and
 `main` tracks `origin/main`. The repository was created from a local production
 baseline and does not contain author history from before that baseline. Do not
