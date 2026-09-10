@@ -2,7 +2,7 @@
 import argparse,json
 from pathlib import Path
 PREFIX="github.com/QuantumNous/new-api/"
-SLEEP={"common.(*InMemoryRateLimiter).clearExpiredItems","service.TaskPollingLoop","controller.UpdateMidjourneyTaskBulk","model.InitBatchUpdater.func1","controller.AutomaticallyTestChannels.func1","model.UpdateQuotaData","model.SyncOptions","common.StartSystemMonitor.func1","pkg/perf_metrics.flushLoop","model.SyncChannelCache"}
+SLEEP={"common.(*InMemoryRateLimiter).clearExpiredItems","service.TaskPollingLoop","controller.UpdateMidjourneyTaskBulk","model.InitBatchUpdater.func1","controller.AutomaticallyTestChannels.func1","model.UpdateQuotaData","model.SyncOptions","common.StartSystemMonitor.func1","pkg/perf_metrics.flushLoop","model.SyncChannelCache","service.startCleanupTask.func1"}
 WAIT={"service.StartSubscriptionQuotaResetTask.func1.1","controller.StartChannelUpstreamModelUpdateTask.func1.1","service.StartCodexCredentialAutoRefreshTask.func1.1","controller.StartChannelGroupStabilityTask.func1.1","service.startCleanupTask.func1"}
 def validate(r):
     reasons=[]
