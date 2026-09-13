@@ -16,8 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useEffect } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { isChunkLoadError, recoverChunkLoad } from '@/lib/chunk-load-recovery'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -44,19 +46,29 @@ export function GeneralError({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { history } = useRouter()
+  const chunkLoadFailed = isChunkLoadError(error)
+  useEffect(() => {
+    recoverChunkLoad(error)
+  }, [error])
   const status = getHttpStatus(error)
   const isRateLimited = status === 429
-  const title = isRateLimited
-    ? t('Too many requests')
-    : `${t('Oops! Something went wrong')} ${`:')`}`
-  const description = isRateLimited
-    ? t('Please wait a moment before trying again.')
-    : t('Please try again later.')
+  const title = chunkLoadFailed
+    ? t('Page failed to load')
+    : isRateLimited
+      ? t('Too many requests')
+      : `${t('Oops! Something went wrong')} ${`:')`}`
+  const description = chunkLoadFailed
+    ? t('Please reload the page to try again.')
+    : isRateLimited
+      ? t('Please wait a moment before trying again.')
+      : t('Please try again later.')
 
   return (
-    <div className={cn('h-svh w-full', className)}>
+    <div
+      className={cn('bg-background text-foreground h-svh w-full', className)}
+    >
       <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
-        {!minimal && (
+        {!minimal && !chunkLoadFailed && (
           <h1 className='text-[7rem] leading-tight font-bold'>
             {status ?? 500}
           </h1>
@@ -72,6 +84,11 @@ export function GeneralError({
         )}
         {!minimal && (
           <div className='mt-6 flex flex-wrap justify-center gap-4'>
+            {error != null && (
+              <Button onClick={() => window.location.reload()}>
+                {t('Reload page')}
+              </Button>
+            )}
             <Button variant='outline' onClick={() => history.go(-1)}>
               {t('Go Back')}
             </Button>
