@@ -1,0 +1,2 @@
+/*! LICENSE: 5907.1a8c0ce3a0.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[5907],{29422(a,e,p){let s=(0,p(53079).A)("pencil",[["path",{d:"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",key:"1a8usu"}],["path",{d:"m15 5 4 4",key:"1mk7zo"}]]);p.d(e,{},{A:s})}}]);

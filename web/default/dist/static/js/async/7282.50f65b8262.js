@@ -1,0 +1,2 @@
+/*! LICENSE: 7282.50f65b8262.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[7282],{20582(e,a,p){let c=(0,p(53079).A)("circle-check",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m9 12 2 2 4-4",key:"dzmm74"}]]);p.d(a,{},{A:c})},78416(e,a,p){let c=(0,p(53079).A)("triangle-alert",[["path",{d:"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",key:"wmoenq"}],["path",{d:"M12 9v4",key:"juzpu7"}],["path",{d:"M12 17h.01",key:"p32p05"}]]);p.d(a,{},{A:c})}}]);

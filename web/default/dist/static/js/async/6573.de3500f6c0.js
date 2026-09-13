@@ -1,0 +1,2 @@
+/*! LICENSE: 6573.de3500f6c0.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[6573],{78860(e,i,y){let c=(0,y(53079).A)("timer",[["line",{x1:"10",x2:"14",y1:"2",y2:"2",key:"14vaq8"}],["line",{x1:"12",x2:"15",y1:"14",y2:"11",key:"17fdiu"}],["circle",{cx:"12",cy:"14",r:"8",key:"1e1u0o"}]]);y.d(i,{},{A:c})}}]);

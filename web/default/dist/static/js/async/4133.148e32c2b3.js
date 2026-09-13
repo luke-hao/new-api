@@ -1,0 +1,2 @@
+/*! LICENSE: 4133.148e32c2b3.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[4133],{31348(e,c,l){let y=(0,l(53079).A)("circle-alert",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]]);l.d(c,{},{A:y})}}]);

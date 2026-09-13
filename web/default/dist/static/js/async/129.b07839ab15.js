@@ -1,0 +1,2 @@
+/*! LICENSE: 129.b07839ab15.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[129],{34702(e,t,h){let p=(0,h(53079).A)("code",[["path",{d:"m16 18 6-6-6-6",key:"eg8j8"}],["path",{d:"m8 6-6 6 6 6",key:"ppft3o"}]]);h.d(t,{},{A:p})},14503(e,t,h){let p=(0,h(53079).A)("table",[["path",{d:"M12 3v18",key:"108xh3"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 9h18",key:"1pudct"}],["path",{d:"M3 15h18",key:"5xshup"}]]);h.d(t,{},{A:p})}}]);

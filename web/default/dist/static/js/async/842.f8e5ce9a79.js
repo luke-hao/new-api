@@ -1,0 +1,2 @@
+/*! LICENSE: 842.f8e5ce9a79.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[842],{30369(e,a,s){let l=(0,s(53079).A)("loader-circle",[["path",{d:"M21 12a9 9 0 1 1-6.219-8.56",key:"13zald"}]]);s.d(a,{},{A:l})}}]);

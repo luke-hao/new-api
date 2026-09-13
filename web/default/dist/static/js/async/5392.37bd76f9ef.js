@@ -1,0 +1,1 @@
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[5392],{86627(e,p,s){s.r(p);var t=s(23579),n=s(70135);s.d(p,{},{component:()=>(0,t.jsx)(n.S,{title:"Recharge (no fee)",topupLinkOverride:"https://catfk.com/shop/G8QK57QU"})})}}]);

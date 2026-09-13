@@ -1,0 +1,2 @@
+/*! LICENSE: 9733.45960d67e0.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[9733],{42374(e,a,s){let t=(0,s(53079).A)("activity",[["path",{d:"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2",key:"169zse"}]]);s.d(a,{},{A:t})},79839(e,a,s){let t=(0,s(53079).A)("check",[["path",{d:"M20 6 9 17l-5-5",key:"1gmf2c"}]]);s.d(a,{},{A:t})}}]);

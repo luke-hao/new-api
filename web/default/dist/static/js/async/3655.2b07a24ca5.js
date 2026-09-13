@@ -1,0 +1,2 @@
+/*! LICENSE: 3655.2b07a24ca5.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[3655],{61402(e,p,a){let k=(0,a(53079).A)("code-xml",[["path",{d:"m18 16 4-4-4-4",key:"1inbqp"}],["path",{d:"m6 8-4 4 4 4",key:"15zrgr"}],["path",{d:"m14.5 4-5 16",key:"e7oirm"}]]);a.d(p,{},{A:k})}}]);

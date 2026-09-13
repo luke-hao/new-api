@@ -1,0 +1,1 @@
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[722],{22585(e,n,r){r.r(n);var s=r(23579),t=r(94852),a=r(37070);function u(){let e=(0,t.S)({from:"/(auth)/user/reset"});return(0,s.jsx)(a.L,{email:e?.email,token:e?.token})}r.d(n,{component:()=>u})}}]);

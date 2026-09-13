@@ -1,0 +1,2 @@
+/*! LICENSE: 4061.17db4b005e.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[4061],{67180(e,c,a){let p=(0,a(53079).A)("circle-question-mark",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3",key:"1u773s"}],["path",{d:"M12 17h.01",key:"p32p05"}]]);a.d(c,{},{A:p})}}]);

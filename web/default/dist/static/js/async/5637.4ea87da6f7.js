@@ -1,0 +1,2 @@
+/*! LICENSE: 5637.4ea87da6f7.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[5637],{98340(e,a,p){let c=(0,p(53079).A)("globe",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",key:"13o1zl"}],["path",{d:"M2 12h20",key:"9i4pu4"}]]);p.d(a,{},{A:c})}}]);

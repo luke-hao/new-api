@@ -1,0 +1,2 @@
+/*! LICENSE: 7582.cc445b7baa.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[7582],{85501(e,s,p){let a=(0,p(53079).A)("plus",[["path",{d:"M5 12h14",key:"1ays0h"}],["path",{d:"M12 5v14",key:"s699le"}]]);p.d(s,{},{A:a})}}]);

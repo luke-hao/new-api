@@ -1,0 +1,2 @@
+/*! LICENSE: 6678.f376c9d5a0.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[6678],{33413(e,a,c){let i=(0,c(53079).A)("info",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M12 16v-4",key:"1dtifu"}],["path",{d:"M12 8h.01",key:"e9boi3"}]]);c.d(a,{},{A:i})}}]);

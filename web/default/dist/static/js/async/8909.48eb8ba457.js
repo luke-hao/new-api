@@ -1,0 +1,2 @@
+/*! LICENSE: 8909.48eb8ba457.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[8909],{9244(e,p,s){let u=(0,s(53079).A)("chevron-up",[["path",{d:"m18 15-6-6-6 6",key:"153udz"}]]);s.d(p,{},{A:u})}}]);

@@ -1,0 +1,2 @@
+/*! LICENSE: 7023.55f06c9afb.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[7023],{47890(e,a,h){let k=(0,h(53079).A)("chart-column",[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"M18 17V9",key:"2bz60n"}],["path",{d:"M13 17V5",key:"1frdt8"}],["path",{d:"M8 17v-3",key:"17ska0"}]]);h.d(a,{},{A:k})}}]);

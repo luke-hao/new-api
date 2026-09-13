@@ -1,0 +1,1 @@
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[5669],{9508(e,p,s){s.r(p);var t=s(23579),a=s(70135);s.d(p,{},{component:()=>(0,t.jsx)(a.S,{title:"Recharge (with WeChat, fee applies)",topupLinkOverride:"https://pay.ldxp.cn/shop/9ZKGXD3X"})})}}]);

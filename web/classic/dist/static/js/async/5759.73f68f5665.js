@@ -1,0 +1,1 @@
+"use strict";(self.rspackChunkreact_template=self.rspackChunkreact_template||[]).push([[5759],{92242(e,t,r){var c=r(99560);r(91430),r.d(t,{createArchitectureServices:()=>c.S})}}]);

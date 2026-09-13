@@ -1,0 +1,2 @@
+/*! LICENSE: 9487.13d9391813.js.LICENSE.txt */
+"use strict";(self.rspackChunknewapi_web=self.rspackChunknewapi_web||[]).push([[9487],{3042(e,a,p){let k=(0,p(53079).A)("gauge",[["path",{d:"m12 14 4-4",key:"9kzdfg"}],["path",{d:"M3.34 19a10 10 0 1 1 17.32 0",key:"19p75a"}]]);p.d(a,{},{A:k})}}]);
