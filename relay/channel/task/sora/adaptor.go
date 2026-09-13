@@ -119,6 +119,13 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 		size = "720x1280"
 	}
 
+	if contract, ok := common.GetVideoModelContract(info.OriginModelName); ok {
+		if contract.PriceUnit == "次" {
+			return map[string]float64{"seconds": 1, "size": 1}
+		}
+		return map[string]float64{"seconds": float64(seconds), "size": 1}
+	}
+
 	ratios := map[string]float64{
 		"seconds": float64(seconds),
 		"size":    1,
@@ -144,6 +151,9 @@ func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info
 }
 
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
+	if common.UsesAICopyVideoProtocol(info.ChannelBaseUrl, info.UpstreamModelName) {
+		return a.buildAICopyVideoBody(c, info)
+	}
 	storage, err := common.GetBodyStorage(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "get_request_body_failed")

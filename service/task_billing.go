@@ -39,6 +39,13 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	other["is_task"] = true
 	other["request_path"] = c.Request.URL.Path
 	other["model_price"] = info.PriceData.ModelPrice
+	if contract, ok := common.GetVideoModelContract(info.OriginModelName); ok {
+		other["price_unit"] = contract.PriceUnit
+		other["seconds"] = info.PriceData.OtherRatios["seconds"]
+		if contract.PriceUnit == "次" {
+			logContent = fmt.Sprintf("操作 %s，按次计费", info.Action)
+		}
+	}
 	if info.PriceData.ModelRatio > 0 {
 		other["model_ratio"] = info.PriceData.ModelRatio
 	}

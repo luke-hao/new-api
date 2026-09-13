@@ -97,7 +97,11 @@ export function usePricingColumns(
         const isTokenBased = row.original.quota_type === QUOTA_TYPE_VALUES.TOKEN
         return (
           <StatusBadge
-            label={isTokenBased ? t('Token') : t('Request')}
+            label={
+              isTokenBased
+                ? t('Token')
+                : t(row.original.price_unit === '秒' ? 'Per second' : 'Request')
+            }
             variant={isTokenBased ? 'info' : 'neutral'}
             copyable={false}
             className='-ml-1.5'
@@ -225,7 +229,7 @@ export function usePricingColumns(
           <div className='max-w-full min-w-0'>
             <span className='font-mono text-sm tabular-nums'>{price}</span>
             <div className='text-muted-foreground/50 text-[10px]'>
-              / {t('request')}
+              / {model.price_unit || t('request')}
             </div>
           </div>
         )

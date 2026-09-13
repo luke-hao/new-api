@@ -138,6 +138,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		)
 	}()
 
+	if _, known := common.GetVideoModelContract(c.GetString("original_model")); known {
+		newAPIError = types.NewErrorWithStatusCode(
+			errors.New("该视频模型请使用 POST /v1/videos（工作台使用 /pg/videos），不支持聊天或 Responses 请求"),
+			types.ErrorCodeInvalidRequest, http.StatusBadRequest,
+			types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		return
+	}
+
 	request, err := helper.GetAndValidateRequest(c, relayFormat)
 	if err != nil {
 		// Map "request body too large" to 413 so clients can handle it correctly
@@ -452,6 +460,9 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		other["error_type"] = err.GetErrorType()
 		other["error_code"] = err.GetErrorCode()
 		other["status_code"] = err.StatusCode
+		if request, requestErr := relaycommon.GetTaskRequest(c); requestErr == nil {
+			other["video_request"] = relaycommon.TaskRequestDiagnostic(request)
+		}
 		other["channel_id"] = channelId
 		other["channel_name"] = c.GetString("channel_name")
 		other["channel_type"] = c.GetInt("channel_type")
@@ -589,7 +600,8 @@ func RelayTask(c *gin.Context) {
 		Retry:      common.GetPointer(0),
 	}
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	retryLimit := taskRelayRetryLimit(relayInfo.RelayMode)
+	for ; retryParam.GetRetry() <= retryLimit; retryParam.IncreaseRetry() {
 		var channel *model.Channel
 
 		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
@@ -634,7 +646,7 @@ func RelayTask(c *gin.Context) {
 				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode))
 		}
 
-		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
+		if !shouldRetryTaskRelay(c, channel.Id, taskErr, retryLimit-retryParam.GetRetry()) {
 			break
 		}
 	}
@@ -718,8 +730,20 @@ func unifiedVideoErrorCode(code, message string) string {
 	}
 }
 
+// Video creation must be attempted once: the upstream may have accepted a task
+// even when the submission response is lost. Polling an existing task is separate.
+func taskRelayRetryLimit(relayMode int) int {
+	if relayMode != relayconstant.RelayModeSunoSubmit {
+		return 0
+	}
+	return common.RetryTimes
+}
+
 func shouldRetryTaskRelay(c *gin.Context, channelId int, taskErr *dto.TaskError, retryTimes int) bool {
-	if taskErr == nil {
+	if taskErr == nil || taskErr.LocalError {
+		return false
+	}
+	if relayconstant.Path2RelayMode(c.Request.URL.Path) == relayconstant.RelayModeVideoSubmit {
 		return false
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {

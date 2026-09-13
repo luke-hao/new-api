@@ -117,6 +117,9 @@ func testChannelWithContext(parent context.Context, channel *model.Channel, test
 		}
 	}
 
+	if _, known := common.GetVideoModelContract(testModel); known {
+		return testResult{localErr: fmt.Errorf("视频模型请在图片与视频工作台测试，创建接口为 POST /v1/videos")}
+	}
 	endpointType = normalizeChannelTestEndpoint(channel, testModel, endpointType)
 
 	requestPath := "/v1/chat/completions"

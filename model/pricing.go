@@ -109,37 +109,20 @@ func GetModelSupportEndpointTypes(model string) []constant.EndpointType {
 }
 
 var videoPricePerSecondModels = map[string]struct{}{
-	"happyhorse-1.1-i2v-1080p": {},
-	"happyhorse-1.1-i2v-720p":  {},
-	"happyhorse-1.1-r2v-1080p": {},
-	"happyhorse-1.1-r2v-720p":  {},
-	"happyhorse-1.1-t2v-1080p": {},
-	"happyhorse-1.1-t2v-720p":  {},
-	"sd-2.5-720p不卡脸(按秒)": {},
+	"sd-2.5-720p不卡脸(按秒)":     {},
 	"sd2.0-1080fast-不卡脸（按秒）": {},
 	"sd2.0-1080mini-不卡脸（按秒）": {},
-	"sd2.0-1080满血-不卡脸（按秒）": {},
-	"sd2.0-720fast-不卡脸（按秒）": {},
-	"sd2.0-720mini-不卡脸（按秒）": {},
-	"sd2.0-720满血-不卡脸（按秒）": {},
-	"sd2.5-720均衡版": {},
-	"wang-3.0-480p": {},
-	"wang-3.0-720p": {},
-	"【官方稳定版】2.5-480p": {},
-	"【官方稳定版】2.5-720p": {},
-	"【官方稳定版】sd2.0-720p-fast": {},
-	"【官方稳定版】sd2.0-720p-满血": {},
-	"【稳定】sd2.0-720fast（按秒）": {},
-	"【稳定】sd2.0-720满血（按秒）": {},
-	"【稳定】sd2.5-720p（按秒）": {},
-	"官方h3-1080p": {},
-	"官方h3-2k": {},
-	"官方h3-720p": {},
+	"sd2.0-1080满血-不卡脸（按秒）":   {},
+	"wang-3.0-480p":          {},
+	"wang-3.0-720p":          {},
 }
 
 func getVideoPriceUnit(model string, groups []string) string {
 	if !common.StringsContains(groups, "视频生成") {
 		return ""
+	}
+	if contract, ok := common.GetVideoModelContract(model); ok {
+		return contract.PriceUnit
 	}
 	if _, ok := videoPricePerSecondModels[model]; ok {
 		return "秒"
@@ -220,11 +203,16 @@ func updatePricing() {
 	// 构建对前端友好的供应商列表
 	vendorsList = make([]PricingVendor, 0, len(vendorMap))
 	for _, v := range vendorMap {
+		vendorIcon := v.Icon
+		if v.Name == "【特惠区】" {
+			// The upstream leaves this collection unbranded.
+			vendorIcon = ""
+		}
 		vendorsList = append(vendorsList, PricingVendor{
 			ID:          v.Id,
 			Name:        v.Name,
 			Description: v.Description,
-			Icon:        v.Icon,
+			Icon:        vendorIcon,
 		})
 	}
 
@@ -273,6 +261,14 @@ func updatePricing() {
 			if len(endpoints) > 0 {
 				modelSupportEndpointsStr[modelName] = endpoints
 			}
+		}
+	}
+
+	// AICopy's public Video API documents /v1/videos for all connected models,
+	// including legacy models labeled "openai" in its pricing metadata.
+	for modelName, groups := range modelGroupsMap {
+		if _, ok := common.GetVideoModelContract(modelName); ok && groups.Contains("视频生成") {
+			modelSupportEndpointsStr[modelName] = []string{string(constant.EndpointTypeOpenAIVideo)}
 		}
 	}
 
@@ -345,6 +341,18 @@ func updatePricing() {
 			pricing.Icon = meta.Icon
 			pricing.Tags = meta.Tags
 			pricing.VendorID = meta.VendorID
+		}
+		if contract, ok := common.GetVideoModelContract(model); ok && common.StringsContains(enableGroups, "视频生成") {
+			pricing.PriceUnit = contract.PriceUnit
+			pricing.Icon = contract.Icon
+			pricing.Description = contract.Description
+			// Reuse this installation's vendor IDs, never the upstream IDs.
+			for id, vendor := range vendorMap {
+				if vendor.Name == contract.Vendor || (contract.Vendor == "【官方区】" && vendor.Name == "sd-官方区") {
+					pricing.VendorID = id
+					break
+				}
+			}
 		}
 		modelPrice, findPrice := ratio_setting.GetModelPrice(model, false)
 		if findPrice {

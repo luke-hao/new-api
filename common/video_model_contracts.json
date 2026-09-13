@@ -1,0 +1,455 @@
+[
+  {
+    "model": "grok-1.5-备用接口",
+    "price_unit": "次",
+    "icon": "XAI",
+    "vendor": "xAI",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "grok-1.5-多参接口",
+    "price_unit": "次",
+    "icon": "XAI",
+    "vendor": "xAI",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "grok-1.5-官转接口",
+    "price_unit": "次",
+    "icon": "XAI",
+    "vendor": "xAI",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "grok-imagine-video-1.5-preview",
+    "price_unit": "次",
+    "icon": "XAI",
+    "vendor": "xAI",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "happyhorse-1.1-i2v-1080p",
+    "price_unit": "秒",
+    "icon": "Qwen.Color",
+    "vendor": "阿里巴巴",
+    "description": "官方，稳定",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "happyhorse-1.1-i2v-720p",
+    "price_unit": "秒",
+    "icon": "Qwen.Color",
+    "vendor": "阿里巴巴",
+    "description": "官方，稳定",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "happyhorse-1.1-r2v-1080p",
+    "price_unit": "秒",
+    "icon": "Qwen.Color",
+    "vendor": "阿里巴巴",
+    "description": "官方，稳定",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "happyhorse-1.1-r2v-720p",
+    "price_unit": "秒",
+    "icon": "Qwen.Color",
+    "vendor": "阿里巴巴",
+    "description": "官方，稳定",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "happyhorse-1.1-t2v-1080p",
+    "price_unit": "秒",
+    "icon": "Qwen.Color",
+    "vendor": "阿里巴巴",
+    "description": "官方，稳定",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "happyhorse-1.1-t2v-720p",
+    "price_unit": "秒",
+    "icon": "Qwen.Color",
+    "vendor": "阿里巴巴",
+    "description": "官方，稳定",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "omni-fast-视频生成（带水印）",
+    "price_unit": "次",
+    "icon": "Gemini.Color",
+    "vendor": "Google",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "omni-fast-视频生成（无水印）",
+    "price_unit": "次",
+    "icon": "Gemini.Color",
+    "vendor": "Google",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "omni-fast-视频编辑（带水印）",
+    "price_unit": "次",
+    "icon": "Gemini.Color",
+    "vendor": "Google",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "omni-fast-视频编辑（无水印）",
+    "price_unit": "次",
+    "icon": "Gemini.Color",
+    "vendor": "Google",
+    "description": "",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "sd-720满血-900（不售后）",
+    "price_unit": "次",
+    "icon": "",
+    "vendor": "【特惠区】",
+    "description": "可支持15秒，9图多参考",
+    "upstream_endpoints": [
+      "openai"
+    ]
+  },
+  {
+    "model": "sd-720满血-933-备用（按次）",
+    "price_unit": "次",
+    "icon": "",
+    "vendor": "【特惠区】",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai",
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd-720满血-933（按次）",
+    "price_unit": "次",
+    "icon": "",
+    "vendor": "【特惠区】",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai",
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-1080满血-ad渠道16x9",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-1080满血-ad渠道9x16",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-480fast-ad渠道16x9",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-480fast-ad渠道9x16",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-480满血-ad渠道16x9",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-480满血-ad渠道9x16",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720fast-ad渠道16x9",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720fast-ad渠道9x16",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720fast-不卡脸（按秒）",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720mini-不卡脸（按秒）",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720满血-ad渠道16x9",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720满血-ad渠道9x16",
+    "price_unit": "次",
+    "icon": "Adobe.Color",
+    "vendor": "sd-ad渠道",
+    "description": "可支持15秒，9图+3视频+3音频+多参考,除了卡脸啥都好",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.0-720满血-不卡脸（按秒）",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "sd2.5-720均衡版",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持30秒，30图10视频10音频多参考",
+    "upstream_endpoints": [
+      "openai",
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】2.5-480p",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持30秒，30图10视频10音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】2.5-720p",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持30秒，30图10视频10音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】sd2.0-480p-fast",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】sd2.0-480p-mini",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】sd2.0-480p-满血",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】sd2.0-720p-fast",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】sd2.0-720p-mini",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【官方稳定版】sd2.0-720p-满血",
+    "price_unit": "秒",
+    "icon": "Doubao.Color",
+    "vendor": "【官方区】",
+    "description": "稳定、快速、不卡脸、高并发、官方过白渠道，可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【稳定】sd2.0-720fast（按秒）",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【稳定】sd2.0-720满血（按秒）",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "【稳定】sd2.5-720p（按秒）",
+    "price_unit": "秒",
+    "icon": "Jimeng.Color",
+    "vendor": "sd-均衡区",
+    "description": "可支持15秒，9图3视频3音频多参考",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "官方h3-1080p",
+    "price_unit": "秒",
+    "icon": "",
+    "vendor": "MiniMax",
+    "description": "",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "官方h3-2k",
+    "price_unit": "秒",
+    "icon": "",
+    "vendor": "MiniMax",
+    "description": "",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  },
+  {
+    "model": "官方h3-720p",
+    "price_unit": "秒",
+    "icon": "",
+    "vendor": "MiniMax",
+    "description": "",
+    "upstream_endpoints": [
+      "openai-video"
+    ]
+  }
+]

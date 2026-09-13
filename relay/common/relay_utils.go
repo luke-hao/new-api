@@ -240,6 +240,14 @@ func readTaskInputReferenceFiles(form *multipart.Form) ([]string, error) {
 	return readTaskReferenceFiles(form, "input_reference", "image/", maxPlaygroundImageBytes)
 }
 
+func isValidatedVideoRequest(c *gin.Context, model string) bool {
+	if strings.HasPrefix(c.Request.URL.Path, "/pg/videos") {
+		return true
+	}
+	_, known := common.GetVideoModelContract(model)
+	return known && strings.HasPrefix(c.Request.URL.Path, "/v1/videos")
+}
+
 func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	var prompt string
 	var model string
@@ -271,10 +279,51 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	if len(req.Images) == 0 && strings.TrimSpace(req.Image) != "" {
 		req.Images = []string{req.Image}
 	}
+	if req.Seconds != "" && req.Duration > 0 {
+		seconds, err := strconv.Atoi(req.Seconds)
+		if err != nil || seconds != req.Duration {
+			return createTaskError(fmt.Errorf("seconds and duration must match"), "invalid_request", http.StatusBadRequest, true)
+		}
+	}
 	if taskErr := validateTaskQuantityLimits(&req); taskErr != nil {
 		return taskErr
 	}
-	if strings.HasPrefix(c.Request.URL.Path, "/pg/videos") {
+	if _, known := common.GetVideoModelContract(req.Model); known && req.Mode == "" {
+		req.Mode = "text"
+		switch {
+		case len(req.Videos)+len(req.Audios) > 0, len(req.Images) > 1:
+			req.Mode = "reference"
+		case len(req.Images) == 1:
+			req.Mode = "first_frame"
+		}
+		if refs, hasRefs := req.Metadata["reference_images"]; hasRefs {
+			req.Mode = "reference"
+			encoded, _ := common.Marshal(refs)
+			var entries []struct {
+				Role string `json:"role"`
+			}
+			if common.Unmarshal(encoded, &entries) == nil {
+				for _, entry := range entries {
+					if entry.Role == "last_frame" {
+						req.Mode = "first_last"
+					}
+				}
+			}
+		}
+		// Fixed-mode models (H3, Happyhorse variants, Omni edit) retain their
+		// required mode even when clients omit the studio-only mode field.
+		if profile, ok := common.GetPlaygroundVideoCapability(info.ChannelType, resolvePlaygroundValidationModel(c, req.Model)); ok && len(profile.Modes) == 1 {
+			req.Mode = profile.Modes[0]
+		}
+	}
+	if contract, known := common.GetVideoModelContract(req.Model); known && contract.PriceUnit == "秒" && req.Seconds == "" && req.Duration == 0 {
+		// Make the billed duration explicit instead of allowing a different
+		// upstream default to produce a longer, undercharged task.
+		if profile, ok := common.GetPlaygroundVideoCapability(info.ChannelType, resolvePlaygroundValidationModel(c, req.Model)); ok && len(profile.Durations) > 0 {
+			req.Duration = profile.Durations[0]
+		}
+	}
+	if isValidatedVideoRequest(c, req.Model) {
 		if taskErr := validatePlaygroundVideoMedia(&req); taskErr != nil {
 			return taskErr
 		}
@@ -367,7 +416,7 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 		req.Images = []string{req.InputReference}
 	}
 
-	if strings.HasPrefix(c.Request.URL.Path, "/pg/videos") {
+	if isValidatedVideoRequest(c, req.Model) {
 		if taskErr := validatePlaygroundVideoMedia(&req); taskErr != nil {
 			return taskErr
 		}
