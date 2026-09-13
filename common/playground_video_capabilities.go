@@ -244,6 +244,13 @@ func applyPlaygroundVideoModelProfile(capability *PlaygroundVideoCapability, nam
 		capability.MaxImageReferences = 30
 		capability.MaxVideoReferences = 10
 		capability.MaxAudioReferences = 10
+		// This upstream variant has lower limits than the general SD2.5 family.
+		if name == "【稳定】sd2.5-720p（按秒）" {
+			capability.Durations = playgroundVideoRange(4, 15)
+			capability.MaxImageReferences = 9
+			capability.MaxVideoReferences = 3
+			capability.MaxAudioReferences = 3
+		}
 		if strings.Contains(name, "官方") || strings.Contains(name, "official") || strings.Contains(name, "ark") {
 			capability.Modes = []string{PlaygroundVideoModeFirst, PlaygroundVideoModeFirstLast, PlaygroundVideoModeReference}
 			capability.AspectRatios = []string{"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"}
@@ -273,6 +280,11 @@ func applyPlaygroundVideoModelProfile(capability *PlaygroundVideoCapability, nam
 		if strings.Contains(name, "ad渠道") || strings.Contains(name, "ad-channel") {
 			capability.Durations = []int{15}
 			capability.AspectRatios = []string{"16:9", "9:16"}
+			if strings.Contains(name, "9x16") {
+				capability.AspectRatios = []string{"9:16"}
+			} else if strings.Contains(name, "16x9") {
+				capability.AspectRatios = []string{"16:9"}
+			}
 		}
 	case strings.Contains(name, "kling"):
 		capability.Durations = []int{5, 10}

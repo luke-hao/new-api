@@ -136,3 +136,33 @@ func TestValidatePlaygroundVideoParametersUsesMappedModelProfile(t *testing.T) {
 	req.Videos = []string{"https://cdn.example/reference.mp4"}
 	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
 }
+
+func TestValidatePlaygroundVideoAICopyLimits(t *testing.T) {
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &RelayInfo{ChannelMeta: &ChannelMeta{ChannelType: constant.ChannelTypeOpenAI}}
+	req := &TaskSubmitReq{Model: "【稳定】sd2.5-720p（按秒）", Mode: "reference", Duration: 15,
+		Images: []string{"https://cdn.example/frame.jpg"}, Metadata: map[string]interface{}{"aspect_ratio": "16:9", "resolution": "720p"}}
+	require.Nil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Duration = 30
+	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Model = "sd2.5-720均衡版"
+	require.Nil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Model = "【稳定】sd2.5-720p（按秒）"
+	req.Duration = 15
+	req.Videos = []string{"https://cdn.example/1.mp4", "https://cdn.example/2.mp4", "https://cdn.example/3.mp4", "https://cdn.example/4.mp4"}
+	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Videos = nil
+	req.Model = "sd2.0-720fast-ad渠道9x16"
+	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Metadata["aspect_ratio"] = "9:16"
+	require.Nil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Metadata["resolution"] = "1080p"
+	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Model = "happyhorse-1.1-i2v-1080p"
+	req.Metadata["aspect_ratio"] = "跟随首帧"
+	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Mode = "first_frame"
+	require.Nil(t, validatePlaygroundVideoParameters(ctx, info, req))
+	req.Model = "官方h3-1080p"
+	require.NotNil(t, validatePlaygroundVideoParameters(ctx, info, req))
+}

@@ -23,6 +23,7 @@ export type AvailableVideoCatalogSection = {
   items: AvailableVideoCatalogItem[]
 }
 
+// Reviewed against api.aicopy.top / 视频分组1.2X, channel 151, 2026-09-13.
 const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
   {
     label: '官方区-稳定快速（推荐）',
@@ -47,12 +48,6 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
         variants: ['官方h3-720p', '官方h3-1080p', '官方h3-2k'],
       },
       {
-        id: 'officialWang30',
-        label: '【官方稳定版】wang-3.0',
-        note: '支持 4-30 秒，最多 10 图、5 视频和 5 音频。',
-        variants: ['官方wang3.0-480p', '官方wang3.0-720p'],
-      },
-      {
         id: 'volcengineArk',
         label: '【官方不卡脸】sd2.5（可高并发）',
         note: '官方 2.5 支持 4-30 秒和 30 图/10 视频/10 音频，可高并发。',
@@ -60,11 +55,15 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
       },
       {
         id: 'volcengineSd20',
-        label: '【官方不卡脸】sd2.0-720（可高并发）',
-        note: '固定 720p；支持文生、首帧、首尾帧和多参考。',
+        label: '【官方不卡脸】sd2.0-全系列（可高并发）',
+        note: '分辨率由具体模型固定；支持文生、首帧、首尾帧和多参考，时长 4-15 秒。',
         variants: [
-          '【官方稳定版】sd2.0-720p-满血',
+          '【官方稳定版】sd2.0-480p-fast',
+          '【官方稳定版】sd2.0-480p-满血',
+          '【官方稳定版】sd2.0-480p-mini',
           '【官方稳定版】sd2.0-720p-fast',
+          '【官方稳定版】sd2.0-720p-满血',
+          '【官方稳定版】sd2.0-720p-mini',
         ],
       },
     ],
@@ -74,34 +73,17 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
     items: [
       {
         id: 'sd2',
-        label: '【均衡性价比】sd2.5+2.0系列',
-        note: 'SD2.0 变体支持 4-15 秒和 9 图/3 视频/3 音频；SD2.5 变体支持 4-30 秒和 30 图/10 视频/10 音频。',
+        label: '【sd-均衡区】sd2.0+sd2.5',
+        note: 'SD2.0 与【稳定】SD2.5 支持 4-15 秒和 9 图/3 视频/3 音频；SD2.5 均衡版支持 4-30 秒和 30 图/10 视频/10 音频。',
         variants: [
           'sd2.0-720mini-不卡脸（按秒）',
           'sd2.0-720fast-不卡脸（按秒）',
           'sd2.0-720满血-不卡脸（按秒）',
-          'sd2.0-1080mini-不卡脸（按秒）',
-          'sd2.0-1080fast-不卡脸（按秒）',
-          'sd2.0-1080满血-不卡脸（按秒）',
           'sd2.5-720均衡版',
-          'sd2.5-480均衡版',
-        ],
-      },
-      {
-        id: 'stableValue86',
-        label: '【比较稳定的】sd2.0+2.5',
-        note: '固定 720p；2.0 支持 4-15 秒，2.5 支持 4-30 秒。',
-        variants: [
           '【稳定】sd2.0-720满血（按秒）',
           '【稳定】sd2.0-720fast（按秒）',
           '【稳定】sd2.5-720p（按秒）',
         ],
-      },
-      {
-        id: 'wang30',
-        label: '【比较稳定的】wang-3.0',
-        note: '支持 4-30 秒，最多 10 张图片，不支持参考视频和参考音频。',
-        variants: ['wang-3.0-480p', 'wang-3.0-720p'],
       },
     ],
   },
@@ -109,34 +91,16 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
     label: '特惠区',
     items: [
       {
-        id: 'sd25',
-        label: 'sd-2.5特惠合集',
-        note: '支持 4-30 秒，最多 30 图、10 视频、10 音频。',
-        variants: [
-          'sd-2.5-480p不卡脸(按秒)',
-          'sd-2.5-720p不卡脸(按秒)',
-          'sd-2.5-轮换渠道（按次）',
-        ],
-      },
-      {
         id: 'sd900',
         label: 'sd-720特惠-900合集',
         note: '固定 720p、15 秒；仅支持 1-9 张多参考图。',
-        variants: [
-          'sd-720满血-900（不售后）',
-          'sd2.0-720fast（特惠）',
-          'sd2.0-720mini（特惠）',
-        ],
+        variants: ['sd-720满血-900（不售后）'],
       },
       {
         id: 'sd933',
         label: 'sd-720满血-933合集',
         note: '固定 720p；支持文生、首帧、首尾帧和多参考，时长 4-15 秒，最多 9 图、3 视频、3 音频。',
-        variants: [
-          'sd-720满血-933（按次）',
-          'sd-720满血-933-备用（按次）',
-          'sd-720满血-933（较慢）',
-        ],
+        variants: ['sd-720满血-933（按次）', 'sd-720满血-933-备用（按次）'],
       },
       {
         id: 'sdPerUseAd',
@@ -153,21 +117,6 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
           'sd2.0-720满血-ad渠道9x16',
           'sd2.0-1080满血-ad渠道16x9',
           'sd2.0-1080满血-ad渠道9x16',
-        ],
-      },
-      {
-        id: 'testChannel',
-        label: '测试渠道',
-        note: '按具体模型固定 480p、720p 或 1080p，支持 4-30 秒和多模态参考。',
-        variants: [
-          '测试模型480p-按次',
-          '测试模型720p-按次',
-          '测试模型1080p-按次',
-          '测试模型480p-按秒',
-          '测试模型720p-按秒',
-          '测试模型1080p-按秒',
-          '开源h3-480p（特惠版）',
-          '开源h3-768p（特惠版）',
         ],
       },
     ],
@@ -195,7 +144,6 @@ const VIDEO_CATALOG_SECTIONS: VideoCatalogSectionDefinition[] = [
           'grok-1.5-官转接口',
           'grok-1.5-备用接口',
           'grok-1.5-多参接口',
-          'grok-video-1.5（按秒）',
         ],
       },
     ],

@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 package common
 
 import (
+	"os"
 	"testing"
 
 	"github.com/QuantumNous/new-api/constant"
@@ -57,4 +58,35 @@ func TestPlaygroundVideoTargetProfiles(t *testing.T) {
 	require.Equal(t, []string{PlaygroundVideoModeEdit}, omniEdit.Modes)
 	require.Equal(t, 2, omniEdit.MaxVideoReferences)
 	require.Equal(t, int64(8<<20), omniEdit.MaxVideoEditBytes)
+}
+
+// Captured from the reference generator and the upstream group's published limits.
+func TestPlaygroundVideoAICopyCatalog(t *testing.T) {
+	data, err := os.ReadFile("testdata/playground_video_aicopy.json")
+	require.NoError(t, err)
+	var expected []struct {
+		Model        string   `json:"model"`
+		Modes        []string `json:"modes"`
+		Durations    []int    `json:"durations"`
+		AspectRatios []string `json:"aspect_ratios"`
+		Resolutions  []string `json:"resolutions"`
+		Images       int      `json:"max_image_references"`
+		Videos       int      `json:"max_video_references"`
+		Audios       int      `json:"max_audio_references"`
+	}
+	require.NoError(t, Unmarshal(data, &expected))
+	require.Len(t, expected, 45)
+	for _, want := range expected {
+		t.Run(want.Model, func(t *testing.T) {
+			got, ok := GetPlaygroundVideoCapability(constant.ChannelTypeOpenAI, want.Model)
+			require.True(t, ok)
+			require.Equal(t, want.Modes, got.Modes)
+			require.Equal(t, want.Durations, got.Durations)
+			require.Equal(t, want.AspectRatios, got.AspectRatios)
+			require.Equal(t, want.Resolutions, got.Resolutions)
+			require.Equal(t, want.Images, got.MaxImageReferences)
+			require.Equal(t, want.Videos, got.MaxVideoReferences)
+			require.Equal(t, want.Audios, got.MaxAudioReferences)
+		})
+	}
 }
