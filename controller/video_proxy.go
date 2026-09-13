@@ -31,6 +31,19 @@ func videoProxyError(c *gin.Context, status int, errType, message string) {
 }
 
 func VideoProxy(c *gin.Context) {
+	videoProxy(c, false)
+}
+
+// AdminVideoProxy is used only by the session-authenticated task log route.
+func AdminVideoProxy(c *gin.Context) {
+	if c.GetInt("role") < common.RoleAdminUser {
+		videoProxyError(c, http.StatusForbidden, "permission_error", "Administrator access required")
+		return
+	}
+	videoProxy(c, true)
+}
+
+func videoProxy(c *gin.Context, admin bool) {
 	taskID := c.Param("task_id")
 	if taskID == "" {
 		videoProxyError(c, http.StatusBadRequest, "invalid_request_error", "task_id is required")
@@ -38,7 +51,14 @@ func VideoProxy(c *gin.Context) {
 	}
 
 	userID := c.GetInt("id")
-	task, exists, err := model.GetByTaskId(userID, taskID)
+	var task *model.Task
+	var exists bool
+	var err error
+	if admin {
+		task, exists, err = model.GetByOnlyTaskId(taskID)
+	} else {
+		task, exists, err = model.GetByTaskId(userID, taskID)
+	}
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to query task %s: %s", taskID, err.Error()))
 		videoProxyError(c, http.StatusInternalServerError, "server_error", "Failed to query task")
@@ -180,7 +200,7 @@ func VideoProxy(c *gin.Context) {
 	if c.Writer.Header().Get("Accept-Ranges") == "" {
 		c.Writer.Header().Set("Accept-Ranges", "bytes")
 	}
-	c.Writer.Header().Set("Cache-Control", "public, max-age=86400")
+	c.Writer.Header().Set("Cache-Control", "private, no-store")
 	c.Writer.WriteHeader(resp.StatusCode)
 	if _, err = io.Copy(c.Writer, resp.Body); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to stream video content: %s", err.Error()))
@@ -245,7 +265,7 @@ func writeVideoDataURL(c *gin.Context, dataURL string) error {
 	}
 
 	c.Writer.Header().Set("Content-Type", mimeType)
-	c.Writer.Header().Set("Cache-Control", "public, max-age=86400")
+	c.Writer.Header().Set("Cache-Control", "private, no-store")
 	c.Writer.WriteHeader(http.StatusOK)
 	_, err = c.Writer.Write(videoBytes)
 	return err

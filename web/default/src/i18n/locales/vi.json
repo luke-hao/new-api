@@ -4927,6 +4927,8 @@
     "channels.priorityLock.allSkipped": "All {{count}} channels have fixed priorities; checks and ranking skipped",
     "channels.priorityLock.priceFailed": "Price ranking: {{failed}} updates failed; {{skipped}} fixed channels skipped",
     "channels.priorityLock.priceResult": "Price ranking: {{participating}} participants, {{priced}} priced, {{unpriced}} without price; {{updated}} updated; {{skipped}} fixed channels skipped",
-    "channels.priorityLock.scheduledPrimary": "Primary among scheduled channels"
+    "channels.priorityLock.scheduledPrimary": "Primary among scheduled channels",
+    "Video Preview": "Xem trước video",
+    "Video playback failed": "Phát video thất bại"
   }
 }

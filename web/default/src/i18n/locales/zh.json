@@ -4930,6 +4930,8 @@
     "channels.priorityLock.allSkipped": "全部 {{count}} 个渠道均已固定优先级，跳过检测和重排",
     "channels.priorityLock.priceFailed": "价格排序：{{failed}} 个更新失败，跳过 {{skipped}} 个固定渠道",
     "channels.priorityLock.priceResult": "价格排序：{{participating}} 个参与，{{priced}} 个带价格、{{unpriced}} 个无价格；更新 {{updated}} 个，跳过 {{skipped}} 个固定渠道",
-    "channels.priorityLock.scheduledPrimary": "参与调度渠道中的主通道"
+    "channels.priorityLock.scheduledPrimary": "参与调度渠道中的主通道",
+    "Video Preview": "视频预览",
+    "Video playback failed": "视频播放失败"
   }
 }

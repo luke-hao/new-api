@@ -8,6 +8,9 @@ import (
 )
 
 func SetVideoRouter(router *gin.Engine) {
+	// Dashboard media loads use signed cookies, without custom request headers.
+	router.GET("/api/task/:task_id/content", middleware.RouteTag("api"), middleware.AdminMediaAuth(), controller.AdminVideoProxy)
+
 	// Video proxy: accepts either session auth (dashboard) or token auth (API clients)
 	videoProxyRouter := router.Group("/v1")
 	videoProxyRouter.Use(middleware.RouteTag("relay"))
