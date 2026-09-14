@@ -53,11 +53,15 @@ func (a *TaskAdaptor) buildAICopyVideoBody(c *gin.Context, info *relaycommon.Rel
 			image = req.Images[0]
 		}
 		if image != "" {
-			publicURL, err := a.uploadAICopyReference(c, info, image, "image")
-			if err != nil {
-				return nil, err
+			if req.InputReferenceFileID != "" {
+				body["input_reference"] = map[string]string{"file_id": req.InputReferenceFileID}
+			} else {
+				publicURL, err := a.uploadAICopyReference(c, info, image, "image")
+				if err != nil {
+					return nil, err
+				}
+				body["input_reference"] = map[string]string{"url": publicURL}
 			}
-			body["input_reference"] = map[string]string{"url": publicURL}
 		} else if len(req.Images) > 1 {
 			refs := make([]map[string]string, 0, len(req.Images))
 			for _, image := range req.Images {
@@ -95,11 +99,9 @@ func (a *TaskAdaptor) buildAICopyVideoBody(c *gin.Context, info *relaycommon.Rel
 				for k, v := range v {
 					entry[k] = v
 				}
-				for _, key := range []string{"url", "image_url", "video_url", "audio_url"} {
-					if text, ok := v[key].(string); ok && text != "" {
-						reference = text
-						break
-					}
+				reference, err = relaycommon.TaskReferenceValue(v)
+				if err != nil {
+					return nil, fmt.Errorf("%s[%d] requires a URL", field, i)
 				}
 			}
 			if reference == "" {

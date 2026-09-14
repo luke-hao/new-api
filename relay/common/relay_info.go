@@ -682,18 +682,20 @@ type TaskRelayInfo struct {
 }
 
 type TaskSubmitReq struct {
-	Prompt         string                 `json:"prompt"`
-	Model          string                 `json:"model,omitempty"`
-	Mode           string                 `json:"mode,omitempty"`
-	Image          string                 `json:"image,omitempty"`
-	Images         []string               `json:"images,omitempty"`
-	Videos         []string               `json:"videos,omitempty"`
-	Audios         []string               `json:"audios,omitempty"`
-	Size           string                 `json:"size,omitempty"`
-	Duration       int                    `json:"duration,omitempty"`
-	Seconds        string                 `json:"seconds,omitempty"`
-	InputReference string                 `json:"input_reference,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Prompt         string   `json:"prompt"`
+	Model          string   `json:"model,omitempty"`
+	Mode           string   `json:"mode,omitempty"`
+	Image          string   `json:"image,omitempty"`
+	Images         []string `json:"images,omitempty"`
+	Videos         []string `json:"videos,omitempty"`
+	Audios         []string `json:"audios,omitempty"`
+	Size           string   `json:"size,omitempty"`
+	Duration       int      `json:"duration,omitempty"`
+	Seconds        string   `json:"seconds,omitempty"`
+	InputReference string   `json:"input_reference,omitempty"`
+	// Preserve the documented file_id shape instead of treating it as a URL.
+	InputReferenceFileID string                 `json:"-"`
+	Metadata             map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func (t *TaskSubmitReq) GetPrompt() string {
@@ -705,6 +707,23 @@ func (t *TaskSubmitReq) HasImage() bool {
 }
 
 func (t *TaskSubmitReq) UnmarshalJSON(data []byte) error {
+	// File IDs are opaque upstream identifiers, not downloadable URLs.
+	var original struct {
+		InputReference any `json:"input_reference"`
+	}
+	if err := common.Unmarshal(data, &original); err != nil {
+		return err
+	}
+	t.InputReferenceFileID = ""
+	if object, ok := original.InputReference.(map[string]any); ok {
+		if _, hasURL := object["url"]; !hasURL {
+			if _, hasImageURL := object["image_url"]; !hasImageURL {
+				if fileID, ok := object["file_id"].(string); ok {
+					t.InputReferenceFileID = strings.TrimSpace(fileID)
+				}
+			}
+		}
+	}
 	normalized, err := normalizeTaskSubmitJSON(data)
 	if err != nil {
 		return err
@@ -911,7 +930,7 @@ func normalizeTaskSubmitJSON(data []byte) ([]byte, error) {
 		delete(payload, "metadata")
 	}
 
-	return json.Marshal(payload)
+	return common.Marshal(payload)
 }
 
 func taskRequestObject(value any) (map[string]any, bool) {
@@ -956,6 +975,11 @@ func taskRequestIntegerValue(value any) (int, bool) {
 	return 0, false
 }
 
+// TaskReferenceValue resolves the documented URL aliases without losing roles.
+func TaskReferenceValue(value any) (string, error) {
+	return taskRequestReferenceValue(value)
+}
+
 func taskRequestReferenceValue(value any) (string, error) {
 	if reference, ok := value.(string); ok {
 		if strings.TrimSpace(reference) == "" {
@@ -967,9 +991,9 @@ func taskRequestReferenceValue(value any) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("reference must be a string or object")
 	}
-	for _, key := range []string{"url", "image_url", "file_id"} {
+	for _, key := range []string{"url", "image_url", "video_url", "audio_url", "file_id"} {
 		if nested, exists := object[key]; exists {
-			if key == "image_url" {
+			if key == "image_url" || key == "video_url" || key == "audio_url" {
 				if imageObject, ok := taskRequestObject(nested); ok {
 					nested = imageObject["url"]
 				}

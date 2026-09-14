@@ -288,6 +288,11 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 	if taskErr := validateTaskQuantityLimits(&req); taskErr != nil {
 		return taskErr
 	}
+	if common.UsesAICopyVideoProtocol(info.ChannelBaseUrl, resolvePlaygroundValidationModel(c, req.Model)) {
+		if err := validateAICopyImageRoles(req.Metadata); err != nil {
+			return createTaskError(err, "invalid_reference", http.StatusBadRequest, true)
+		}
+	}
 	if _, known := common.GetVideoModelContract(req.Model); known && req.Mode == "" {
 		req.Mode = "text"
 		switch {
@@ -303,6 +308,9 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 				Role string `json:"role"`
 			}
 			if common.Unmarshal(encoded, &entries) == nil {
+				if len(entries) == 1 && entries[0].Role == "first_frame" {
+					req.Mode = "first_frame"
+				}
 				for _, entry := range entries {
 					if entry.Role == "last_frame" {
 						req.Mode = "first_last"

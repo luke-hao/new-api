@@ -55,3 +55,12 @@
 - `service/text_quota.go` uses the existing BillingSession and pricing for interrupted consumption, including cache-only Anthropic usage. Settled funding is protected from the request-error refund path.
 - Partial-consumption logs retain the request IDs and stream status and set `billing_reason=stream_interrupted`, `usage_partial=true`, and `usage_source=upstream_partial`. No usage means no estimated interruption charge.
 - Historical customer balances and bills are not reconciled or modified by this fix.
+
+## AICopy unified video references (2026-09-14)
+
+- Supplier's 2026-08-19 public document matches https://api.aione.help/docs/api/video-plugin-api.md byte for byte (SHA256 57d4f88577d6b7dd433d87ef94886785db25fe391c748df814cedc65a9f83fce).
+- Channel 151 uses POST /v1/videos, GET /v1/videos/{task_id} and /content; the AICopy adaptor converts studio resolution labels to extra.resolution, never a label-valued upstream size.
+- Preserve explicit input_reference.file_id as an opaque file ID. Normalize URL aliases consistently between parsing and body construction, including nested image/video/audio URL objects.
+- A lone first_frame role selects first-frame mode. Reject unknown roles, duplicate first/last frames, a tail without a first frame, and mixtures with ordinary reference images before precharge or upload.
+- The separate supplier upscaling document describes xp-视频超分-* models, top-level video_url and resolution, with input duration billing. These unconnected models remain outside the 45-model generation catalog.
+- On 2026-09-14, authenticated /v1/uploads with both image and file fields, and legacy /v1/upload, returned HTTP 404. Do not invent alternate upload endpoints or retry creation automatically.
