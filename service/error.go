@@ -137,8 +137,17 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 // channel. Local user-quota errors are explicitly excluded so their existing
 // message and handling remain unchanged.
 func IsUpstreamBalanceError(err *types.NewAPIError) bool {
-	if err == nil || err.GetErrorCode() == types.ErrorCodeInsufficientUserQuota {
+	if err == nil {
 		return false
+	}
+	// Upstream New API installations may return the same quota code as this
+	// gateway. Use our internal origin, not the provider's payload error.type,
+	// to exclude local wallet, subscription and token pre-charge failures.
+	if err.GetErrorType() == types.ErrorTypeNewAPIError {
+		switch err.GetErrorCode() {
+		case types.ErrorCodeInsufficientUserQuota, types.ErrorCodePreConsumeTokenQuotaFailed:
+			return false
+		}
 	}
 
 	if err.StatusCode == http.StatusPaymentRequired {
@@ -148,6 +157,7 @@ func IsUpstreamBalanceError(err *types.NewAPIError) bool {
 	code := strings.ToLower(strings.TrimSpace(string(err.GetErrorCode())))
 	switch code {
 	case "insufficient_quota",
+		"insufficient_user_quota",
 		"billing_hard_limit_reached",
 		"credit_balance_too_low",
 		"insufficient_balance",
@@ -166,6 +176,8 @@ func IsUpstreamBalanceError(err *types.NewAPIError) bool {
 		"insufficient credit",
 		"not enough credit",
 		"余额不足",
+		"用户额度不足",
+		"预扣费额度失败",
 	}
 	for _, phrase := range balancePhrases {
 		if strings.Contains(message, phrase) {

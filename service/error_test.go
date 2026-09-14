@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/logger"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -242,4 +245,104 @@ func withDebugEnabled(t *testing.T, enabled bool) {
 	t.Cleanup(func() {
 		common.DebugEnabled = oldDebug
 	})
+}
+
+func TestUpstreamNewAPIQuotaOrigin(t *testing.T) {
+	message := "用户额度不足, 剩余额度: ＄-0.977194"
+	tests := []struct {
+		name      string
+		makeError func() *types.NewAPIError
+		want      bool
+	}{
+		{"upstream Claude response without code", func() *types.NewAPIError {
+			resp := &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader(
+				`{"error":{"type":"new_api_error","message":"用户额度不足, 剩余额度: ＄-0.977194"},"type":"error"}`))}
+			return RelayErrorHandler(context.Background(), resp, false)
+		}, true},
+		{"upstream test response with body", func() *types.NewAPIError {
+			resp := &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader(
+				`{"error":{"type":"new_api_error","message":"用户额度不足, 剩余额度: ＄-0.977194"},"type":"error"}`))}
+			return RelayErrorHandler(context.Background(), resp, true)
+		}, true},
+		{"upstream shares local quota code", func() *types.NewAPIError {
+			return types.WithOpenAIError(types.OpenAIError{Message: "account quota exhausted", Type: "new_api_error", Code: "insufficient_user_quota"}, http.StatusForbidden)
+		}, true},
+		{"upstream native Claude quota", func() *types.NewAPIError {
+			return types.WithClaudeError(types.ClaudeError{Message: message, Type: "new_api_error"}, http.StatusForbidden)
+		}, true},
+		{"upstream precharge rejected", func() *types.NewAPIError {
+			return types.WithOpenAIError(types.OpenAIError{Message: "预扣费额度失败, 用户剩余额度: $0.01, 需要预扣费额度: $0.10", Type: "new_api_error"}, http.StatusForbidden)
+		}, true},
+		{"local wallet quota", func() *types.NewAPIError {
+			return types.NewErrorWithStatusCode(fmt.Errorf("%s", message), types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}, false},
+		{"local precharge rejected", func() *types.NewAPIError {
+			return types.NewErrorWithStatusCode(fmt.Errorf("预扣费额度失败, 用户剩余额度: $0.01, 需要预扣费额度: $0.10"), types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}, false},
+		{"local token quota", func() *types.NewAPIError {
+			return types.NewErrorWithStatusCode(fmt.Errorf("余额不足"), types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}, false},
+		{"ordinary upstream forbidden", func() *types.NewAPIError {
+			return types.WithOpenAIError(types.OpenAIError{Message: "permission denied", Type: "permission_error"}, http.StatusForbidden)
+		}, false},
+		{"ordinary upstream rate limit", func() *types.NewAPIError {
+			return types.WithOpenAIError(types.OpenAIError{Message: "requests per minute exceeded", Code: "rate_limit_exceeded"}, http.StatusTooManyRequests)
+		}, false},
+		{"nil error", func() *types.NewAPIError { return nil }, false},
+	}
+	original := common.AutomaticDisableChannelEnabled
+	t.Cleanup(func() { common.AutomaticDisableChannelEnabled = original })
+	for _, globalEnabled := range []bool{false, true} {
+		common.AutomaticDisableChannelEnabled = globalEnabled
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("global=%v/%s", globalEnabled, tt.name), func(t *testing.T) {
+				err := tt.makeError()
+				require.Equal(t, tt.want, IsUpstreamBalanceError(err), "balance classification")
+				// The existing global permission-denied rule remains independent of billing.
+				wantDisable := tt.want || (globalEnabled && tt.name == "ordinary upstream forbidden")
+				require.Equal(t, wantDisable, ShouldDisableChannel(err), "automatic disable decision")
+				if err != nil {
+					t.Logf("origin=%s code=%s status=%d balance=%v disable=%v message=%s", err.GetErrorType(), err.GetErrorCode(), err.StatusCode, IsUpstreamBalanceError(err), ShouldDisableChannel(err), err.Error())
+				}
+			})
+		}
+	}
+}
+
+func TestLocalWalletInsufficientFundsMessage(t *testing.T) {
+	for _, entry := range []string{"billing_session", "legacy_preconsume"} {
+		for _, quota := range []int{-500, 0, 1000} {
+			t.Run(fmt.Sprintf("%s/quota=%d", entry, quota), func(t *testing.T) {
+				truncate(t)
+				seedUser(t, 93001, quota)
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+				info := &relaycommon.RelayInfo{UserId: 93001, TokenUnlimited: true}
+				info.UserSetting.BillingPreference = "wallet_only"
+				const pre = 2000
+				var apiErr *types.NewAPIError
+				if entry == "billing_session" {
+					apiErr = PreConsumeBilling(c, pre, info)
+				} else {
+					apiErr = PreConsumeQuota(c, pre, info)
+				}
+				require.NotNil(t, apiErr)
+				want := "您在本站点的所余资金不足够了, 剩余额度: " + logger.FormatQuota(quota)
+				if quota > 0 {
+					want += ", 需要预扣费额度: " + logger.FormatQuota(pre)
+				}
+				require.Equal(t, want, apiErr.Error())
+				require.Equal(t, "status_code=403, "+want, apiErr.ErrorWithStatusCode())
+				require.Equal(t, want, apiErr.ToOpenAIError().Message)
+				require.Equal(t, want, apiErr.ToClaudeError().Message)
+				require.Equal(t, types.ErrorCodeInsufficientUserQuota, apiErr.GetErrorCode())
+				require.True(t, types.IsSkipRetryError(apiErr))
+				require.False(t, IsUpstreamBalanceError(apiErr))
+				require.False(t, ShouldDisableChannel(apiErr))
+				require.Nil(t, info.Billing)
+				require.Equal(t, quota, getUserQuota(t, 93001))
+				t.Logf("%s; local=true disable=false balance_unchanged=true", apiErr.ErrorWithStatusCode())
+			})
+		}
+	}
 }
