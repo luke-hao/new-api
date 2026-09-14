@@ -42,6 +42,14 @@ func (a *TaskAdaptor) buildAICopyVideoBody(c *gin.Context, info *relaycommon.Rel
 	if _, exists := extra["resolution"]; !exists && (strings.HasSuffix(strings.ToLower(req.Size), "p") || strings.EqualFold(req.Size, "2k") || strings.EqualFold(req.Size, "4k")) {
 		extra["resolution"] = req.Size
 	}
+	// Some upstream adapters derive orientation from size even when
+	// extra.aspect_ratio is present. Emit matching pixel dimensions when the
+	// caller selected both controls; follow-first-frame stays unconstrained.
+	if _, exists := body["size"]; !exists {
+		if size := aicopyPixelSize(extra); size != "" {
+			body["size"] = size
+		}
+	}
 	// A first/last pair must not also be submitted as a single input_reference.
 	_, hasReferences := extra["reference_images"]
 	if !hasReferences {

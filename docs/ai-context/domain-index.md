@@ -59,7 +59,7 @@
 ## AICopy unified video references (2026-09-14)
 
 - Supplier's 2026-08-19 public document matches https://api.aione.help/docs/api/video-plugin-api.md byte for byte (SHA256 57d4f88577d6b7dd433d87ef94886785db25fe391c748df814cedc65a9f83fce).
-- Channel 151 uses POST /v1/videos, GET /v1/videos/{task_id} and /content; the AICopy adaptor converts studio resolution labels to extra.resolution, never a label-valued upstream size.
+- Channel 151 uses POST /v1/videos, GET /v1/videos/{task_id} and /content; the AICopy adaptor converts studio resolution labels to extra.resolution, never a label-valued upstream size. When both resolution and aspect ratio are selected, also emit their matching even pixel dimensions in size; follow-first-frame omits size. A live Adobe 480fast portrait request with size 480x854 returned a 496x864 portrait video; aspect_ratio alone had previously returned landscape.
 - Preserve explicit input_reference.file_id as an opaque file ID. Normalize URL aliases consistently between parsing and body construction, including nested image/video/audio URL objects.
 - A lone first_frame role selects first-frame mode. Reject unknown roles, duplicate first/last frames, a tail without a first frame, and mixtures with ordinary reference images before precharge or upload.
 - The separate supplier upscaling document describes xp-视频超分-* models, top-level video_url and resolution, with input duration billing. These unconnected models remain outside the 45-model generation catalog.

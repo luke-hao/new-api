@@ -73,9 +73,10 @@ func TestAICopyStudioProtocolUploadsAndRoles(t *testing.T) {
 					require.Equal(t, "application/json", r.Header.Get("Content-Type"))
 					var body map[string]any
 					require.NoError(t, common.DecodeJson(r.Body, &body))
-					for _, field := range []string{"mode", "group", "duration", "size", "metadata"} {
+					for _, field := range []string{"mode", "group", "duration", "metadata"} {
 						require.NotContains(t, body, field)
 					}
+					require.Equal(t, "1280x720", body["size"])
 					extra := body["extra"].(map[string]any)
 					require.Equal(t, "720p", extra["resolution"])
 					require.Equal(t, "16:9", extra["aspect_ratio"])

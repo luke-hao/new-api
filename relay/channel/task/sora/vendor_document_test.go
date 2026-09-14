@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -103,5 +106,72 @@ func TestVendorDocumentInvalidRolesFailBeforeSubmission(t *testing.T) {
 		require.True(t, e.LocalError)
 		require.Equal(t, http.StatusBadRequest, e.StatusCode)
 		require.Equal(t, "invalid_reference", e.Code)
+	}
+}
+
+func TestVendorPixelDimensionsCoverConnectedModels(t *testing.T) {
+	data, err := os.ReadFile("../../../../common/testdata/playground_video_aicopy.json")
+	require.NoError(t, err)
+	var rows []struct {
+		Model       string   `json:"model"`
+		Ratios      []string `json:"aspect_ratios"`
+		Resolutions []string `json:"resolutions"`
+	}
+	require.NoError(t, common.Unmarshal(data, &rows))
+	require.Len(t, rows, 45)
+	for _, row := range rows {
+		for _, resolution := range row.Resolutions {
+			for _, ratio := range row.Ratios {
+				t.Run(row.Model+"/"+resolution+"/"+ratio, func(t *testing.T) {
+					size := aicopyPixelSize(map[string]any{"resolution": resolution, "aspect_ratio": ratio})
+					if ratio == "跟随首帧" {
+						require.Empty(t, size)
+						return
+					}
+					dims := strings.Split(size, "x")
+					require.Len(t, dims, 2)
+					w, e := strconv.Atoi(dims[0])
+					require.NoError(t, e)
+					h, e := strconv.Atoi(dims[1])
+					require.NoError(t, e)
+					require.Zero(t, w%2)
+					require.Zero(t, h%2)
+					parts := strings.Split(ratio, ":")
+					rw, _ := strconv.Atoi(parts[0])
+					rh, _ := strconv.Atoi(parts[1])
+					require.InDelta(t, float64(rw)/float64(rh), float64(w)/float64(h), 0.005)
+					if strings.Contains(row.Model, "ad渠道9x16") {
+						require.Less(t, w, h)
+					}
+				})
+			}
+		}
+	}
+	for _, tc := range []struct{ resolution, ratio, want string }{
+		{"480p", "9:16", "480x854"}, {"720p", "9:16", "720x1280"}, {"1080p", "9:16", "1080x1920"},
+		{"720p", "16:9", "1280x720"}, {"2k", "16:9", "2560x1440"},
+		{"720p", "跟随首帧", ""}, {"bogus", "16:9", ""},
+	} {
+		require.Equal(t, tc.want, aicopyPixelSize(map[string]any{"resolution": tc.resolution, "aspect_ratio": tc.ratio}))
+	}
+}
+
+func TestVendorStudioResolutionBecomesPixelSize(t *testing.T) {
+	for _, tc := range []struct{ ratio, resolution, want string }{
+		{"9:16", "480p", "480x854"}, {"9:16", "720p", "720x1280"}, {"9:16", "1080p", "1080x1920"},
+		{"16:9", "720p", "1280x720"}, {"跟随首帧", "720p", ""},
+	} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/pg/videos", nil)
+		c.Set("task_request", relaycommon.TaskSubmitReq{Prompt: "test", Size: tc.resolution, Metadata: map[string]any{"resolution": tc.resolution, "aspect_ratio": tc.ratio}})
+		body, err := (&TaskAdaptor{}).buildAICopyVideoBody(c, newPlaygroundSoraInfo())
+		require.NoError(t, err)
+		var sent map[string]any
+		require.NoError(t, common.DecodeJson(body, &sent))
+		if tc.want == "" {
+			require.NotContains(t, sent, "size")
+		} else {
+			require.Equal(t, tc.want, sent["size"])
+		}
 	}
 }
