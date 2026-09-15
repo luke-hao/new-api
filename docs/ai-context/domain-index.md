@@ -76,3 +76,9 @@
 - The OpenAI-compatible response handler maps top-level `resp_...` IDs to `chatcmpl-resp_...` only for the Chat Completions relay mode and `chat.completion` / `chat.completion.chunk` objects. The complete upstream ID remains recoverable by removing `chatcmpl-`.
 - Normalize SSE events before caching the last event so streamed content, terminal chunks and any generated final usage share the same mapping. Passthrough patches only the top-level ID and preserves provider extensions and numeric precision.
 - Native Responses objects/endpoints, other relay formats/modes, tool call IDs, already valid Chat IDs, missing/malformed IDs and all usage/billing values retain their existing behavior. No provider/test-site-specific routing or token adjustments are involved.
+
+## Native Claude token counting (2026-09-15)
+
+- `POST /v1/messages/count_tokens` shares Messages token authentication, model permissions, rate limits and channel distribution. A separate controller bypasses generation precharge, pricing lookup, settlement and generation retries.
+- Native Anthropic-compatible channels forward to the upstream count endpoint using the Claude adaptor's credentials, proxy, header overrides and beta query. Upstream HTTP errors and successful integer counts (including zero) are preserved; unsupported channel types return 501 and malformed successful responses return 502. No generated or estimated count fallback.
+- Raw passthrough preserves the request bytes, like native Messages. Otherwise model mapping, system prompt settings, disabled-field removal and parameter overrides apply while unknown fields and explicit zero/false values survive. Generation-only defaults such as max_tokens are not injected.
