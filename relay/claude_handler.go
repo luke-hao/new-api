@@ -248,10 +248,12 @@ func executeClaudeAttempt(
 	useRawClaudeBody bool,
 	rawBodyOverride []byte,
 ) (*dto.Usage, *types.NewAPIError) {
+	info.ResetReasoning()
 	var requestBody io.Reader
 	if useRawClaudeBody {
 		if rawBodyOverride != nil {
 			info.UpstreamRequestBodySize = int64(len(rawBodyOverride))
+			relaycommon.CaptureReasoningJSON(info, rawBodyOverride)
 			requestBody = bytes.NewReader(rawBodyOverride)
 		} else {
 			storage, err := common.GetBodyStorage(c)
@@ -259,6 +261,7 @@ func executeClaudeAttempt(
 				return nil, types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 			}
 			info.UpstreamRequestBodySize = storage.Size()
+			relaycommon.CaptureReasoningStorage(info, storage)
 			requestBody = common.ReaderOnly(storage)
 		}
 	} else {
@@ -284,6 +287,7 @@ func executeClaudeAttempt(
 		}
 
 		logger.LogDebug(c, "requestBody: %s", jsonData)
+		relaycommon.CaptureReasoningJSON(info, jsonData)
 		body, size, closer, err := relaycommon.NewOutboundJSONBody(jsonData)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())

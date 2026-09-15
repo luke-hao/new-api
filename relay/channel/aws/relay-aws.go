@@ -133,6 +133,7 @@ func doAwsClientRequest(c *gin.Context, info *relaycommon.RelayInfo, a *Adaptor,
 		if err != nil {
 			return nil, types.NewError(errors.Wrap(err, "marshal nova request"), types.ErrorCodeBadResponseBody)
 		}
+		relaycommon.CaptureReasoningJSON(info, reqBody)
 		awsReq.Body = reqBody
 		a.AwsReq = awsReq
 		return nil, nil
@@ -171,7 +172,14 @@ func doAwsClientRequest(c *gin.Context, info *relaycommon.RelayInfo, a *Adaptor,
 }
 
 // buildAwsRequestBody prepares the payload for AWS requests, applying passthrough rules when enabled.
-func buildAwsRequestBody(c *gin.Context, info *relaycommon.RelayInfo, awsClaudeReq any) ([]byte, error) {
+func buildAwsRequestBody(c *gin.Context, info *relaycommon.RelayInfo, awsClaudeReq any) (body []byte, err error) {
+	defer func() {
+		if err == nil {
+			relaycommon.CaptureReasoningJSON(info, body)
+		} else {
+			info.ResetReasoning()
+		}
+	}()
 	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {
 		storage, err := common.GetBodyStorage(c)
 		if err != nil {

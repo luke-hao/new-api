@@ -4929,6 +4929,17 @@
     "channels.priorityLock.priceResult": "Price ranking: {{participating}} participants, {{priced}} priced, {{unpriced}} without price; {{updated}} updated; {{skipped}} fixed channels skipped",
     "channels.priorityLock.scheduledPrimary": "Primary among scheduled channels",
     "Video Preview": "動画プレビュー",
-    "Video playback failed": "動画の再生に失敗しました"
+    "Video playback failed": "動画の再生に失敗しました",
+    "Reasoning not applicable": "Not applicable",
+    "Reasoning unknown": "Unknown",
+    "Reasoning disabled": "Disabled",
+    "Reasoning enabled": "Enabled",
+    "Reasoning automatic": "Automatic",
+    "Reasoning unspecified": "Not specified",
+    "Reasoning not recorded": "Not recorded",
+    "Thinking budget: {{tokens}} tokens": "Budget: {{tokens}} tokens",
+    "Recorded effort parameter": "Recorded effort parameter",
+    "Recorded thinking budget": "Recorded thinking budget",
+    "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded."
   }
 }

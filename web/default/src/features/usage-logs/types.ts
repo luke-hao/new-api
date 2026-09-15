@@ -164,6 +164,15 @@ export interface LogOtherData {
   expr_b64?: string
   matched_tier?: string
   reasoning_effort?: string
+  reasoning_status?:
+    | 'specified'
+    | 'unspecified'
+    | 'automatic'
+    | 'enabled'
+    | 'disabled'
+    | 'not_applicable'
+    | 'unknown'
+  thinking_budget_tokens?: number
   image?: boolean
   image_ratio?: number
   image_output?: number

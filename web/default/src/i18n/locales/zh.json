@@ -4932,6 +4932,17 @@
     "channels.priorityLock.priceResult": "价格排序：{{participating}} 个参与，{{priced}} 个带价格、{{unpriced}} 个无价格；更新 {{updated}} 个，跳过 {{skipped}} 个固定渠道",
     "channels.priorityLock.scheduledPrimary": "参与调度渠道中的主通道",
     "Video Preview": "视频预览",
-    "Video playback failed": "视频播放失败"
+    "Video playback failed": "视频播放失败",
+    "Reasoning not applicable": "不适用",
+    "Reasoning unknown": "未知",
+    "Reasoning disabled": "已关闭",
+    "Reasoning enabled": "已开启",
+    "Reasoning automatic": "自动",
+    "Reasoning unspecified": "未指定",
+    "Reasoning not recorded": "未记录",
+    "Thinking budget: {{tokens}} tokens": "预算 {{tokens}} tokens",
+    "Recorded effort parameter": "记录的强度参数",
+    "Recorded thinking budget": "记录的思考预算",
+    "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "这里显示发给上游的思考配置；历史缺失值表示当时未记录。"
   }
 }

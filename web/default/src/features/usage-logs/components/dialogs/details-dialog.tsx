@@ -52,7 +52,7 @@ import {
   isViolationFeeLog,
   getFirstResponseTimeColor,
   getResponseTimeColor,
-  getReasoningEffortVariant,
+  getReasoningDisplay,
   renderAuditContent,
 } from '../../lib/format'
 import {
@@ -410,6 +410,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
   const details = props.log.content ?? ''
   const other = parseLogOther(props.log.other)
+  const reasoningDisplay = getReasoningDisplay(other, t)
   const typeConfig = getLogTypeConfig(props.log.type)
 
   const isViolation = isViolationFeeLog(other)
@@ -904,19 +905,40 @@ export function DetailsDialog(props: DetailsDialogProps) {
             </DetailSection>
           )}
 
-          {/* Reasoning effort */}
-          {other?.reasoning_effort && (
-            <DetailRow
-              label={t('Reasoning Effort')}
-              value={
-                <StatusBadge
-                  label={other.reasoning_effort}
-                  variant={getReasoningEffortVariant(other.reasoning_effort)}
-                  size='sm'
-                  copyable={false}
+          {/* Reasoning configuration sent upstream */}
+          {isDisplayableType(props.log.type) && (
+            <DetailSection label={t('Reasoning Effort')}>
+              <DetailRow
+                label={t('Reasoning Effort')}
+                value={
+                  <StatusBadge
+                    label={reasoningDisplay.label}
+                    variant={reasoningDisplay.variant}
+                    size='sm'
+                    copyable={false}
+                  />
+                }
+              />
+              {other?.reasoning_effort && (
+                <DetailRow
+                  label={t('Recorded effort parameter')}
+                  value={other.reasoning_effort}
+                  mono
                 />
-              }
-            />
+              )}
+              {other?.thinking_budget_tokens != null && (
+                <DetailRow
+                  label={t('Recorded thinking budget')}
+                  value={String(other.thinking_budget_tokens)}
+                  mono
+                />
+              )}
+              <p className='text-muted-foreground text-xs'>
+                {t(
+                  'Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.'
+                )}
+              </p>
+            </DetailSection>
           )}
 
           {/* System prompt override */}

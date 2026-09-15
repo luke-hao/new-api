@@ -457,6 +457,12 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		if c.Request != nil && c.Request.URL != nil {
 			other["request_path"] = c.Request.URL.Path
 		}
+		other["reasoning_status"] = relaycommon.ReasoningUnknown
+		if value, exists := c.Get(relaycommon.ReasoningRelayInfoContextKey); exists {
+			if info, ok := value.(*relaycommon.RelayInfo); ok && info != nil {
+				info.AppendReasoningInfo(other)
+			}
+		}
 		other["error_type"] = err.GetErrorType()
 		other["error_code"] = err.GetErrorCode()
 		other["status_code"] = err.StatusCode

@@ -115,6 +115,8 @@ type RelayInfo struct {
 	IsFirstRequest         bool
 	AudioUsage             bool
 	ReasoningEffort        string
+	ReasoningStatus        string
+	ThinkingBudgetTokens   *int
 	UserSetting            dto.UserSetting
 	UserEmail              string
 	UserQuota              int
@@ -189,6 +191,8 @@ type RelayInfo struct {
 }
 
 func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
+	info.ResetReasoning()
+	c.Set(ReasoningRelayInfoContextKey, info)
 	channelType := common.GetContextKeyInt(c, constant.ContextKeyChannelType)
 	paramOverride := common.GetContextKeyStringMap(c, constant.ContextKeyChannelParamOverride)
 	headerOverride := common.GetContextKeyStringMap(c, constant.ContextKeyChannelHeaderOverride)

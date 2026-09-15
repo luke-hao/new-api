@@ -64,3 +64,9 @@
 - A lone first_frame role selects first-frame mode. Reject unknown roles, duplicate first/last frames, a tail without a first frame, and mixtures with ordinary reference images before precharge or upload.
 - The separate supplier upscaling document describes xp-视频超分-* models, top-level video_url and resolution, with input duration billing. These unconnected models remain outside the 45-model generation catalog.
 - On 2026-09-14, authenticated /v1/uploads with both image and file fields, and legacy /v1/upload, returned HTTP 404. Do not invent alternate upload endpoints or retry creation automatically.
+
+## Reasoning configuration in usage logs (2026-09-15)
+
+- Capture reasoning metadata from the final outbound JSON after conversion and overrides, including passthrough, Claude retries and AWS payload construction. Capture is observational and resets per attempt.
+- `other.reasoning_effort` remains compatible; `reasoning_status` and optional `thinking_budget_tokens` distinguish unspecified, automatic, enabled, disabled, not applicable and unknown. Values describe the sent configuration, not inferred upstream defaults or actual reasoning work.
+- Default-theme table/mobile/details/CSV share the same display helper. Historical missing fields display as not recorded; standalone non-text interfaces are not applicable. No historical database backfill.

@@ -23,7 +23,7 @@ import {
 } from '@/lib/format'
 import { buildLogDetailSegments } from '../components/columns/common-logs-columns'
 import type { UsageLog } from '../data/schema'
-import { formatModelName, parseLogOther } from './format'
+import { formatModelName, getReasoningDisplay, parseLogOther } from './format'
 import {
   getLogTypeConfig,
   isDisplayableLogType,
@@ -113,7 +113,7 @@ export function buildUsageLogsCsv(
       displayable ? log.token_name : '',
       displayable ? group : '',
       model,
-      displayable ? other?.reasoning_effort?.trim() || '' : '',
+      displayable ? getReasoningDisplay(other, t).label : '',
       timing ? formatUseTime(log.use_time) : '',
       firstResponse,
       timing ? t(log.is_stream ? 'Stream' : 'Non-stream') : '',

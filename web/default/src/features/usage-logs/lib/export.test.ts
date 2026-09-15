@@ -69,7 +69,7 @@ describe('buildUsageLogsCsv', () => {
     expect(csv).not.toContain('"alice"')
   })
 
-  test('exports reasoning effort and leaves missing values blank', () => {
+  test('exports reasoning effort and explains unrecorded values', () => {
     const csv = buildUsageLogsCsv(
       [
         makeLog({ other: '{"frt":250,"reasoning_effort":"xhigh"}' }),
@@ -81,7 +81,7 @@ describe('buildUsageLogsCsv', () => {
 
     expect(csv).toContain('"Model","Reasoning Effort","Total Duration"')
     expect(csv).toContain('"model-a","xhigh","1.5s"')
-    expect(csv).toContain('"model-a","","1.5s"')
+    expect(csv).toContain('"model-a","Reasoning not recorded","1.5s"')
   })
 
   test('escapes quotes and newlines and neutralizes spreadsheet formulas', () => {

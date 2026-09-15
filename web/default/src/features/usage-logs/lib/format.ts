@@ -128,6 +128,62 @@ export function getReasoningEffortVariant(
   }
 }
 
+/** One display policy for the table, mobile cards, details and CSV. */
+export function getReasoningDisplay(
+  other: LogOtherData | null,
+  t: (key: string, options?: Record<string, unknown>) => string
+): { label: string; variant: StatusBadgeProps['variant'] } {
+  const neutral = (key: string) => ({
+    label: t(key),
+    variant: 'neutral' as const,
+  })
+  const status = other?.reasoning_status
+  const path = typeof other?.request_path === 'string' ? other.request_path : ''
+  // Interface identity is reliable for old logs too; model names are not.
+  const separateInterface =
+    /^\/(?:v1|pg)\/(?:images|videos|audio|embeddings|rerank|moderations)(?:\/|$)/.test(
+      path
+    ) || /:(?:embedContent|batchEmbedContents)(?:\?|$)/.test(path)
+  if (status === 'not_applicable' || separateInterface) {
+    return neutral('Reasoning not applicable')
+  }
+  if (status === 'unknown') return neutral('Reasoning unknown')
+  const effort =
+    typeof other?.reasoning_effort === 'string'
+      ? other.reasoning_effort.trim()
+      : ''
+  if (status === 'disabled' || effort.toLowerCase() === 'none') {
+    return { label: t('Reasoning disabled'), variant: 'green' }
+  }
+  if (effort)
+    return { label: effort, variant: getReasoningEffortVariant(effort) }
+  const budget = other?.thinking_budget_tokens
+  if (
+    typeof budget === 'number' &&
+    Number.isSafeInteger(budget) &&
+    budget > 0
+  ) {
+    return {
+      label: t('Thinking budget: {{tokens}} tokens', {
+        tokens: budget.toLocaleString('en-US'),
+      }),
+      variant: 'neutral',
+    }
+  }
+  switch (status) {
+    case 'automatic':
+      return neutral('Reasoning automatic')
+    case 'enabled':
+      return neutral('Reasoning enabled')
+    case 'unspecified':
+      return neutral('Reasoning unspecified')
+    case undefined:
+      return neutral('Reasoning not recorded')
+    default:
+      return neutral('Reasoning unknown')
+  }
+}
+
 /**
  * Get time color based on duration (in seconds)
  */

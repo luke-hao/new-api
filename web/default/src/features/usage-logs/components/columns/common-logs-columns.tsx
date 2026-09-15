@@ -42,7 +42,7 @@ import {
   formatModelName,
   getFirstResponseTimeColor,
   getResponseTimeColor,
-  getReasoningEffortVariant,
+  getReasoningDisplay,
   getTieredBillingSummary,
   hasAnyCacheTokens,
   parseLogOther,
@@ -543,23 +543,20 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
     {
       id: 'reasoning_effort',
       header: t('Reasoning Effort'),
-      accessorFn: (row) => parseLogOther(row.other)?.reasoning_effort || '',
+      accessorFn: (row) =>
+        getReasoningDisplay(parseLogOther(row.other), t).label,
       cell: ({ row }) => {
-        const effort = parseLogOther(
-          row.original.other
-        )?.reasoning_effort?.trim()
-
-        if (!effort) {
-          return <span className='text-muted-foreground text-xs'>—</span>
-        }
-
+        if (!isDisplayableLogType(row.original.type)) return null
+        const display = getReasoningDisplay(
+          parseLogOther(row.original.other),
+          t
+        )
         return (
           <StatusBadge
-            label={effort}
-            variant={getReasoningEffortVariant(effort)}
+            label={display.label}
+            variant={display.variant}
             size='sm'
             copyable={false}
-            className='font-mono'
           />
         )
       },

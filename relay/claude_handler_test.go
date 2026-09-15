@@ -245,6 +245,8 @@ func TestClaudeHelperRecoversInvalidThinkingSignatureOnSameChannel(t *testing.T)
 	require.Contains(t, recorder.Body.String(), `"text":"recovered"`)
 	require.NotContains(t, recorder.Body.String(), "Invalid signature")
 	require.Equal(t, "upstream-2", c.GetString(common.UpstreamRequestIdKey))
+	require.Equal(t, relaycommon.ReasoningEnabled, info.ReasoningStatus)
+	require.Equal(t, common.GetPointer(1024), info.ThinkingBudgetTokens)
 
 	attemptsMu.Lock()
 	recordedAttempts := append([]upstreamAttempt(nil), attempts...)
