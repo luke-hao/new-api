@@ -70,3 +70,9 @@
 - Capture reasoning metadata from the final outbound JSON after conversion and overrides, including passthrough, Claude retries and AWS payload construction. Capture is observational and resets per attempt.
 - `other.reasoning_effort` remains compatible; `reasoning_status` and optional `thinking_budget_tokens` distinguish unspecified, automatic, enabled, disabled, not applicable and unknown. Values describe the sent configuration, not inferred upstream defaults or actual reasoning work.
 - Default-theme table/mobile/details/CSV share the same display helper. Historical missing fields display as not recorded; standalone non-text interfaces are not applicable. No historical database backfill.
+
+## Chat Completions response IDs (2026-09-15)
+
+- The OpenAI-compatible response handler maps top-level `resp_...` IDs to `chatcmpl-resp_...` only for the Chat Completions relay mode and `chat.completion` / `chat.completion.chunk` objects. The complete upstream ID remains recoverable by removing `chatcmpl-`.
+- Normalize SSE events before caching the last event so streamed content, terminal chunks and any generated final usage share the same mapping. Passthrough patches only the top-level ID and preserves provider extensions and numeric precision.
+- Native Responses objects/endpoints, other relay formats/modes, tool call IDs, already valid Chat IDs, missing/malformed IDs and all usage/billing values retain their existing behavior. No provider/test-site-specific routing or token adjustments are involved.
