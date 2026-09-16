@@ -215,6 +215,7 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     values.force_format ||
     values.thinking_to_content ||
     values.pass_through_body_enabled ||
+    values.claude_thinking_recovery_enabled ||
     values.system_prompt_override ||
     values.claude_beta_query ||
     values.upstream_model_update_check_enabled ||
@@ -3164,6 +3165,32 @@ export function ChannelMutateDrawer({
                               </div>
                               <FormControl>
                                 <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name='claude_thinking_recovery_enabled'
+                          render={({ field }) => (
+                            <FormItem className='flex items-center justify-between gap-4 px-4 py-3'>
+                              <div className='min-w-0 flex-1 space-y-0.5'>
+                                <FormLabel>
+                                  {t('Recover invalid Claude thinking blocks')}
+                                </FormLabel>
+                                <FormDescription>
+                                  {t(
+                                    'Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.'
+                                  )}
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  className='shrink-0'
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
                                 />

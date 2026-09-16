@@ -3675,6 +3675,8 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "Recover invalid Claude thinking blocks": "Récupération des blocs de réflexion Claude invalides",
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "Désactivé par défaut. Pour Claude Messages, supprime les blocs de réflexion invalides et réessaie une fois après une erreur de signature ; les blocs déjà identifiés sont supprimés avant envoi. Sinon, les blocs et les erreurs du fournisseur sont conservés."
   }
 }

@@ -50,19 +50,22 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 	var rawBodyOverride []byte
-	knownSanitized, err := service.SanitizeKnownInvalidClaudeThinking(rawClaudeBody)
-	if err != nil {
-		return types.NewErrorWithStatusCode(fmt.Errorf("failed to inspect Claude thinking history: %w", err), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
-	}
-	if knownSanitized.RemovedBlocks > 0 {
-		var sanitizedRequest dto.ClaudeRequest
-		if err := common.Unmarshal(knownSanitized.Body, &sanitizedRequest); err != nil {
-			return types.NewErrorWithStatusCode(fmt.Errorf("failed to rebuild Claude request after thinking cleanup: %w", err), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	thinkingRecoveryEnabled := info.ChannelSetting.ClaudeThinkingRecoveryEnabled
+	if thinkingRecoveryEnabled {
+		knownSanitized, err := service.SanitizeKnownInvalidClaudeThinking(rawClaudeBody, info.ChannelId)
+		if err != nil {
+			return types.NewErrorWithStatusCode(fmt.Errorf("failed to inspect Claude thinking history: %w", err), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}
-		request = &sanitizedRequest
-		rawClaudeBody = knownSanitized.Body
-		rawBodyOverride = knownSanitized.Body
-		service.MarkClaudeThinkingPreflightRemoved(c, knownSanitized.RemovedBlocks)
+		if knownSanitized.RemovedBlocks > 0 {
+			var sanitizedRequest dto.ClaudeRequest
+			if err := common.Unmarshal(knownSanitized.Body, &sanitizedRequest); err != nil {
+				return types.NewErrorWithStatusCode(fmt.Errorf("failed to rebuild Claude request after thinking cleanup: %w", err), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			}
+			request = &sanitizedRequest
+			rawClaudeBody = knownSanitized.Body
+			rawBodyOverride = knownSanitized.Body
+			service.MarkClaudeThinkingPreflightRemoved(c, knownSanitized.RemovedBlocks)
+		}
 	}
 
 	err = helper.ModelMappedHelper(c, info, request)
@@ -189,7 +192,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	conversionCount := len(info.RequestConversionChain)
 	paramAuditCount := len(info.ParamOverrideAudit)
 	usage, newAPIError := executeClaudeAttempt(c, info, adaptor, request, useRawClaudeBody, rawBodyOverride)
-	if !service.HasBillableClaudeUsage(usage) && service.IsInvalidClaudeThinkingSignatureError(newAPIError) {
+	if thinkingRecoveryEnabled && !service.HasBillableClaudeUsage(usage) && service.IsInvalidClaudeThinkingSignatureError(newAPIError) {
 		recoveredRaw, sanitizeErr := service.SanitizeAllClaudeThinking(rawClaudeBody)
 		if sanitizeErr != nil {
 			return types.NewErrorWithStatusCode(fmt.Errorf("failed to recover Claude thinking history: %w", sanitizeErr), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
@@ -208,7 +211,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 				return types.NewErrorWithStatusCode(fmt.Errorf("failed to decode recovered Claude request: %w", unmarshalErr), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 			}
 
-			service.RememberInvalidClaudeThinking(recoveredRaw.Fingerprints)
+			service.RememberInvalidClaudeThinking(recoveredRaw.Fingerprints, info.ChannelId)
 			service.MarkClaudeThinkingRecoveryAttempt(c, recoveredRaw.RemovedBlocks)
 			c.Set(common.UpstreamRequestIdKey, "")
 			info.RequestConversionChain = info.RequestConversionChain[:conversionCount]

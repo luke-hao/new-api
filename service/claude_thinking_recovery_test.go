@@ -57,7 +57,7 @@ func TestSanitizeKnownInvalidClaudeThinkingRemovesOnlyRememberedBlocks(t *testin
 	block := []byte(`{"type":"thinking","thinking":"a","signature":"sig-a"}`)
 	_, fingerprint, ok := claudeThinkingBlockFingerprint(block)
 	require.True(t, ok)
-	invalidClaudeThinkingCache.Store(fingerprint, invalidClaudeThinkingCacheEntry{
+	invalidClaudeThinkingCache.Store(claudeThinkingCacheKey(777, fingerprint), invalidClaudeThinkingCacheEntry{
 		expiresAt: time.Now().Add(time.Hour).UnixNano(),
 	})
 
@@ -66,7 +66,7 @@ func TestSanitizeKnownInvalidClaudeThinkingRemovesOnlyRememberedBlocks(t *testin
 		{"type":"thinking","thinking":"b","signature":"sig-b"},
 		{"type":"text","text":"visible"}
 	]}]}`)
-	result, err := SanitizeKnownInvalidClaudeThinking(body)
+	result, err := SanitizeKnownInvalidClaudeThinking(body, 777)
 	require.NoError(t, err)
 	require.Equal(t, 1, result.RemovedBlocks)
 	require.NotContains(t, string(result.Body), "sig-a")

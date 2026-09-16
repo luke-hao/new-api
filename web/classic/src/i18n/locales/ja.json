@@ -3644,6 +3644,8 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "Recover invalid Claude thinking blocks": "無効な Claude 思考ブロックの自動復旧",
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "既定では無効です。有効にすると、Claude Messages の署名エラー時に過去の思考ブロックを削除して一度だけ再試行します。既知の無効なブロックは送信前に削除します。無効時は思考ブロックと上流のエラーを保持します。"
   }
 }

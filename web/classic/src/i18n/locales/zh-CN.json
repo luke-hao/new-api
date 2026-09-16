@@ -3804,6 +3804,8 @@
     "并确认自行承担部署": "并确认自行承担部署",
     "运营和收费行为产生的法律责任": "运营和收费行为产生的法律责任",
     "，": "，",
-    "、": "、"
+    "、": "、",
+    "Recover invalid Claude thinking blocks": "失效思考块自动恢复",
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "默认关闭。开启后，Claude Messages 请求遇到签名错误时会删除历史思考块并重试一次；已记录失效的思考块会提前清理。关闭时保留原始思考块和上游错误。"
   }
 }

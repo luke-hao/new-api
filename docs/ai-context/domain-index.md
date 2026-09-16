@@ -82,3 +82,8 @@
 - `POST /v1/messages/count_tokens` shares Messages token authentication, model permissions, rate limits and channel distribution. A separate controller bypasses generation precharge, pricing lookup, settlement and generation retries.
 - Native Anthropic-compatible channels forward to the upstream count endpoint using the Claude adaptor's credentials, proxy, header overrides and beta query. Upstream HTTP errors and successful integer counts (including zero) are preserved; unsupported channel types return 501 and malformed successful responses return 502. No generated or estimated count fallback.
 - Raw passthrough preserves the request bytes, like native Messages. Otherwise model mapping, system prompt settings, disabled-field removal and parameter overrides apply while unknown fields and explicit zero/false values survive. Generation-only defaults such as max_tokens are not injected.
+
+## Claude thinking recovery opt-in (2026-09-16)
+
+- Channel `setting.claude_thinking_recovery_enabled` defaults to false. Both themes expose it in advanced channel settings. Missing/false settings bypass known-invalid preflight cleanup and signature-error recovery, including with request passthrough.
+- Enabling it retains the single same-channel retry after an unbilled signature 400 and the existing no-retry-after-billable-usage rule. Invalid fingerprints are scoped to the channel in memory and Redis; legacy global entries are ignored.

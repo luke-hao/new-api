@@ -4209,6 +4209,8 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "Recover invalid Claude thinking blocks": "Tự động khôi phục khối suy nghĩ Claude không hợp lệ",
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "Mặc định tắt. Với Claude Messages, xóa lịch sử suy nghĩ không hợp lệ và thử lại một lần sau lỗi chữ ký; các khối đã được ghi nhận sẽ bị xóa trước khi gửi. Khi tắt, giữ nguyên các khối và lỗi từ nhà cung cấp."
   }
 }

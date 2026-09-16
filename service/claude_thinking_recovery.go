@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ import (
 )
 
 const (
-	invalidClaudeThinkingKeyPrefix = "new-api:claude:invalid-thinking:"
+	invalidClaudeThinkingKeyPrefix = "new-api:claude:invalid-thinking:v2:"
 	invalidClaudeThinkingTTL       = 30 * 24 * time.Hour
 	maxRememberedThinkingBlocks    = 512
 
@@ -55,14 +56,14 @@ func IsInvalidClaudeThinkingSignatureError(err *types.NewAPIError) bool {
 }
 
 // SanitizeKnownInvalidClaudeThinking removes blocks that were learned from a
-// previous upstream signature failure. Redis makes the knowledge survive a
-// restart, while the in-process cache keeps the normal path inexpensive.
-func SanitizeKnownInvalidClaudeThinking(body []byte) (ClaudeThinkingSanitizeResult, error) {
+// previous signature failure on the same channel. Legacy global entries are ignored.
+// Redis preserves it across restarts; the in-process cache keeps lookups inexpensive.
+func SanitizeKnownInvalidClaudeThinking(body []byte, channelID int) (ClaudeThinkingSanitizeResult, error) {
 	scan, err := rewriteClaudeThinkingBlocks(body, nil, false)
 	if err != nil || len(scan.Fingerprints) == 0 {
 		return scan, err
 	}
-	invalid := lookupInvalidClaudeThinking(scan.Fingerprints)
+	invalid := lookupInvalidClaudeThinking(scan.Fingerprints, channelID)
 	if len(invalid) == 0 {
 		return scan, nil
 	}
@@ -212,17 +213,21 @@ func sortedBoundedFingerprints(values map[string]struct{}) []string {
 	return result
 }
 
+func claudeThinkingCacheKey(channelID int, fingerprint string) string {
+	return invalidClaudeThinkingKeyPrefix + strconv.Itoa(channelID) + ":" + fingerprint
+}
+
 // RememberInvalidClaudeThinking stores only SHA-256 fingerprints. Cache errors
 // are deliberately best-effort because recovery has already removed the bad
 // blocks from the current request.
-func RememberInvalidClaudeThinking(fingerprints []string) {
+func RememberInvalidClaudeThinking(fingerprints []string, channelID int) {
 	fingerprints = boundedUniqueStrings(fingerprints)
 	if len(fingerprints) == 0 {
 		return
 	}
 	expiresAt := time.Now().Add(invalidClaudeThinkingTTL).UnixNano()
 	for _, fingerprint := range fingerprints {
-		invalidClaudeThinkingCache.Store(fingerprint, invalidClaudeThinkingCacheEntry{expiresAt: expiresAt})
+		invalidClaudeThinkingCache.Store(claudeThinkingCacheKey(channelID, fingerprint), invalidClaudeThinkingCacheEntry{expiresAt: expiresAt})
 	}
 	if !common.RedisEnabled || common.RDB == nil {
 		return
@@ -231,12 +236,12 @@ func RememberInvalidClaudeThinking(fingerprints []string) {
 	defer cancel()
 	pipeline := common.RDB.Pipeline()
 	for _, fingerprint := range fingerprints {
-		pipeline.Set(ctx, invalidClaudeThinkingKeyPrefix+fingerprint, "1", invalidClaudeThinkingTTL)
+		pipeline.Set(ctx, claudeThinkingCacheKey(channelID, fingerprint), "1", invalidClaudeThinkingTTL)
 	}
 	_, _ = pipeline.Exec(ctx)
 }
 
-func lookupInvalidClaudeThinking(fingerprints []string) map[string]struct{} {
+func lookupInvalidClaudeThinking(fingerprints []string, channelID int) map[string]struct{} {
 	fingerprints = boundedUniqueStrings(fingerprints)
 	invalid := make(map[string]struct{})
 	if len(fingerprints) == 0 {
@@ -246,13 +251,13 @@ func lookupInvalidClaudeThinking(fingerprints []string) map[string]struct{} {
 	now := time.Now().UnixNano()
 	unknown := make([]string, 0, len(fingerprints))
 	for _, fingerprint := range fingerprints {
-		if cached, ok := invalidClaudeThinkingCache.Load(fingerprint); ok {
+		if cached, ok := invalidClaudeThinkingCache.Load(claudeThinkingCacheKey(channelID, fingerprint)); ok {
 			entry, valid := cached.(invalidClaudeThinkingCacheEntry)
 			if valid && entry.expiresAt > now {
 				invalid[fingerprint] = struct{}{}
 				continue
 			}
-			invalidClaudeThinkingCache.Delete(fingerprint)
+			invalidClaudeThinkingCache.Delete(claudeThinkingCacheKey(channelID, fingerprint))
 		}
 		unknown = append(unknown, fingerprint)
 	}
@@ -262,7 +267,7 @@ func lookupInvalidClaudeThinking(fingerprints []string) map[string]struct{} {
 
 	keys := make([]string, 0, len(unknown))
 	for _, fingerprint := range unknown {
-		keys = append(keys, invalidClaudeThinkingKeyPrefix+fingerprint)
+		keys = append(keys, claudeThinkingCacheKey(channelID, fingerprint))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -277,7 +282,7 @@ func lookupInvalidClaudeThinking(fingerprints []string) map[string]struct{} {
 		}
 		fingerprint := unknown[i]
 		invalid[fingerprint] = struct{}{}
-		invalidClaudeThinkingCache.Store(fingerprint, invalidClaudeThinkingCacheEntry{expiresAt: expiresAt})
+		invalidClaudeThinkingCache.Store(claudeThinkingCacheKey(channelID, fingerprint), invalidClaudeThinkingCacheEntry{expiresAt: expiresAt})
 	}
 	return invalid
 }

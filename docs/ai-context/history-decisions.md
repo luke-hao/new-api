@@ -18,7 +18,7 @@
 - 新增或修改 relay 请求 DTO 时要保留显式零值语义。
 - 计费表达式任务必须先读 `pkg/billingexpr/expr.md`。
 - 前端优先使用 `bun`，默认主题在 `web/default`，classic 主题只在明确需要时修改。
-- Claude `/v1/messages` 遇到上游 `400 Invalid signature in thinking block` 时，在同一渠道内清理历史 signed thinking 后仅恢复重试一次；失效块只保存 SHA-256 指纹用于后续请求预清理，原始 thinking、签名和提示词不得写入日志。
+- Claude 签名恢复现为渠道 `setting.claude_thinking_recovery_enabled` 显式开启（默认关闭）。关闭时不预清理、不自动删除重试；开启时仅在无已计费用量的签名 400 后清理历史思考并在同渠道重试一次。失效指纹缓存按渠道隔离，仅保存 SHA-256，不记录思考正文或签名。
 
 ## 待人工提炼
 

@@ -4941,5 +4941,7 @@
     "Recorded effort parameter": "Recorded effort parameter",
     "Recorded thinking budget": "Recorded thinking budget",
     "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded."
-  }
+  },
+  "Recover invalid Claude thinking blocks": "Récupération des blocs de réflexion Claude invalides",
+  "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "Désactivé par défaut. Pour Claude Messages, supprime les blocs de réflexion invalides et réessaie une fois après une erreur de signature ; les blocs déjà identifiés sont supprimés avant envoi. Sinon, les blocs et les erreurs du fournisseur sont conservés."
 }
