@@ -155,7 +155,10 @@ export function Pricing() {
   }
 
   return (
-    <PublicLayout showMainContainer={false}>
+    <PublicLayout
+      showMainContainer={false}
+      headerProps={{ appearance: 'dark' }}
+    >
       <div>
         <section className='border-y border-white/10 bg-[#0c1a2d] px-3 pt-20 pb-8 text-white sm:px-6 sm:pt-24 sm:pb-10 xl:px-8'>
           <header className='mx-auto max-w-3xl text-center'>
