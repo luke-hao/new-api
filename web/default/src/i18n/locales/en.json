@@ -4943,8 +4943,8 @@
     "Thinking budget: {{tokens}} tokens": "Budget: {{tokens}} tokens",
     "Recorded effort parameter": "Recorded effort parameter",
     "Recorded thinking budget": "Recorded thinking budget",
-    "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded."
-  },
-  "Recover invalid Claude thinking blocks": "Recover invalid Claude thinking blocks",
-  "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors."
+    "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.",
+    "Recover invalid Claude thinking blocks": "Recover invalid Claude thinking blocks",
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors."
+  }
 }

@@ -4940,8 +4940,8 @@
     "Thinking budget: {{tokens}} tokens": "Budget: {{tokens}} tokens",
     "Recorded effort parameter": "Recorded effort parameter",
     "Recorded thinking budget": "Recorded thinking budget",
-    "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded."
-  },
-  "Recover invalid Claude thinking blocks": "無効な Claude 思考ブロックの自動復旧",
-  "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "既定では無効です。有効にすると、Claude Messages の署名エラー時に過去の思考ブロックを削除して一度だけ再試行します。既知の無効なブロックは送信前に削除します。無効時は思考ブロックと上流のエラーを保持します。"
+    "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.",
+    "Recover invalid Claude thinking blocks": "無効な Claude 思考ブロックの自動復旧",
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "既定では無効です。有効にすると、Claude Messages の署名エラー時に過去の思考ブロックを削除して一度だけ再試行します。既知の無効なブロックは送信前に削除します。無効時は思考ブロックと上流のエラーを保持します。"
+  }
 }
