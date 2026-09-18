@@ -70,81 +70,116 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 
 func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	if resp == nil || resp.Body == nil {
-		logger.LogError(c, "invalid response or response body")
 		return nil, types.NewError(fmt.Errorf("invalid response"), types.ErrorCodeBadResponse)
 	}
-
 	defer service.CloseResponseBodyGracefully(resp)
 
-	var usage = &dto.Usage{}
+	usage := &dto.Usage{}
 	var responseTextBuilder strings.Builder
+	var streamErr *types.NewAPIError
+	type pendingEvent struct {
+		event dto.ResponsesStreamResponse
+		data  string
+	}
+	var pending []pendingEvent
+	pendingBytes := 0
+	committed, terminal := false, false
+
+	emit := func(event dto.ResponsesStreamResponse, data string) {
+		if !committed {
+			committed = true
+			for _, item := range pending {
+				sendResponsesStreamData(c, item.event, item.data)
+			}
+			pending = nil
+		}
+		sendResponsesStreamData(c, event, data)
+	}
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
-
-		// 检查当前数据是否包含 completed 状态和 usage 信息
-		var streamResponse dto.ResponsesStreamResponse
-		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
-			logger.LogError(c, "failed to unmarshal stream response: "+err.Error())
-			sr.Error(err)
+		var event dto.ResponsesStreamResponse
+		if err := common.UnmarshalJsonStr(data, &event); err != nil {
+			streamErr = types.NewErrorWithStatusCode(fmt.Errorf("invalid Responses stream event: %w", err), types.ErrorCodeIncompleteStream, http.StatusBadGateway)
+			sr.Stop(streamErr)
 			return
 		}
-		sendResponsesStreamData(c, streamResponse, data)
-		switch streamResponse.Type {
-		case "response.completed":
-			if streamResponse.Response != nil {
-				if streamResponse.Response.Usage != nil {
-					if streamResponse.Response.Usage.InputTokens != 0 {
-						usage.PromptTokens = streamResponse.Response.Usage.InputTokens
-					}
-					if streamResponse.Response.Usage.OutputTokens != 0 {
-						usage.CompletionTokens = streamResponse.Response.Usage.OutputTokens
-					}
-					if streamResponse.Response.Usage.TotalTokens != 0 {
-						usage.TotalTokens = streamResponse.Response.Usage.TotalTokens
-					}
-					if streamResponse.Response.Usage.InputTokensDetails != nil {
-						usage.PromptTokensDetails.CachedTokens = streamResponse.Response.Usage.InputTokensDetails.CachedTokens
-					}
-				}
-				if streamResponse.Response.HasImageGenerationCall() {
-					c.Set("image_generation_call", true)
-					c.Set("image_generation_call_quality", streamResponse.Response.GetQuality())
-					c.Set("image_generation_call_size", streamResponse.Response.GetSize())
-				}
+		if response := event.Response; response != nil && response.Usage != nil {
+			// Preserve observed usage from failure/incomplete events as well as completed.
+			usage.PromptTokens = response.Usage.InputTokens
+			usage.CompletionTokens = response.Usage.OutputTokens
+			usage.TotalTokens = response.Usage.TotalTokens
+			if response.Usage.InputTokensDetails != nil {
+				usage.PromptTokensDetails.CachedTokens = response.Usage.InputTokensDetails.CachedTokens
 			}
+		}
+		if failure := responsesStreamFailure(event, data); failure != nil {
+			streamErr = failure
+			sr.Stop(failure)
+			return
+		}
+		if event.Type == "" {
+			streamErr = types.NewErrorWithStatusCode(fmt.Errorf("Responses event has no type"), types.ErrorCodeIncompleteStream, http.StatusBadGateway)
+			sr.Stop(streamErr)
+			return
+		}
+
+		// Keep the failed attempt's IDs and lifecycle events out of the client stream.
+		// A bounded preface preserves streaming and never buffers the answer itself.
+		if !committed && isResponsesPreface(event) && len(pending) < 64 && pendingBytes+len(data) <= 64<<10 {
+			pending = append(pending, pendingEvent{event, data})
+			pendingBytes += len(data)
+			return
+		}
+
+		emit(event, data)
+		switch event.Type {
+		case "response.completed", "response.incomplete":
+			terminal = true
+			if event.Response != nil && event.Response.HasImageGenerationCall() {
+				c.Set("image_generation_call", true)
+				c.Set("image_generation_call_quality", event.Response.GetQuality())
+				c.Set("image_generation_call_size", event.Response.GetSize())
+			}
+			sr.Done()
 		case "response.output_text.delta":
-			// 处理输出文本
-			responseTextBuilder.WriteString(streamResponse.Delta)
+			responseTextBuilder.WriteString(event.Delta)
 		case dto.ResponsesOutputTypeItemDone:
-			// 函数调用处理
-			if streamResponse.Item != nil {
-				switch streamResponse.Item.Type {
-				case dto.BuildInCallWebSearchCall:
-					if info != nil && info.ResponsesUsageInfo != nil && info.ResponsesUsageInfo.BuiltInTools != nil {
-						if webSearchTool, exists := info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolWebSearchPreview]; exists && webSearchTool != nil {
-							webSearchTool.CallCount++
-						}
-					}
+			if event.Item != nil && event.Item.Type == dto.BuildInCallWebSearchCall &&
+				info.ResponsesUsageInfo != nil && info.ResponsesUsageInfo.BuiltInTools != nil {
+				if tool, ok := info.ResponsesUsageInfo.BuiltInTools[dto.BuildInToolWebSearchPreview]; ok && tool != nil {
+					tool.CallCount++
 				}
 			}
 		}
 	})
 
-	if usage.CompletionTokens == 0 {
-		// 计算输出文本的 token 数量
-		tempStr := responseTextBuilder.String()
-		if len(tempStr) > 0 {
-			// 非正常结束，使用输出文本的 token 数量
-			completionTokens := service.CountTextToken(tempStr, info.UpstreamModelName)
-			usage.CompletionTokens = completionTokens
+	if streamErr == nil && !terminal {
+		reason := "Responses stream ended without a terminal response"
+		if info.StreamStatus != nil {
+			reason += ": " + info.StreamStatus.Summary()
 		}
+		streamErr = types.NewErrorWithStatusCode(fmt.Errorf("%s", reason), types.ErrorCodeIncompleteStream, http.StatusBadGateway)
 	}
-
+	if c.Request.Context().Err() != nil {
+		streamErr = types.NewErrorWithStatusCode(c.Request.Context().Err(), types.ErrorCodeIncompleteStream, http.StatusBadGateway, types.ErrOptionWithSkipRetry())
+	}
+	if streamErr != nil {
+		if info.StreamStatus != nil {
+			info.StreamStatus.RecordError(streamErr.Error())
+		}
+		// Output/tool events and confirmed usage must never be replayed. No estimates
+		// are charged for an interrupted attempt; settlement uses upstream usage only.
+		if committed || service.HasBillableClaudeUsage(usage) {
+			types.ErrOptionWithSkipRetry()(streamErr)
+		}
+		return usage, streamErr
+	}
+	if usage.CompletionTokens == 0 && responseTextBuilder.Len() > 0 {
+		usage.CompletionTokens = service.CountTextToken(responseTextBuilder.String(), info.UpstreamModelName)
+	}
 	if usage.PromptTokens == 0 && usage.CompletionTokens != 0 {
 		usage.PromptTokens = info.GetEstimatePromptTokens()
 	}
-
 	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
-
 	return usage, nil
 }

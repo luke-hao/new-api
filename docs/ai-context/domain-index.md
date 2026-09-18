@@ -87,3 +87,11 @@
 
 - Channel `setting.claude_thinking_recovery_enabled` defaults to false. Both themes expose it in advanced channel settings. Missing/false settings bypass known-invalid preflight cleanup and signature-error recovery, including with request passthrough.
 - Enabling it retains the single same-channel retry after an unbilled signature 400 and the existing no-retry-after-billable-usage rule. Invalid fingerprints are scoped to the channel in memory and Redis; legacy global entries are ignored.
+
+## Responses stream failover (2026-09-18)
+
+- Native Responses temporarily buffers a bounded lifecycle preface (64 events / 64 KiB). A failed, malformed or interrupted stream without a terminal event returns a retryable 502 while the attempt has not exposed output/tool events or confirmed billable usage. Successful streams retain original event payloads.
+- Every retry stays within allowed group/model routing and excludes earlier channels from that request. The highest remaining priority is selected; timeout statuses 408/504/524 are retryable for Responses before output. Existing retry count, explicit channel selection, affinity policy and cancellation limits remain in force.
+- Stream failures cool down that group/model/channel for 60 seconds in process memory. New requests prefer another channel; if all remaining candidates are cooling down, allow a last-resort candidate without revisiting a channel already tried by this request. This does not persistently disable channels or change priority configuration.
+- Output, tool execution boundaries, confirmed usage and client cancellation prevent replay. Interrupted confirmed usage uses existing one-time settlement and refund guards; missing usage is not estimated on failure. Exhausted retries after heartbeat output end with an SSE error event. Explicit content-policy blocks keep their nonretryable errors.
+- request IDs and admin_info.use_channel retain the attempt chain. Failed prefaces do not leak IDs or content into the winning response.

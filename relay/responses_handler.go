@@ -22,6 +22,8 @@ import (
 
 func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
 	info.InitChannelMeta(c)
+	c.Set(service.ResponsesStreamFailedKey, false)
+	info.StreamStatus = nil
 	if info.RelayMode == relayconstant.RelayModeResponsesCompact {
 		switch info.ApiType {
 		case appconstant.APITypeOpenAI, appconstant.APITypeCodex:
@@ -136,6 +138,12 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 
 	usage, newAPIError := adaptor.DoResponse(c, httpResp, info)
 	if newAPIError != nil {
+		if confirmed, ok := usage.(*dto.Usage); ok && service.HasBillableClaudeUsage(confirmed) {
+			types.ErrOptionWithSkipRetry()(newAPIError)
+			if err := service.PostInterruptedTextConsumeQuota(c, info, confirmed); err != nil {
+				logger.LogError(c, "interrupted Responses billing failed: "+err.Error())
+			}
+		}
 		// reset status code 重置状态码
 		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
 		return newAPIError

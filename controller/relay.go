@@ -111,6 +111,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			default:
 				openAIError := newAPIError.ToOpenAIError()
 				openAIError.Message = common.MessageWithRequestId(openAIError.Message, requestId)
+				if strings.HasSuffix(c.Request.URL.Path, "/responses") && c.Writer.Written() {
+					payload, marshalErr := common.Marshal(gin.H{"type": "error", "error": openAIError})
+					if marshalErr == nil {
+						helper.ResponseChunkData(c, dto.ResponsesStreamResponse{Type: "error"}, string(payload))
+					}
+					return
+				}
+				c.Header("Content-Type", "application/json")
 				c.JSON(newAPIError.StatusCode, gin.H{
 					"error": openAIError,
 				})
@@ -294,6 +302,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		maskUpstreamBalanceError = service.IsUpstreamBalanceError(newAPIError)
 		relayInfo.LastError = newAPIError
 
+		service.RecordResponsesChannelFailure(c, relayInfo, newAPIError)
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
@@ -403,7 +412,7 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 }
 
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
-	if openaiErr == nil {
+	if openaiErr == nil || (c.Request != nil && c.Request.Context().Err() != nil) {
 		return false
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
@@ -422,6 +431,10 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 		return false
 	}
 	code := openaiErr.StatusCode
+	// A Responses timeout before output can be recovered on another provider.
+	if strings.HasSuffix(c.Request.URL.Path, "/responses") && (code == 408 || code == 504 || code == 524) {
+		return true
+	}
 	if code >= 200 && code < 300 {
 		return false
 	}
