@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Clock3,
-  DollarSign,
   ListTree,
   Loader2,
   Play,
@@ -35,7 +34,7 @@ import {
   updateChannelGroupStability,
   runChannelGroupStability,
 } from '../api'
-import { channelsQueryKeys, rankGroupChannelsByLowestPrice } from '../lib'
+import { channelsQueryKeys } from '../lib'
 import type { ChannelGroupStabilityConfig } from '../types'
 import { ChannelGroupPriorityActions } from './channel-group-priority-actions'
 
@@ -300,15 +299,6 @@ function ModelStabilityActions(props: { group: string; model: string }) {
     },
     onError: (e) => toast.error(e.message),
   })
-  const price = useMutation({
-    mutationFn: () => rankGroupChannelsByLowestPrice(props.group, props.model),
-    onSuccess: (r) => {
-      refresh()
-      if (r.failedUpdates) toast.error(t('channels.modelRouting.saveFailed'))
-      else toast.success(t('channels.modelRouting.saved'))
-    },
-    onError: (e) => toast.error(e.message),
-  })
   const status =
     query.data && save.isPending
       ? { ...query.data, ...save.variables }
@@ -339,7 +329,7 @@ function ModelStabilityActions(props: { group: string; model: string }) {
         status.probe_timeout_seconds_override ?? null,
       ...patch,
     })
-  const busy = save.isPending || run.isPending || price.isPending
+  const busy = save.isPending || run.isPending
   return (
     <div className='flex min-w-0 flex-wrap items-center gap-2'>
       <label className='flex h-7 items-center gap-2 text-xs'>
@@ -409,22 +399,6 @@ function ModelStabilityActions(props: { group: string; model: string }) {
           </label>
         </div>
       ))}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              size='icon-sm'
-              variant='outline'
-              disabled={busy || status.running}
-              aria-label={t('channels.modelRouting.price')}
-              onClick={() => price.mutate()}
-            />
-          }
-        >
-          <DollarSign className='size-4' />
-        </TooltipTrigger>
-        <TooltipContent>{t('channels.modelRouting.price')}</TooltipContent>
-      </Tooltip>
       <Tooltip>
         <TooltipTrigger
           render={

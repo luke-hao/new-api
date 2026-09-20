@@ -20,7 +20,6 @@ import { useId, useState, type ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Clock3,
-  DollarSign,
   Gauge,
   Loader2,
   Play,
@@ -44,7 +43,6 @@ import {
   runChannelGroupStability,
   updateChannelGroupStability,
 } from '../api'
-import { channelsQueryKeys, rankGroupChannelsByLowestPrice } from '../lib'
 import type {
   ChannelGroupStabilityConfig,
   ChannelGroupStabilityStatus,
@@ -122,7 +120,6 @@ export function ChannelGroupPriorityActions({
   const stabilityQueryKey = ['channel-group-stability', group] as const
   const [draftOverride, setDraftOverride] =
     useState<ChannelGroupStabilityConfig | null>(null)
-  const [isPriceBusy, setIsPriceBusy] = useState(false)
 
   const {
     data: stabilityStatus,
@@ -183,7 +180,7 @@ export function ChannelGroupPriorityActions({
 
   const isStableBusy = Boolean(stabilityStatus?.running)
   const isConfigBusy = saveMutation.isPending || isStabilityLoading
-  const isBusy = isPriceBusy || isStableBusy || manualRunMutation.isPending
+  const isBusy = isStableBusy || manualRunMutation.isPending
 
   const persistConfig = (next: ChannelGroupStabilityConfig) => {
     if (next.probe_timeout_seconds <= next.healthy_threshold_seconds) {
@@ -246,70 +243,10 @@ export function ChannelGroupPriorityActions({
     persistConfig(next)
   }
 
-  const handlePriceSort = async () => {
-    if (!group || isBusy || isConfigBusy) return
-    setIsPriceBusy(true)
-    toast.info(t('正在按价格排序 {{group}} 分组...', { group }))
-    try {
-      const result = await rankGroupChannelsByLowestPrice(group)
-      await queryClient.invalidateQueries({
-        queryKey: channelsQueryKeys.lists(),
-      })
-      if (result.total === 0) {
-        toast.info(t('当前分组没有渠道'))
-      } else if (result.participating === 0 && result.failedUpdates === 0) {
-        toast.info(
-          t('channels.priorityLock.allSkipped', { count: result.skippedLocked })
-        )
-      } else if (result.failedUpdates > 0) {
-        toast.error(
-          t('channels.priorityLock.priceFailed', {
-            failed: result.failedUpdates,
-            skipped: result.skippedLocked,
-          })
-        )
-      } else {
-        toast.success(
-          t('channels.priorityLock.priceResult', {
-            participating: result.participating,
-            priced: result.priced,
-            unpriced: result.unpriced,
-            updated: result.updated,
-            skipped: result.skippedLocked,
-          })
-        )
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, t('价格排序失败')))
-    } finally {
-      setIsPriceBusy(false)
-    }
-  }
-
   if (!group) return null
 
   return (
     <div className='flex flex-wrap items-center gap-1.5 sm:gap-2'>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={handlePriceSort}
-              disabled={isBusy || isConfigBusy}
-              aria-label={t('价格最低优先级最高')}
-            />
-          }
-        >
-          {isPriceBusy ? <Loader2 className='animate-spin' /> : <DollarSign />}
-          <span className='hidden sm:inline'>{t('低价优先')}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {t('按当前分组名称末尾的倍率排序，数字越低优先级越高。')}
-        </TooltipContent>
-      </Tooltip>
-
       <Tooltip>
         <TooltipTrigger
           render={
