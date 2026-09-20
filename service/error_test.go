@@ -264,6 +264,17 @@ func TestUpstreamNewAPIQuotaOrigin(t *testing.T) {
 				`{"error":{"type":"new_api_error","message":"用户额度不足, 剩余额度: ＄-0.977194"},"type":"error"}`))}
 			return RelayErrorHandler(context.Background(), resp, true)
 		}, true},
+		{"upstream account balance message", func() *types.NewAPIError {
+			resp := &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader(
+				`{"message":"Insufficient account balance"}`))}
+			return RelayErrorHandler(context.Background(), resp, false)
+		}, true},
+		{"upstream account balance in structured error", func() *types.NewAPIError {
+			return types.WithOpenAIError(types.OpenAIError{Message: "INSUFFICIENT ACCOUNT BALANCE", Type: "invalid_request_error"}, http.StatusForbidden)
+		}, true},
+		{"local account balance message", func() *types.NewAPIError {
+			return types.NewErrorWithStatusCode(fmt.Errorf("Insufficient account balance"), types.ErrorCodeInsufficientUserQuota, http.StatusForbidden)
+		}, false},
 		{"upstream shares local quota code", func() *types.NewAPIError {
 			return types.WithOpenAIError(types.OpenAIError{Message: "account quota exhausted", Type: "new_api_error", Code: "insufficient_user_quota"}, http.StatusForbidden)
 		}, true},

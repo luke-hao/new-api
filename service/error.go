@@ -173,6 +173,7 @@ func IsUpstreamBalanceError(err *types.NewAPIError) bool {
 		"you exceeded your current quota",
 		"billing hard limit",
 		"insufficient balance",
+		"insufficient account balance",
 		"insufficient credit",
 		"not enough credit",
 		"余额不足",
