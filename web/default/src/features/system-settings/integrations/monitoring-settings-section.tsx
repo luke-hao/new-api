@@ -44,7 +44,12 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
+import {
+  recoverySchema,
+  parseRecoveryPolicy,
+} from '../utils/channel-recovery-policy'
 import { safeNumberFieldProps } from '../utils/numeric-field'
+import { ChannelRecoveryFields } from './channel-recovery-fields'
 
 const numericString = z.string().refine((value) => {
   const trimmed = value.trim()
@@ -58,6 +63,7 @@ const monitoringSchema = z
     QuotaRemindThreshold: numericString,
     AutomaticDisableChannelEnabled: z.boolean(),
     AutomaticEnableChannelEnabled: z.boolean(),
+    recovery: recoverySchema,
     AutomaticDisableKeywords: z.string(),
     AutomaticDisableStatusCodes: z.string(),
     AutomaticRetryStatusCodes: z.string(),
@@ -97,8 +103,8 @@ const monitoringSchema = z
     }
   })
 
-type MonitoringFormValues = z.output<typeof monitoringSchema>
-type MonitoringFormInput = z.input<typeof monitoringSchema>
+export type MonitoringFormValues = z.output<typeof monitoringSchema>
+export type MonitoringFormInput = z.input<typeof monitoringSchema>
 
 type MonitoringSettingsSectionProps = {
   defaultValues: {
@@ -106,6 +112,7 @@ type MonitoringSettingsSectionProps = {
     QuotaRemindThreshold: string
     AutomaticDisableChannelEnabled: boolean
     AutomaticEnableChannelEnabled: boolean
+    ChannelRecoveryPolicy: string
     AutomaticDisableKeywords: string
     AutomaticDisableStatusCodes: string
     AutomaticRetryStatusCodes: string
@@ -123,6 +130,7 @@ type NormalizedMonitoringValues = {
   QuotaRemindThreshold: string
   AutomaticDisableChannelEnabled: boolean
   AutomaticEnableChannelEnabled: boolean
+  ChannelRecoveryPolicy: string
   AutomaticDisableKeywords: string
   AutomaticDisableStatusCodes: string
   AutomaticRetryStatusCodes: string
@@ -137,6 +145,7 @@ const buildFormDefaults = (
   QuotaRemindThreshold: defaults.QuotaRemindThreshold ?? '',
   AutomaticDisableChannelEnabled: defaults.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
+  recovery: parseRecoveryPolicy(defaults.ChannelRecoveryPolicy),
   AutomaticDisableKeywords: normalizeLineEndings(
     defaults.AutomaticDisableKeywords ?? ''
   ),
@@ -157,6 +166,9 @@ const normalizeDefaults = (
   QuotaRemindThreshold: (defaults.QuotaRemindThreshold ?? '').trim(),
   AutomaticDisableChannelEnabled: defaults.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
+  ChannelRecoveryPolicy: JSON.stringify(
+    parseRecoveryPolicy(defaults.ChannelRecoveryPolicy)
+  ),
   AutomaticDisableKeywords: normalizeLineEndings(
     defaults.AutomaticDisableKeywords ?? ''
   ),
@@ -179,6 +191,7 @@ const normalizeFormValues = (
   QuotaRemindThreshold: values.QuotaRemindThreshold.trim(),
   AutomaticDisableChannelEnabled: values.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: values.AutomaticEnableChannelEnabled,
+  ChannelRecoveryPolicy: JSON.stringify(values.recovery),
   AutomaticDisableKeywords: normalizeLineEndings(
     values.AutomaticDisableKeywords
   ),
@@ -239,10 +252,11 @@ export function MonitoringSettingsSection({
 
     for (const key of updates) {
       const value = normalized[key]
-      await updateOption.mutateAsync({
+      const result = await updateOption.mutateAsync({
         key,
         value,
       })
+      if (!result.success) return
     }
 
     baselineRef.current = normalized
@@ -395,6 +409,8 @@ export function MonitoringSettingsSection({
               )}
             />
           </div>
+
+          <ChannelRecoveryFields control={form.control} />
 
           <FormField
             control={form.control}

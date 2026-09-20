@@ -159,6 +159,12 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	}
+	if option.Key == operation_setting.ChannelRecoveryPolicyOption {
+		if _, err := operation_setting.ParseChannelRecoveryPolicy(option.Value.(string)); err != nil {
+			common.ApiErrorMsg(c, err.Error())
+			return
+		}
+	}
 	switch option.Key {
 	case "QuotaForInviter", "QuotaForInvitee", model.AffiliateTopupRebatePercentOption:
 		if isPositiveOptionValue(option.Value.(string)) && !operation_setting.IsPaymentComplianceConfirmed() {

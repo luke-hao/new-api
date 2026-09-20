@@ -844,13 +844,16 @@ func hasEnabledMultiKey(keys []string, statusList map[int]int) bool {
 	return false
 }
 
-func UpdateChannelStatus(channelId int, usingKey string, status int, reason string) bool {
+func UpdateChannelStatus(channelId int, usingKey string, status int, reason string, reasonKind ...string) bool {
 	if common.MemoryCacheEnabled {
 		channelStatusLock.Lock()
 		defer channelStatusLock.Unlock()
 
 		channelCache, _ := CacheGetChannel(channelId)
 		if channelCache == nil {
+			return false
+		}
+		if channelCache.Status == common.ChannelStatusManuallyDisabled && status == common.ChannelStatusAutoDisabled {
 			return false
 		}
 		if channelCache.ChannelInfo.IsMultiKey {
@@ -888,7 +891,7 @@ func UpdateChannelStatus(channelId int, usingKey string, status int, reason stri
 	if err != nil {
 		return false
 	} else {
-		if channel.Status == status {
+		if channel.Status == status || (channel.Status == common.ChannelStatusManuallyDisabled && status == common.ChannelStatusAutoDisabled) {
 			return false
 		}
 
@@ -910,6 +913,13 @@ func UpdateChannelStatus(channelId int, usingKey string, status int, reason stri
 			channel.Status = status
 			shouldUpdateAbilities = true
 		}
+		info := channel.GetOtherInfo()
+		delete(info, "auto_recovery")
+		delete(info, "auto_disable_reason")
+		if status == common.ChannelStatusAutoDisabled && len(reasonKind) > 0 {
+			info["auto_disable_reason"] = reasonKind[0]
+		}
+		channel.SetOtherInfo(info)
 		err = channel.SaveWithoutKey()
 		if err != nil {
 			common.SysLog(fmt.Sprintf("failed to update channel status: channel_id=%d, status=%d, error=%v", channel.Id, status, err))

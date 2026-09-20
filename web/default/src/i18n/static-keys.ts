@@ -19,6 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 // Static translation keys that don't get picked up by the t('...') regex.
 // These cover dynamic labels (e.g. constants, configs) that are passed into t at runtime.
 export const STATIC_I18N_KEYS = [
+  'Insufficient upstream balance',
+  'Rate limited',
+  'Timeout or slow response',
+  'Authentication or permission error',
+  'Other channel errors',
   'channels.modelRouting.allModels',
   'channels.modelRouting.selectModel',
   'channels.modelRouting.overview',

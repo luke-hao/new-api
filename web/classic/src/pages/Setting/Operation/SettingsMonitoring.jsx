@@ -29,6 +29,7 @@ import {
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import HttpStatusCodeRulesInput from '../../../components/settings/HttpStatusCodeRulesInput';
+import ChannelRecoverySettings from './ChannelRecoverySettings';
 
 export default function SettingsMonitoring(props) {
   const { t } = useTranslation();
@@ -284,6 +285,10 @@ export default function SettingsMonitoring(props) {
             </Row>
           </Form.Section>
         </Form>
+        <ChannelRecoverySettings
+          value={props.options.ChannelRecoveryPolicy}
+          refresh={props.refresh}
+        />
       </Spin>
     </>
   );

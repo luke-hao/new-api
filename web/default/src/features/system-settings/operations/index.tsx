@@ -34,6 +34,7 @@ const defaultOperationsSettings: OperationsSettings = {
   QuotaRemindThreshold: '',
   AutomaticDisableChannelEnabled: false,
   AutomaticEnableChannelEnabled: false,
+  ChannelRecoveryPolicy: '',
   AutomaticDisableKeywords: '',
   AutomaticDisableStatusCodes: '401',
   AutomaticRetryStatusCodes:

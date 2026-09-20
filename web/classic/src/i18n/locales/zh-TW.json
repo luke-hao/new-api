@@ -3670,6 +3670,16 @@
     "，": "，",
     "、": "、",
     "Recover invalid Claude thinking blocks": "失效思考块自动恢复",
-    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "默认关闭。开启后，Claude Messages 请求遇到签名错误时会删除历史思考块并重试一次；已记录失效的思考块会提前清理。关闭时保留原始思考块和上游错误。"
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "默认关闭。开启后，Claude Messages 请求遇到签名错误时会删除历史思考块并重试一次；已记录失效的思考块会提前清理。关闭时保留原始思考块和上游错误。",
+    "Recovery by disable reason": "按禁用原因自动恢复",
+    "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.": "独立检测自动禁用的渠道，无需开启全渠道定时测试。手动禁用不参与恢复。开启后以此处规则代替旧版成功自动启用开关。",
+    "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.": "恢复检测会向上游发送实际请求，按到期时间执行，单次超时 30 秒；失败后连续成功次数归零。此处规则只控制恢复，不增加自动禁用条件。",
+    "Insufficient upstream balance": "上游余额不足",
+    "Rate limited": "上游限流",
+    "Timeout or slow response": "超时或响应过慢",
+    "Authentication or permission error": "认证或权限异常",
+    "Other channel errors": "其他渠道错误",
+    "Recovery interval (minutes)": "恢复重试间隔（分钟）",
+    "Consecutive successful checks": "连续成功次数"
   }
 }

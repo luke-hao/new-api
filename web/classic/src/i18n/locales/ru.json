@@ -3697,6 +3697,16 @@
     "，": ", ",
     "、": ", ",
     "Recover invalid Claude thinking blocks": "Восстановление недействительных блоков размышлений Claude",
-    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "По умолчанию выключено. Для Claude Messages удаляет историю размышлений и повторяет запрос один раз при ошибке подписи; ранее отмеченные блоки удаляются до отправки. Если выключено, блоки и ошибки провайдера сохраняются."
+    "Disabled by default. For Claude Messages, remove invalid thinking history and retry once after a signature error; previously recorded invalid blocks are removed before sending. When disabled, preserve thinking blocks and upstream errors.": "По умолчанию выключено. Для Claude Messages удаляет историю размышлений и повторяет запрос один раз при ошибке подписи; ранее отмеченные блоки удаляются до отправки. Если выключено, блоки и ошибки провайдера сохраняются.",
+    "Recovery by disable reason": "Recovery by disable reason",
+    "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.": "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.",
+    "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.": "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.",
+    "Insufficient upstream balance": "Insufficient upstream balance",
+    "Rate limited": "Rate limited",
+    "Timeout or slow response": "Timeout or slow response",
+    "Authentication or permission error": "Authentication or permission error",
+    "Other channel errors": "Other channel errors",
+    "Recovery interval (minutes)": "Recovery interval (minutes)",
+    "Consecutive successful checks": "Consecutive successful checks"
   }
 }

@@ -54,6 +54,7 @@
   "home.catalog.image": "Image generation models for creative, batch, and automated production.",
   "home.catalog.video": "Video generation models for multiple resolutions and production scenarios.",
   "home.cta.item3": "Clear usage and cost records",
+  "home.enterprise.qrDescription": "Scan with QQ to join, or copy the group number to search manually.",
   "home.enterprise.contractDescription": "A clear procurement process with contract support for qualified enterprise customers.",
   "home.enterprise.copyFallback": "Copy is restricted. The QQ group number is now shown for manual copying.",
   "home.enterprise.description": "Kele AI has integrated with multiple businesses and supports formal cooperation for teams that need predictable service and compliant procurement.",
@@ -62,5 +63,15 @@
   "home.flow.scheduling": "Multi-route scheduling and health checks",
   "home.stats.procurement": "Contracts and business invoices",
   "Failed to open infinite canvas": "Failed to open infinite canvas",
-  "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas."
+  "Create and organize text, images, and videos on a shared canvas.": "Create and organize text, images, and videos on a shared canvas.",
+  "channels.priorityLock.failed": "Failed to update fixed priority",
+  "channels.priorityLock.fixedHint": "Priority stays fixed in this group. Scheduled checks and full checks skip this channel. Manual edits and normal requests still work.",
+  "channels.priorityLock.lockHint": "Fix the current priority for this group and exclude this channel from scheduled checks and full checks.",
+  "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.": "Reasoning values describe the configuration sent upstream. Historical missing values were not recorded.",
+  "channels.modelRouting.loadFailed": "Failed to load model routing",
+  "channels.modelRouting.saveFailed": "Failed to save model routing",
+  "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.": "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.",
+  "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.": "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.",
+  "Timeout or slow response": "Timeout or slow response",
+  "Authentication or permission error": "Authentication or permission error"
 }

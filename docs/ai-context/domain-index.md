@@ -105,3 +105,7 @@
 - Stream failures cool down that group/model/channel for 60 seconds in process memory. New requests prefer another channel; if all remaining candidates are cooling down, allow a last-resort candidate without revisiting a channel already tried by this request. This does not persistently disable channels or change priority configuration.
 - Output, tool execution boundaries, confirmed usage and client cancellation prevent replay. Interrupted confirmed usage uses existing one-time settlement and refund guards; missing usage is not estimated on failure. Exhausted retries after heartbeat output end with an SSE error event. Explicit content-policy blocks keep their nonretryable errors.
 - request IDs and admin_info.use_channel retain the attempt chain. Failed prefaces do not leak IDs or content into the winning response.
+
+## 渠道按原因恢复
+
+见 `docs/channel-recovery.md`：独立调度、五类规则、事务防止旧测试结果误恢复，default/classic 均可设置。
