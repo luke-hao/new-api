@@ -34,6 +34,7 @@ import {
   updateChannelGroupStability,
   runChannelGroupStability,
 } from '../api'
+import { useManualStabilityRefresh } from '../hooks/use-manual-stability-refresh'
 import { channelsQueryKeys } from '../lib'
 import type { ChannelGroupStabilityConfig } from '../types'
 import { ChannelGroupPriorityActions } from './channel-group-priority-actions'
@@ -60,7 +61,7 @@ type Props = {
 export function ChannelModelRoutingToolbar(props: Props) {
   const { t } = useTranslation()
   const [overview, setOverview] = useState(false)
-  const queryClient = useQueryClient()
+  const watchManualRun = useManualStabilityRefresh(props.group)
   const query = useQuery({
     queryKey: ['channel-group-stability', props.group],
     queryFn: async () => {
@@ -70,7 +71,8 @@ export function ChannelModelRoutingToolbar(props: Props) {
       return r.data
     },
     enabled: Boolean(props.group),
-    refetchInterval: 5000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
   const run = useMutation({
     mutationFn: async () => {
@@ -79,9 +81,7 @@ export function ChannelModelRoutingToolbar(props: Props) {
       return r
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['channel-group-stability', props.group],
-      })
+      watchManualRun()
       toast.success(t('channels.modelRouting.started'))
     },
     onError: (e) => toast.error(e.message),
@@ -127,11 +127,13 @@ export function ChannelModelRoutingToolbar(props: Props) {
           key={props.group + ':' + props.model}
           group={props.group}
           model={props.model}
+          onManualRun={watchManualRun}
         />
       ) : (
         <ChannelGroupPriorityActions
           key={props.group}
           selectedGroup={props.group}
+          onManualRun={watchManualRun}
         />
       )}
       {query.isError && (
@@ -252,7 +254,11 @@ const fields = [
     icon: TimerReset,
   },
 ] as const
-function ModelStabilityActions(props: { group: string; model: string }) {
+function ModelStabilityActions(props: {
+  group: string
+  model: string
+  onManualRun: (model?: string) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const query = useQuery({
@@ -263,7 +269,8 @@ function ModelStabilityActions(props: { group: string; model: string }) {
         throw new Error(r.message || 'Failed to load model config')
       return r.data
     },
-    refetchInterval: 5000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
   const refresh = () => {
     void queryClient.invalidateQueries({
@@ -294,7 +301,7 @@ function ModelStabilityActions(props: { group: string; model: string }) {
       return r
     },
     onSuccess: () => {
-      refresh()
+      props.onManualRun(props.model)
       toast.success(t('channels.modelRouting.started'))
     },
     onError: (e) => toast.error(e.message),

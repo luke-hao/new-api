@@ -60,6 +60,7 @@ const MAX_PROBE_TIMEOUT_SECONDS = 600
 
 type ChannelGroupPriorityActionsProps = {
   selectedGroup?: string | null
+  onManualRun: (model?: string) => void
 }
 
 type StabilityNumberField =
@@ -109,6 +110,7 @@ function formatTimestamp(value: number) {
 
 export function ChannelGroupPriorityActions({
   selectedGroup,
+  onManualRun,
 }: ChannelGroupPriorityActionsProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -121,11 +123,7 @@ export function ChannelGroupPriorityActions({
   const [draftOverride, setDraftOverride] =
     useState<ChannelGroupStabilityConfig | null>(null)
 
-  const {
-    data: stabilityStatus,
-    isLoading: isStabilityLoading,
-    refetch: refetchStability,
-  } = useQuery({
+  const { data: stabilityStatus, isLoading: isStabilityLoading } = useQuery({
     queryKey: stabilityQueryKey,
     queryFn: async () => {
       const response = await getChannelGroupStability(group)
@@ -135,7 +133,8 @@ export function ChannelGroupPriorityActions({
       return response.data
     },
     enabled: group !== '',
-    refetchInterval: 5000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
   const draft =
@@ -169,9 +168,9 @@ export function ChannelGroupPriorityActions({
       }
       return response
     },
-    onSuccess: async () => {
+    onSuccess: () => {
+      onManualRun()
       toast.info(t('已启动 {{group}} 分组的全组稳定性检测', { group }))
-      await refetchStability()
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, t('稳定通道检测启动失败')))

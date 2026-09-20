@@ -287,7 +287,8 @@ export function ChannelsTable() {
       }
     },
     placeholderData: (previousData) => previousData,
-    refetchInterval: routingModel ? 5000 : false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
   // Apply tag aggregation if tag mode is enabled

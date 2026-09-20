@@ -45,6 +45,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
+  channelsQueryKeys,
   handleDeleteAllDisabled,
   handleFixAbilities,
   handleTestAllChannels,
@@ -65,6 +66,20 @@ export function ChannelsPrimaryButtons() {
   } = useChannels()
   const queryClient = useQueryClient()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const refresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: channelsQueryKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: ['channel-group-stability'],
+        }),
+      ])
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const handleTagModeToggle = (checked: boolean) => {
     localStorage.setItem('enable-tag-mode', String(checked))
@@ -79,6 +94,19 @@ export function ChannelsPrimaryButtons() {
   return (
     <>
       <div className='flex items-center gap-2'>
+        <Button
+          variant='outline'
+          size='sm'
+          aria-label={t('Refresh')}
+          title={t('Refresh')}
+          disabled={isRefreshing}
+          onClick={() => void refresh()}
+        >
+          <RefreshCw
+            className={isRefreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
+          />
+          <span className='max-sm:hidden'>{t('Refresh')}</span>
+        </Button>
         {/* Desktop: Toggle switches visible */}
         <div className='hidden items-center gap-2 rounded-md border px-3 py-1.5 sm:flex'>
           <Tags className='text-muted-foreground h-4 w-4' />

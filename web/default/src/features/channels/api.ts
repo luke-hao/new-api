@@ -186,7 +186,8 @@ export async function updateChannelGroupRouting(
 
 export async function getChannelGroupStability(
   group: string,
-  model?: string
+  model?: string,
+  signal?: AbortSignal
 ): Promise<{
   success: boolean
   message?: string
@@ -194,7 +195,12 @@ export async function getChannelGroupStability(
 }> {
   const res = await api.get(
     '/api/channel/group-stability',
-    channelActionConfig({ params: { group, model } })
+    channelActionConfig({
+      params: { group, model },
+      signal,
+      timeout: 15000,
+      disableDuplicate: Boolean(signal),
+    })
   )
   return res.data
 }
