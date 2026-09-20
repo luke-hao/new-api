@@ -23,8 +23,11 @@ type ChannelCandidate struct {
 var group2model2channels map[string]map[string][]ChannelCandidate // enabled channel candidates with group-effective routing values
 var channelsIDM map[int]*Channel                                  // all channels include disabled
 var channelSyncLock sync.RWMutex
+var channelCacheReloadLock sync.Mutex
 
 func InitChannelCache() {
+	channelCacheReloadLock.Lock()
+	defer channelCacheReloadLock.Unlock()
 	if !common.MemoryCacheEnabled {
 		return
 	}

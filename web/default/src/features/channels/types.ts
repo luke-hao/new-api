@@ -60,6 +60,13 @@ export const channelSchema = z.object({
   effective_weight: z.number().nullish(),
   priority_overridden: z.boolean().optional(),
   priority_locked: z.boolean().optional(),
+  routing_model: z.string().optional(),
+  priority_source: z.string().optional(),
+  group_priority_locked: z.boolean().optional(),
+  model_test_result: z.string().optional(),
+  model_test_message: z.string().optional(),
+  model_test_time: z.number().optional(),
+  model_response_time: z.number().optional(),
   weight_overridden: z.boolean().optional(),
   auto_ban: z.number().nullish(),
   other_info: z.string().default(''),
@@ -292,6 +299,7 @@ export type ChannelSortBy =
 export type ChannelSortOrder = 'asc' | 'desc'
 
 export interface GetChannelsParams {
+  routing_model?: string
   p?: number
   page_size?: number
   status?: string // 'enabled', 'disabled', or empty for all
@@ -304,6 +312,7 @@ export interface GetChannelsParams {
 }
 
 export interface SearchChannelsParams {
+  routing_model?: string
   keyword?: string
   group?: string
   model?: string
@@ -371,12 +380,21 @@ export interface ChannelGroupRoutingUpdateItem {
 }
 
 export interface ChannelGroupRoutingUpdateParams {
+  model?: string
   group: string
   updates: ChannelGroupRoutingUpdateItem[]
   mode?: 'manual' | 'rerank'
 }
 
 export interface ChannelGroupStabilityStatus {
+  model?: string
+  group_enabled?: boolean
+  paused?: boolean
+  initialized?: boolean
+  interval_minutes_override?: number | null
+  healthy_threshold_seconds_override?: number | null
+  probe_timeout_seconds_override?: number | null
+  models?: ChannelGroupStabilityStatus[]
   group: string
   enabled: boolean
   interval_minutes: number
@@ -394,6 +412,11 @@ export interface ChannelGroupStabilityStatus {
 }
 
 export interface ChannelGroupStabilityConfig {
+  model?: string
+  paused?: boolean
+  interval_minutes_override?: number | null
+  healthy_threshold_seconds_override?: number | null
+  probe_timeout_seconds_override?: number | null
   group: string
   enabled: boolean
   interval_minutes: number

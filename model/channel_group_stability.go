@@ -30,6 +30,9 @@ var ErrChannelGroupStabilityPolicyStale = errors.New("channel group stability po
 
 type ChannelGroupStabilityPolicy struct {
 	Group                   string `json:"group" gorm:"type:varchar(64);primaryKey"`
+	Model                   string `json:"model,omitempty" gorm:"-"`
+	ParentConfigVersion     int64  `json:"-" gorm:"-"`
+	Initialized             bool   `json:"initialized" gorm:"-"`
 	Enabled                 bool   `json:"enabled" gorm:"not null;default:false"`
 	IntervalMinutes         int    `json:"interval_minutes" gorm:"not null;default:10"`
 	HealthyThresholdSeconds int    `json:"healthy_threshold_seconds" gorm:"not null;default:8"`
@@ -124,6 +127,12 @@ func SaveChannelGroupStabilityConfig(config ChannelGroupStabilityConfig, now int
 		policy.IntervalMinutes = config.IntervalMinutes
 		policy.HealthyThresholdSeconds = config.HealthyThresholdSeconds
 		policy.ProbeTimeoutSeconds = config.ProbeTimeoutSeconds
+		if err := ValidateInheritedModelSettingsTx(tx, policy); err != nil {
+			return err
+		}
+		if err := tx.Model(&ChannelModelStabilityPolicy{}).Where(commonGroupCol+" = ?", policy.Group).Update("next_check_at", 0).Error; err != nil {
+			return err
+		}
 		policy.ConfigVersion++
 		if config.Enabled {
 			policy.NextCheckAt = now

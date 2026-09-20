@@ -184,14 +184,17 @@ export async function updateChannelGroupRouting(
   return res.data
 }
 
-export async function getChannelGroupStability(group: string): Promise<{
+export async function getChannelGroupStability(
+  group: string,
+  model?: string
+): Promise<{
   success: boolean
   message?: string
   data?: ChannelGroupStabilityStatus
 }> {
   const res = await api.get(
     '/api/channel/group-stability',
-    channelActionConfig({ params: { group } })
+    channelActionConfig({ params: { group, model } })
   )
   return res.data
 }
@@ -211,14 +214,17 @@ export async function updateChannelGroupStability(
   return res.data
 }
 
-export async function runChannelGroupStability(group: string): Promise<{
+export async function runChannelGroupStability(
+  group: string,
+  model?: string
+): Promise<{
   success: boolean
   message?: string
   data?: { accepted: boolean }
 }> {
   const res = await api.post(
     '/api/channel/group-stability/run',
-    { group, mode: 'full' },
+    { group, model, mode: 'full' },
     channelActionConfig()
   )
   return res.data

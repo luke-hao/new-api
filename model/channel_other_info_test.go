@@ -26,7 +26,7 @@ func TestChannelOtherInfoWritersPreserveIndependentMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&Channel{}); err != nil {
+	if err := db.AutoMigrate(&Channel{}, &ChannelGroupRouting{}, &ChannelGroupStabilityPolicy{}, &ChannelModelRouting{}, &ChannelModelStabilityPolicy{}); err != nil {
 		t.Fatal(err)
 	}
 	DB = db

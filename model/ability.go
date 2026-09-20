@@ -219,7 +219,7 @@ func (channel *Channel) AddAbilities(tx *gorm.DB) error {
 			return err
 		}
 	}
-	return nil
+	return ReprojectChannelModelPrioritiesTx(useDB, channel.Id)
 }
 
 func (channel *Channel) DeleteAbilities() error {
@@ -244,6 +244,12 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 		}()
 	}
 
+	if err := InvalidateChannelModelRunsTx(tx, channel); err != nil {
+		if isNewTx {
+			tx.Rollback()
+		}
+		return err
+	}
 	if err := CleanupChannelGroupRoutings(tx, channel); err != nil {
 		if isNewTx {
 			tx.Rollback()
@@ -305,6 +311,12 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 		}
 	}
 
+	if err := ReprojectChannelModelPrioritiesTx(tx, channel.Id); err != nil {
+		if isNewTx {
+			tx.Rollback()
+		}
+		return err
+	}
 	// 如果是新创建的事务，需要提交
 	if isNewTx {
 		return tx.Commit().Error

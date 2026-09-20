@@ -186,6 +186,9 @@ func testChannelWithContext(parent context.Context, channel *model.Channel, test
 	c.Set("channel", channel.Type)
 	c.Set("base_url", channel.GetBaseURL())
 	group, _ := model.GetUserGroup(testUserID, false)
+	if routingGroup, ok := parent.Value(channelStabilityGroupContextKey{}).(string); ok && routingGroup != "" {
+		group = routingGroup
+	}
 	c.Set("group", group)
 
 	newAPIError := middleware.SetupContextForSelectedChannel(c, channel, testModel)

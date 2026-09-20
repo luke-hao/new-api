@@ -56,7 +56,7 @@ import {
   getChannelTypeLabel,
 } from '../lib'
 import type { Channel, ChannelSortBy } from '../types'
-import { ChannelGroupPriorityActions } from './channel-group-priority-actions'
+import { ChannelModelRoutingToolbar } from './channel-model-routing-toolbar'
 import { useChannelsColumns } from './channels-columns'
 import { useChannels } from './channels-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
@@ -80,7 +80,19 @@ function isDisabledChannelRow(channel: Channel) {
 
 export function ChannelsTable() {
   const { t } = useTranslation()
-  const { enableTagMode, idSort } = useChannels()
+  const { enableTagMode: requestedTagMode, idSort } = useChannels()
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+  const routingModel =
+    search.group?.length === 1 ? (search.routing_model ?? '') : ''
+  const enableTagMode = requestedTagMode && !routingModel
+  const setRoutingModel = (value: string) => {
+    setSorting([])
+    void navigate({
+      search: (prev) => ({ ...prev, routing_model: value, page: 1 }),
+      replace: true,
+    })
+  }
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   // Table state
@@ -99,7 +111,23 @@ export function ChannelsTable() {
     ensurePageInRange,
   } = useTableUrlState({
     search: route.useSearch(),
-    navigate: route.useNavigate(),
+    navigate: (options) => {
+      if (typeof options.search !== 'function') {
+        void navigate(options)
+        return
+      }
+      const update = options.search
+      void navigate({
+        ...options,
+        search: (prev) => {
+          const next = update(prev)
+          if (JSON.stringify(next.group) !== JSON.stringify(prev.group)) {
+            return { ...next, routing_model: '' }
+          }
+          return next
+        },
+      })
+    },
     pagination: {
       defaultPage: 1,
       defaultPageSize: isMobile ? 10 : DEFAULT_PAGE_SIZE,
@@ -114,14 +142,20 @@ export function ChannelsTable() {
   })
 
   // Extract filters from column filters
-  const statusFilter =
-    (columnFilters.find((f) => f.id === 'status')?.value as string[]) || []
+  const statusFilter = useMemo(
+    () =>
+      (columnFilters.find((f) => f.id === 'status')?.value as string[]) || [],
+    [columnFilters]
+  )
   const typeFilter = useMemo(
     () => (columnFilters.find((f) => f.id === 'type')?.value as string[]) || [],
     [columnFilters]
   )
-  const groupFilter =
-    (columnFilters.find((f) => f.id === 'group')?.value as string[]) || []
+  const groupFilter = useMemo(
+    () =>
+      (columnFilters.find((f) => f.id === 'group')?.value as string[]) || [],
+    [columnFilters]
+  )
   const selectedGroup =
     groupFilter.length === 1 && groupFilter[0] !== 'all' ? groupFilter[0] : null
   const {
@@ -184,6 +218,7 @@ export function ChannelsTable() {
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, isLoading, isFetching } = useQuery({
     queryKey: channelsQueryKeys.list({
+      routing_model: routingModel,
       keyword: globalFilter,
       model: modelFilter,
       group:
@@ -207,6 +242,7 @@ export function ChannelsTable() {
     queryFn: async () => {
       if (shouldSearch) {
         return searchChannels({
+          routing_model: routingModel,
           keyword: globalFilter,
           model: modelFilter,
           group:
@@ -229,6 +265,7 @@ export function ChannelsTable() {
         })
       } else {
         return getChannels({
+          routing_model: routingModel,
           group:
             groupFilter.length > 0 && !groupFilter.includes('all')
               ? groupFilter[0]
@@ -250,6 +287,7 @@ export function ChannelsTable() {
       }
     },
     placeholderData: (previousData) => previousData,
+    refetchInterval: routingModel ? 5000 : false,
   })
 
   // Apply tag aggregation if tag mode is enabled
@@ -276,6 +314,7 @@ export function ChannelsTable() {
   )
 
   const selectionScopeKey = JSON.stringify({
+    routingModel,
     globalFilter,
     modelFilter,
     groupFilter,
@@ -304,6 +343,7 @@ export function ChannelsTable() {
       try {
         const ids = await getAllChannelIds(
           {
+            routing_model: routingModel,
             keyword: globalFilter,
             model: modelFilter,
             group:
@@ -339,6 +379,7 @@ export function ChannelsTable() {
       idSort,
       isSelectingAll,
       modelFilter,
+      routingModel,
       shouldSearch,
       sortParams,
       statusFilter,
@@ -453,10 +494,13 @@ export function ChannelsTable() {
       skeletonKeyPrefix='channel-skeleton'
       applyHeaderSize
       toolbarProps={{
+        className:
+          '[&>div:last-child]:w-full [&>div:last-child]:min-w-0 [&>div:last-child]:shrink [&>div:last-child]:flex-wrap',
         searchPlaceholder: t('Filter by name, ID, or key...'),
         searchDebounceMs: 500,
         onReset: () => {
           resetModelFilterInput()
+          setRoutingModel('')
         },
         additionalSearch: (
           <Input
@@ -489,9 +533,11 @@ export function ChannelsTable() {
           },
         ],
         preActions: (
-          <ChannelGroupPriorityActions
+          <ChannelModelRoutingToolbar
             key={selectedGroup ?? 'no-group'}
-            selectedGroup={selectedGroup}
+            group={selectedGroup ?? ''}
+            model={routingModel}
+            onModelChange={setRoutingModel}
           />
         ),
       }}

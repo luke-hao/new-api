@@ -34,7 +34,7 @@ func TestPriorityLockFiltersPrimaryProbeCandidatesAndRanking(t *testing.T) {
 }
 func TestPriorityLockAllFixedSkipsProbesAndClearsOldPrimary(t *testing.T) {
 	db := setupModelListControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ChannelGroupRouting{}, &model.ChannelGroupStabilityPolicy{}))
+	require.NoError(t, db.AutoMigrate(&model.ChannelGroupRouting{}, &model.ChannelGroupStabilityPolicy{}, &model.ChannelModelRouting{}, &model.ChannelModelStabilityPolicy{}))
 	priority := int64(7)
 	a := &model.Channel{Id: 8201, Type: 1, Key: "fixture", Name: "fixture", Status: common.ChannelStatusEnabled, Models: "fixture-model", Group: "fixed-only", Priority: &priority}
 	require.NoError(t, a.Insert())
@@ -63,7 +63,7 @@ func TestPriorityLockAllFixedSkipsProbesAndClearsOldPrimary(t *testing.T) {
 }
 func TestPriorityLockAPIExplicitFalseAndRerankMode(t *testing.T) {
 	db := setupModelListControllerTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ChannelGroupRouting{}, &model.ChannelGroupStabilityPolicy{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.ChannelGroupRouting{}, &model.ChannelGroupStabilityPolicy{}, &model.ChannelModelRouting{}, &model.ChannelModelStabilityPolicy{}, &model.Log{}))
 	priority := int64(7)
 	a := &model.Channel{Id: 8202, Type: 1, Key: "fixture", Name: "fixture", Status: common.ChannelStatusEnabled, Models: "fixture-model", Group: "api-lock", Priority: &priority}
 	require.NoError(t, a.Insert())

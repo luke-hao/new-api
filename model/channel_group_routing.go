@@ -110,11 +110,37 @@ func DeleteChannelGroupRoutings(tx *gorm.DB, channelIds []int) error {
 	if len(channelIds) == 0 {
 		return nil
 	}
+	var channels []*Channel
+	if err := tx.Where("id IN ?", channelIds).Find(&channels).Error; err != nil {
+		return err
+	}
+	for _, channel := range channels {
+		if err := InvalidateChannelModelRunsTx(tx, channel); err != nil {
+			return err
+		}
+	}
+	if err := tx.Where("channel_id IN ?", channelIds).Delete(&ChannelModelRouting{}).Error; err != nil {
+		return err
+	}
 	return tx.Where("channel_id IN ?", channelIds).Delete(&ChannelGroupRouting{}).Error
 }
 
 func CopyChannelGroupRoutings(sourceChannelId int, targetChannelId int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
+		var modelRows []ChannelModelRouting
+		if err := tx.Where("channel_id = ?", sourceChannelId).Find(&modelRows).Error; err != nil {
+			return err
+		}
+		for _, r := range modelRows {
+			r.ChannelId = targetChannelId
+			r.LastCheckAt = 0
+			r.LatencyMs = 0
+			r.Result = ""
+			r.Message = ""
+			if err := tx.Create(&r).Error; err != nil {
+				return err
+			}
+		}
 		var routings []ChannelGroupRouting
 		if err := tx.Where("channel_id = ?", sourceChannelId).Find(&routings).Error; err != nil {
 			return err
@@ -249,6 +275,9 @@ func updateChannelGroupRoutingsTx(tx *gorm.DB, group string, patches []ChannelGr
 		if err := tx.Model(&Ability{}).Where("channel_id = ? AND "+commonGroupCol+" = ?", patch.ChannelId, group).Updates(map[string]interface{}{"priority": priority, "weight": weight}).Error; err != nil {
 			return result, err
 		}
+		if err := ReprojectChannelModelPrioritiesTx(tx, channel.Id); err != nil {
+			return result, err
+		}
 		result.Updated++
 	}
 	return result, nil
@@ -275,20 +304,18 @@ func UpdateChannelGroupRoutingsWithMode(group string, patches []ChannelGroupRout
 		if err != nil {
 			return err
 		}
-		if result.LockChanged {
-			// The shared write lock and version fence reject in-flight results on every DB engine.
-			nextCheckAt := ChannelGroupStabilityNextCheckAt(*policy, time.Now().UnixMilli())
-			return tx.Model(&ChannelGroupStabilityPolicy{}).Where(commonGroupCol+" = ?", group).Updates(map[string]interface{}{
-				"config_version": gorm.Expr("config_version + 1"), "next_check_at": nextCheckAt,
-				"last_primary_channel_id": 0, "last_primary_latency_ms": 0,
-				"last_result": ChannelGroupStabilityResultNever, "last_message": "分组固定优先级已更新，等待下一次检测",
-			}).Error
-		}
-		return nil
+		// Serialize every routing edit against a running model probe.
+		nextCheckAt := ChannelGroupStabilityNextCheckAt(*policy, time.Now().UnixMilli())
+		return tx.Model(&ChannelGroupStabilityPolicy{}).Where(commonGroupCol+" = ?", group).Updates(map[string]interface{}{
+			"config_version": gorm.Expr("config_version + 1"), "next_check_at": nextCheckAt,
+			"last_primary_channel_id": 0, "last_primary_latency_ms": 0,
+			"last_result": ChannelGroupStabilityResultNever, "last_message": "分组优先级已更新，等待下一次检测",
+		}).Error
 	})
 	if err != nil {
 		return ChannelGroupRoutingUpdateResult{}, err
 	}
+	cancelModelStability(group, "")
 	return result, nil
 }
 

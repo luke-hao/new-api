@@ -45,10 +45,16 @@ type channelGroupStabilityRunRegistry struct {
 var (
 	channelGroupStabilityTaskOnce sync.Once
 	channelGroupStabilityWake     = make(chan struct{}, 1)
+	channelModelProbeSlots        = make(chan struct{}, channelGroupStabilityConcurrency)
 	channelGroupStabilityRuns     = channelGroupStabilityRunRegistry{runs: make(map[string]channelGroupStabilityRun)}
 )
 
 type channelGroupStabilityConfigRequest struct {
+	Model                   string `json:"model"`
+	Paused                  bool   `json:"paused"`
+	IntervalOverride        *int   `json:"interval_minutes_override"`
+	HealthyOverride         *int   `json:"healthy_threshold_seconds_override"`
+	TimeoutOverride         *int   `json:"probe_timeout_seconds_override"`
 	Group                   string `json:"group"`
 	Enabled                 bool   `json:"enabled"`
 	IntervalMinutes         int    `json:"interval_minutes"`
@@ -57,25 +63,34 @@ type channelGroupStabilityConfigRequest struct {
 }
 
 type channelGroupStabilityRunRequest struct {
+	Model string `json:"model"`
 	Group string `json:"group"`
 	Mode  string `json:"mode"`
 }
 
 type channelGroupStabilityStatusResponse struct {
-	Group                   string `json:"group"`
-	Enabled                 bool   `json:"enabled"`
-	IntervalMinutes         int    `json:"interval_minutes"`
-	HealthyThresholdSeconds int    `json:"healthy_threshold_seconds"`
-	ProbeTimeoutSeconds     int    `json:"probe_timeout_seconds"`
-	Running                 bool   `json:"running"`
-	RunningSince            int64  `json:"running_since"`
-	LastCheckAt             int64  `json:"last_check_at"`
-	NextCheckAt             int64  `json:"next_check_at"`
-	LastResult              string `json:"last_result"`
-	LastMessage             string `json:"last_message"`
-	LastPrimaryChannelId    int    `json:"last_primary_channel_id"`
-	LastPrimaryLatencyMs    int64  `json:"last_primary_latency_ms"`
-	LastReorderedAt         int64  `json:"last_reordered_at"`
+	Model                   string                                `json:"model,omitempty"`
+	GroupEnabled            bool                                  `json:"group_enabled"`
+	Paused                  bool                                  `json:"paused"`
+	Initialized             bool                                  `json:"initialized"`
+	IntervalOverride        *int                                  `json:"interval_minutes_override"`
+	HealthyOverride         *int                                  `json:"healthy_threshold_seconds_override"`
+	TimeoutOverride         *int                                  `json:"probe_timeout_seconds_override"`
+	Models                  []channelGroupStabilityStatusResponse `json:"models,omitempty"`
+	Group                   string                                `json:"group"`
+	Enabled                 bool                                  `json:"enabled"`
+	IntervalMinutes         int                                   `json:"interval_minutes"`
+	HealthyThresholdSeconds int                                   `json:"healthy_threshold_seconds"`
+	ProbeTimeoutSeconds     int                                   `json:"probe_timeout_seconds"`
+	Running                 bool                                  `json:"running"`
+	RunningSince            int64                                 `json:"running_since"`
+	LastCheckAt             int64                                 `json:"last_check_at"`
+	NextCheckAt             int64                                 `json:"next_check_at"`
+	LastResult              string                                `json:"last_result"`
+	LastMessage             string                                `json:"last_message"`
+	LastPrimaryChannelId    int                                   `json:"last_primary_channel_id"`
+	LastPrimaryLatencyMs    int64                                 `json:"last_primary_latency_ms"`
+	LastReorderedAt         int64                                 `json:"last_reordered_at"`
 }
 
 type channelStabilityProbeResult struct {
@@ -182,12 +197,7 @@ func channelGroupStabilityResponse(policy *model.ChannelGroupStabilityPolicy) ch
 }
 
 func GetChannelGroupStability(c *gin.Context) {
-	policy, err := model.GetOrCreateChannelGroupStabilityPolicy(strings.TrimSpace(c.Query("group")))
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": channelGroupStabilityResponse(policy)})
+	getChannelModelStability(c)
 }
 
 func UpdateChannelGroupStability(c *gin.Context) {
@@ -197,11 +207,16 @@ func UpdateChannelGroupStability(c *gin.Context) {
 		return
 	}
 	request.Group = strings.TrimSpace(request.Group)
+	request.Model = strings.TrimSpace(request.Model)
+	if request.Model != "" {
+		updateChannelModelStability(c, request)
+		return
+	}
 	if err := validateChannelGroupStabilityConfig(request); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	channelGroupStabilityRuns.cancelAutomatic(request.Group)
+	cancelChannelModelRuns(request.Group, "")
 	policy, err := model.SaveChannelGroupStabilityConfig(model.ChannelGroupStabilityConfig{
 		Group: request.Group, Enabled: request.Enabled, IntervalMinutes: request.IntervalMinutes,
 		HealthyThresholdSeconds: request.HealthyThresholdSeconds, ProbeTimeoutSeconds: request.ProbeTimeoutSeconds,
@@ -236,7 +251,24 @@ func RunChannelGroupStability(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if !startChannelGroupStabilityRun(*policy, false, true) {
+	if request.Model != "" {
+		names, err := model.ListChannelRoutingModels(request.Group)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		found := false
+		for _, name := range names {
+			if name == request.Model {
+				found = true
+			}
+		}
+		if !found {
+			common.ApiErrorMsg(c, "当前分组没有此模型")
+			return
+		}
+	}
+	if startChannelModelRuns(*policy, request.Model, false, true) == 0 {
 		common.ApiErrorMsg(c, "该分组的稳定通道检测已在运行中")
 		return
 	}
@@ -265,13 +297,14 @@ func StartChannelGroupStabilityTask() {
 }
 
 func runDueChannelGroupStabilityPolicies() {
-	policies, err := model.ListDueChannelGroupStabilityPolicies(time.Now().UnixMilli())
+	policies := []model.ChannelGroupStabilityPolicy{}
+	err := model.DB.Where("enabled = ?", true).Find(&policies).Error
 	if err != nil {
 		common.SysError("failed to list due channel group stability policies: " + err.Error())
 		return
 	}
 	for _, policy := range policies {
-		startChannelGroupStabilityRun(policy, true, false)
+		startChannelModelRuns(policy, "", true, false)
 	}
 }
 
@@ -461,7 +494,7 @@ func effectiveChannelPriority(channel *model.Channel) int64 {
 	return channel.GetPriority()
 }
 
-func probeChannelsForStability(ctx context.Context, channels []*model.Channel, testUserID int, timeoutSeconds int) map[int]channelStabilityProbeResult {
+func probeChannelsForStability(ctx context.Context, channels []*model.Channel, testUserID int, timeoutSeconds int, models ...string) map[int]channelStabilityProbeResult {
 	results := make(map[int]channelStabilityProbeResult, len(channels))
 	if len(channels) == 0 {
 		return results
@@ -481,7 +514,7 @@ func probeChannelsForStability(ctx context.Context, channels []*model.Channel, t
 				if ctx.Err() != nil {
 					return
 				}
-				resultCh <- probeChannelForStability(ctx, channel, testUserID, timeoutSeconds)
+				resultCh <- probeChannelForStability(ctx, channel, testUserID, timeoutSeconds, models...)
 			}
 		}()
 	}
@@ -505,19 +538,34 @@ func probeChannelsForStability(ctx context.Context, channels []*model.Channel, t
 	return results
 }
 
-func probeChannelForStability(parent context.Context, channel *model.Channel, testUserID int, timeoutSeconds int) channelStabilityProbeResult {
+func probeChannelForStability(parent context.Context, channel *model.Channel, testUserID int, timeoutSeconds int, models ...string) channelStabilityProbeResult {
+	testModel := ""
+	if len(models) > 0 {
+		testModel = models[0]
+	}
+	select {
+	case channelModelProbeSlots <- struct{}{}:
+	case <-parent.Done():
+		return channelStabilityProbeResult{channel: channel, err: parent.Err()}
+	}
 	ctx, cancel := context.WithTimeout(parent, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 	startedAt := time.Now()
 	testResultCh := make(chan testResult, 1)
 	panicCh := make(chan interface{}, 1)
 	go func() {
+		defer func() { <-channelModelProbeSlots }()
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				panicCh <- recovered
 			}
 		}()
-		testResultCh <- testChannelWithContext(ctx, channel, testUserID, "", "", true)
+		stream := true
+		lower := strings.ToLower(testModel)
+		if testModel != "" && (strings.Contains(lower, "embedding") || strings.HasPrefix(lower, "m3e") || strings.Contains(lower, "bge-") || strings.Contains(lower, "embed") || strings.Contains(lower, "rerank") || common.IsImageGenerationModel(testModel) || strings.HasSuffix(lower, "-compact")) {
+			stream = false
+		}
+		testResultCh <- testChannelWithContext(ctx, channel, testUserID, testModel, "", stream)
 	}()
 	result := channelStabilityProbeResult{channel: channel}
 	select {
@@ -525,25 +573,31 @@ func probeChannelForStability(parent context.Context, channel *model.Channel, te
 		result.latencyMs = time.Since(startedAt).Milliseconds()
 		if testResult.localErr == nil && testResult.newAPIError == nil {
 			result.success = true
-			channel.UpdateResponseTime(result.latencyMs)
+			if testModel == "" {
+				channel.UpdateResponseTime(result.latencyMs)
+			}
 			return result
 		}
 		result.err = testResult.localErr
 		if result.err == nil && testResult.newAPIError != nil {
 			result.err = testResult.newAPIError
 		}
-		channel.UpdateTestFailure(channelTestErrorCode(testResult), channelTestErrorMessage(testResult))
+		if testModel == "" {
+			channel.UpdateTestFailure(channelTestErrorCode(testResult), channelTestErrorMessage(testResult))
+		}
 		return result
 	case recovered := <-panicCh:
 		result.latencyMs = time.Since(startedAt).Milliseconds()
 		result.err = fmt.Errorf("channel test panic: %v", recovered)
-		channel.UpdateTestFailure("channel_test_panic", result.err.Error())
+		if testModel == "" {
+			channel.UpdateTestFailure("channel_test_panic", result.err.Error())
+		}
 		return result
 	case <-ctx.Done():
 		result.latencyMs = time.Since(startedAt).Milliseconds()
 		result.err = ctx.Err()
 		result.timedOut = errors.Is(ctx.Err(), context.DeadlineExceeded) && parent.Err() == nil
-		if result.timedOut {
+		if result.timedOut && testModel == "" {
 			channel.UpdateTestFailure("channel_test_timeout", fmt.Sprintf("稳定通道检测超过 %d 秒", timeoutSeconds))
 		}
 		return result

@@ -78,6 +78,9 @@ func main() {
 		// for compatibility with old versions
 		common.MemoryCacheEnabled = true
 	}
+	if err := model.RestoreChannelModelRoutingProjection(); err != nil {
+		common.FatalLog("model routing projection: " + err.Error())
+	}
 	if common.MemoryCacheEnabled {
 		common.SysLog("memory cache enabled")
 		common.SysLog(fmt.Sprintf("sync frequency: %d seconds", common.SyncFrequency))

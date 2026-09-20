@@ -61,6 +61,12 @@ beforeEach(() => {
   fail = false
 })
 describe('fixed group priorities', () => {
+  test('scopes model price ranking writes to the selected model', async () => {
+    fixtures = [channel(1, 'a 0.1', 0), channel(2, 'b 0.2', 0)]
+    await rankGroupChannelsByLowestPrice('group-a', 'sol')
+    expect(calls[0].model).toBe('sol')
+    expect(calls[0].group).toBe('group-a')
+  })
   test('keeps existing price parsing', () => {
     expect(extractChannelPriceRatio('pool 0.12')).toBe(0.12)
     expect(extractChannelPriceRatio('pool')).toBeNull()

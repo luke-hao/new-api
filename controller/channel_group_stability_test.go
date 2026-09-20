@@ -72,6 +72,29 @@ func TestBuildChannelGroupStabilityPrioritiesKeepsPrimaryWithinHysteresis(t *tes
 	require.Empty(t, patches)
 }
 
+func TestModelRankingHysteresisOnlyProtectsPrimary(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		fast int64
+		want []int
+	}{
+		{"retains primary but sorts every follower", 9000, []int{1, 3, 4, 2}},
+		{"exactly fifteen percent replaces primary", 8500, []int{3, 4, 1, 2}},
+		{"one millisecond outside boundary retains primary", 8501, []int{1, 3, 4, 2}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			a, b, c, d := stabilityTestChannel(1, 4), stabilityTestChannel(2, 3), stabilityTestChannel(3, 2), stabilityTestChannel(4, 1)
+			results := map[int]channelStabilityProbeResult{1: stabilityTestResult(a, true, 10000), 2: stabilityTestResult(b, true, 12000), 3: stabilityTestResult(c, true, tt.fast), 4: stabilityTestResult(d, true, 9500)}
+			ordered, _ := buildChannelGroupStabilityPriorities([]*model.Channel{a, b, c, d}, results, 1)
+			ids := []int{}
+			for _, r := range ordered {
+				ids = append(ids, r.channel.Id)
+			}
+			require.Equal(t, tt.want, ids)
+		})
+	}
+}
+
 func TestBuildChannelGroupStabilityPrioritiesSwitchesWhenCandidateIsFifteenPercentFaster(t *testing.T) {
 	current := stabilityTestChannel(1, 2)
 	candidate := stabilityTestChannel(2, 1)

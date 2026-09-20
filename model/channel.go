@@ -21,6 +21,14 @@ import (
 )
 
 type Channel struct {
+	RoutingModel        string `json:"routing_model,omitempty" gorm:"-"`
+	PrioritySource      string `json:"priority_source,omitempty" gorm:"-"`
+	GroupPriorityLocked bool   `json:"group_priority_locked" gorm:"-"`
+	ModelTestResult     string `json:"model_test_result,omitempty" gorm:"-"`
+	ModelTestMessage    string `json:"model_test_message,omitempty" gorm:"-"`
+	ModelTestTime       int64  `json:"model_test_time" gorm:"-"`
+	ModelResponseTime   int64  `json:"model_response_time" gorm:"-"`
+
 	Id                 int     `json:"id"`
 	Type               int     `json:"type" gorm:"default:0"`
 	Key                string  `json:"key" gorm:"not null"`

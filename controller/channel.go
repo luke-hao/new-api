@@ -96,6 +96,14 @@ func GetAllChannels(c *gin.Context) {
 	sortOptions := model.NewChannelSortOptions(c.Query("sort_by"), c.Query("sort_order"), idSort)
 	enableTagMode, _ := strconv.ParseBool(c.Query("tag_mode"))
 	groupFilter := model.NormalizeChannelGroupFilter(c.Query("group"))
+	routingModel := strings.TrimSpace(c.Query("routing_model"))
+	if routingModel != "" && groupFilter == "" {
+		common.ApiErrorMsg(c, "请先选择单个分组")
+		return
+	}
+	listQuery := func(status, kind int) *gorm.DB {
+		return model.ApplyRoutingModelFilter(buildChannelListQuery(groupFilter, status, kind), groupFilter, routingModel)
+	}
 	statusParam := c.Query("status")
 	// statusFilter: -1 all, 1 enabled, 0 disabled (include auto & manual)
 	statusFilter := parseStatusFilter(statusParam)
@@ -111,13 +119,13 @@ func GetAllChannels(c *gin.Context) {
 	var total int64
 
 	if enableTagMode {
-		tags, err := model.GetPaginatedChannelTags(buildChannelListQuery(groupFilter, statusFilter, typeFilter), pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+		tags, err := model.GetPaginatedChannelTags(listQuery(statusFilter, typeFilter), pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 		if err != nil {
 			common.SysError("failed to get paginated tags: " + err.Error())
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取标签失败，请稍后重试"})
 			return
 		}
-		total, err = model.CountChannelTags(buildChannelListQuery(groupFilter, statusFilter, typeFilter))
+		total, err = model.CountChannelTags(listQuery(statusFilter, typeFilter))
 		if err != nil {
 			common.SysError("failed to count tags: " + err.Error())
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取标签数量失败，请稍后重试"})
@@ -128,7 +136,7 @@ func GetAllChannels(c *gin.Context) {
 				continue
 			}
 			var tagChannels []*model.Channel
-			err := sortOptions.ApplyForGroup(buildChannelListQuery(groupFilter, statusFilter, typeFilter).Where("tag = ?", *tag), groupFilter).
+			err := sortOptions.ApplyForModel(listQuery(statusFilter, typeFilter).Where("channels.tag = ?", *tag), groupFilter, routingModel).
 				Omit("key").
 				Find(&tagChannels).Error
 			if err != nil {
@@ -139,13 +147,13 @@ func GetAllChannels(c *gin.Context) {
 			channelData = append(channelData, tagChannels...)
 		}
 	} else {
-		if err := buildChannelListQuery(groupFilter, statusFilter, typeFilter).Count(&total).Error; err != nil {
+		if err := listQuery(statusFilter, typeFilter).Count(&total).Error; err != nil {
 			common.SysError("failed to count channels: " + err.Error())
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取渠道数量失败，请稍后重试"})
 			return
 		}
 
-		err := sortOptions.ApplyForGroup(buildChannelListQuery(groupFilter, statusFilter, typeFilter), groupFilter).
+		err := sortOptions.ApplyForModel(listQuery(statusFilter, typeFilter), groupFilter, routingModel).
 			Limit(pageInfo.GetPageSize()).
 			Offset(pageInfo.GetStartIdx()).
 			Omit("key").
@@ -156,7 +164,7 @@ func GetAllChannels(c *gin.Context) {
 			return
 		}
 	}
-	if err := model.PopulateEffectiveChannelRoutings(channelData, groupFilter); err != nil {
+	if err := model.PopulateEffectiveModelRoutings(channelData, groupFilter, routingModel); err != nil {
 		common.SysError("failed to populate channel group routings: " + err.Error())
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取分组路由配置失败，请稍后重试"})
 		return
@@ -166,7 +174,7 @@ func GetAllChannels(c *gin.Context) {
 		clearChannelInfo(datum)
 	}
 
-	countQuery := buildChannelListQuery(groupFilter, statusFilter, -1)
+	countQuery := listQuery(statusFilter, -1)
 	var results []struct {
 		Type  int64
 		Count int64
@@ -263,6 +271,10 @@ func FixChannelsAbilities(c *gin.Context) {
 }
 
 func SearchChannels(c *gin.Context) {
+	if routingModel := strings.TrimSpace(c.Query("routing_model")); routingModel != "" {
+		searchModelChannels(c, routingModel)
+		return
+	}
 	keyword := c.Query("keyword")
 	group := c.Query("group")
 	modelKeyword := c.Query("model")
@@ -767,6 +779,7 @@ type ChannelGroupRoutingUpdateItem struct {
 }
 
 type ChannelGroupRoutingUpdateRequest struct {
+	Model   string                          `json:"model"`
 	Group   string                          `json:"group"`
 	Updates []ChannelGroupRoutingUpdateItem `json:"updates"`
 	Mode    string                          `json:"mode"`
@@ -789,13 +802,19 @@ func UpdateChannelGroupRouting(c *gin.Context) {
 			PriorityLocked:  update.PriorityLocked,
 		})
 	}
-	result, err := model.UpdateChannelGroupRoutingsWithMode(request.Group, patches, request.Mode)
+	var result model.ChannelGroupRoutingUpdateResult
+	var err error
+	if request.Model != "" {
+		result, err = model.UpdateChannelModelRoutings(strings.TrimSpace(request.Group), strings.TrimSpace(request.Model), patches, request.Mode)
+	} else {
+		result, err = model.UpdateChannelGroupRoutingsWithMode(request.Group, patches, request.Mode)
+	}
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	if result.LockChanged {
-		channelGroupStabilityRuns.cancel(strings.TrimSpace(request.Group))
+		cancelChannelModelRuns(strings.TrimSpace(request.Group), request.Model)
 	}
 	model.InitChannelCache()
 	recordManageAudit(c, "channel.group_routing_update", map[string]interface{}{

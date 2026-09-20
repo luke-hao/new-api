@@ -50,7 +50,8 @@ export function extractChannelPriceRatio(name: string): number | null {
 }
 
 export async function fetchAllChannelsForGroup(
-  group: string
+  group: string,
+  model?: string
 ): Promise<Channel[]> {
   const normalizedGroup = group.trim()
   if (!normalizedGroup) return []
@@ -61,6 +62,7 @@ export async function fetchAllChannelsForGroup(
   for (;;) {
     const response = await getChannels({
       group: normalizedGroup,
+      routing_model: model,
       p: page,
       page_size: GROUP_CHANNELS_PAGE_SIZE,
       tag_mode: false,
@@ -94,7 +96,8 @@ export async function fetchAllChannelsForGroup(
 async function applyPriorityUpdates(
   group: string,
   channels: Channel[],
-  priorities: Map<number, number>
+  priorities: Map<number, number>,
+  model?: string
 ): Promise<GroupPriorityUpdateSummary> {
   const updates = channels.reduce<PriorityUpdate[]>((items, channel) => {
     const priority = priorities.get(channel.id)
@@ -114,6 +117,7 @@ async function applyPriorityUpdates(
     try {
       const response = await updateChannelGroupRouting({
         group,
+        model,
         mode: 'rerank',
         updates: updates.map((update) => ({
           channel_id: update.id,
@@ -142,9 +146,10 @@ async function applyPriorityUpdates(
 }
 
 export async function rankGroupChannelsByLowestPrice(
-  group: string
+  group: string,
+  model?: string
 ): Promise<PricePriorityResult> {
-  const allChannels = await fetchAllChannelsForGroup(group)
+  const allChannels = await fetchAllChannelsForGroup(group, model)
   const channels = allChannels.filter((channel) => !channel.priority_locked)
   const priorities = new Map<number, number>()
 
@@ -163,7 +168,7 @@ export async function rankGroupChannelsByLowestPrice(
     priorities.set(item.channel.id, pricedChannels.length - index)
   })
 
-  const summary = await applyPriorityUpdates(group, channels, priorities)
+  const summary = await applyPriorityUpdates(group, channels, priorities, model)
   return {
     ...summary,
     total: allChannels.length,

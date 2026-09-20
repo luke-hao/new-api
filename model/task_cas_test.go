@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 		&Channel{},
 		&Ability{},
 		&ChannelGroupRouting{},
-		&ChannelGroupStabilityPolicy{},
+		&ChannelGroupStabilityPolicy{}, &ChannelModelRouting{}, &ChannelModelStabilityPolicy{},
 		&TopUp{},
 		&AffiliateRebate{},
 		&Redemption{},

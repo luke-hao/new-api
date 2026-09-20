@@ -30,6 +30,7 @@ const channelsSearchSchema = z.object({
   type: z.array(z.string()).optional().catch([]),
   group: z.array(z.string()).optional().catch([]),
   model: z.string().optional().catch(''),
+  routing_model: z.string().optional().catch(''),
 })
 
 export const Route = createFileRoute('/_authenticated/channels/')({

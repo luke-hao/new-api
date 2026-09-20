@@ -24,7 +24,7 @@ func prepareBatchFlush(t *testing.T) *gorm.DB {
 		db, err = gorm.Open(sqlite.Open("file:"+t.TempDir()+"/batch.db"), &gorm.Config{})
 	}
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&User{}, &Token{}, &Channel{}, &BatchQuotaReceipt{}))
+	require.NoError(t, db.AutoMigrate(&User{}, &Token{}, &Channel{}, &ChannelGroupRouting{}, &ChannelGroupStabilityPolicy{}, &ChannelModelRouting{}, &ChannelModelStabilityPolicy{}, &BatchQuotaReceipt{}))
 	for _, table := range []string{"users", "tokens", "channels", "batch_quota_receipts"} {
 		require.NoError(t, db.Exec("DELETE FROM "+table).Error)
 	}

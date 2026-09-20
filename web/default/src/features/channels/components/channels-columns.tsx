@@ -79,6 +79,7 @@ import {
 } from '../lib'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
 import type { Channel } from '../types'
+import { ChannelModelPriorityCell } from './channel-model-priority-cell'
 import { useChannels } from './channels-provider'
 import { DataTableRowActions } from './data-table-row-actions'
 import { DataTableTagRowActions } from './data-table-tag-row-actions'
@@ -1194,16 +1195,22 @@ export function useChannelsColumns(
       accessorKey: 'priority',
       header: t('Priority'),
       meta: { mobileHidden: !selectedGroup },
-      cell: ({ row }) => (
-        <PriorityCell channel={row.original} selectedGroup={selectedGroup} />
-      ),
+      cell: ({ row }) =>
+        row.original.routing_model && selectedGroup ? (
+          <ChannelModelPriorityCell
+            channel={row.original}
+            group={selectedGroup}
+          />
+        ) : (
+          <PriorityCell channel={row.original} selectedGroup={selectedGroup} />
+        ),
       size: selectedGroup ? 280 : 190,
     },
 
     // Weight column
     {
       accessorKey: 'weight',
-      header: t('Weight'),
+      header: t(selectedGroup ? 'channels.modelRouting.groupWeight' : 'Weight'),
       meta: { mobileHidden: true },
       cell: ({ row }) => (
         <WeightCell channel={row.original} selectedGroup={selectedGroup} />
@@ -1236,6 +1243,25 @@ export function useChannelsColumns(
       header: t('Response'),
       meta: { mobileHidden: true },
       cell: ({ row }) => {
+        if (row.original.routing_model) {
+          const channel = row.original
+          let label = '-'
+          if (channel.model_test_result === 'success') {
+            label = formatResponseTime(channel.model_response_time ?? 0, t)
+          } else if (channel.model_test_result) {
+            label = t(
+              'channels.modelRouting.probe.' + channel.model_test_result
+            )
+          }
+          return (
+            <span
+              className='text-xs tabular-nums'
+              title={channel.model_test_message}
+            >
+              {label}
+            </span>
+          )
+        }
         const lastTestError = isTagAggregateRow(row.original)
           ? null
           : getChannelLastTestError(row.original.other_info)
@@ -1274,7 +1300,9 @@ export function useChannelsColumns(
       header: t('Last Tested'),
       meta: { mobileHidden: true },
       cell: ({ row }) => {
-        const testTime = row.getValue('test_time') as number
+        const testTime = row.original.routing_model
+          ? Math.floor((row.original.model_test_time ?? 0) / 1000)
+          : (row.getValue('test_time') as number)
 
         // For invalid timestamps, show "Never" badge
         if (!testTime || testTime === 0) {
