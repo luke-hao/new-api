@@ -485,6 +485,11 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	return doRequest(c, req, info)
 }
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	// Probes must release their global concurrency slot when cancelled, including
+	// while waiting for upstream headers or reading a response body.
+	if info.IsChannelTest {
+		req = req.WithContext(c.Request.Context())
+	}
 	var client *http.Client
 	var err error
 	if info.ChannelSetting.Proxy != "" {
