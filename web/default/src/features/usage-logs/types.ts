@@ -145,6 +145,17 @@ export interface LogOtherData {
   claude?: boolean
   model_ratio?: number
   completion_ratio?: number
+  image_token_prices?: {
+    input: number
+    output: number
+    image_input: number
+    image_output: number
+    cached_input: number
+    cached_image_input: number
+    cache_creation: number
+  }
+  image_output_tokens?: number
+  generated_images?: number
   model_price?: number
   group_ratio?: number
   user_group_ratio?: number

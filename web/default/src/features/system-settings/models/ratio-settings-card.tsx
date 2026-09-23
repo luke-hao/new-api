@@ -118,6 +118,7 @@ const createGroupSchema = (t: Translate) =>
     UserUsableGroups: createJsonStringField(t),
     GroupGroupRatio: createJsonStringField(t),
     ImageSizeGroupPrices: createJsonStringField(t),
+    ImageTokenGroupPrices: createJsonStringField(t),
     ImageTokenBillingGroups: createJsonStringField(t, {
       predicate: (parsed) =>
         Array.isArray(parsed) &&
@@ -223,6 +224,9 @@ export function RatioSettingsCard({
     ImageSizeGroupPrices: normalizeJsonString(
       groupDefaults.ImageSizeGroupPrices
     ),
+    ImageTokenGroupPrices: normalizeJsonString(
+      groupDefaults.ImageTokenGroupPrices
+    ),
     ImageTokenBillingGroups: normalizeJsonString(
       groupDefaults.ImageTokenBillingGroups
     ),
@@ -267,6 +271,9 @@ export function RatioSettingsCard({
       GroupGroupRatio: formatJsonForTextarea(groupDefaults.GroupGroupRatio),
       ImageSizeGroupPrices: formatJsonForTextarea(
         groupDefaults.ImageSizeGroupPrices
+      ),
+      ImageTokenGroupPrices: formatJsonForTextarea(
+        groupDefaults.ImageTokenGroupPrices
       ),
       ImageTokenBillingGroups: formatJsonForTextarea(
         groupDefaults.ImageTokenBillingGroups
@@ -323,6 +330,9 @@ export function RatioSettingsCard({
       ImageSizeGroupPrices: normalizeJsonString(
         groupDefaults.ImageSizeGroupPrices
       ),
+      ImageTokenGroupPrices: normalizeJsonString(
+        groupDefaults.ImageTokenGroupPrices
+      ),
       ImageTokenBillingGroups: normalizeJsonString(
         groupDefaults.ImageTokenBillingGroups
       ),
@@ -342,6 +352,9 @@ export function RatioSettingsCard({
       GroupGroupRatio: formatJsonForTextarea(groupDefaults.GroupGroupRatio),
       ImageSizeGroupPrices: formatJsonForTextarea(
         groupDefaults.ImageSizeGroupPrices
+      ),
+      ImageTokenGroupPrices: formatJsonForTextarea(
+        groupDefaults.ImageTokenGroupPrices
       ),
       ImageTokenBillingGroups: formatJsonForTextarea(
         groupDefaults.ImageTokenBillingGroups
@@ -405,6 +418,9 @@ export function RatioSettingsCard({
         UserUsableGroups: normalizeJsonString(values.UserUsableGroups),
         GroupGroupRatio: normalizeJsonString(values.GroupGroupRatio),
         ImageSizeGroupPrices: normalizeJsonString(values.ImageSizeGroupPrices),
+        ImageTokenGroupPrices: normalizeJsonString(
+          values.ImageTokenGroupPrices
+        ),
         ImageTokenBillingGroups: normalizeJsonString(
           values.ImageTokenBillingGroups
         ),

@@ -58,6 +58,7 @@ const defaultBillingSettings: BillingSettings = {
   UserUsableGroups: '',
   GroupGroupRatio: '',
   ImageSizeGroupPrices: '{}',
+  ImageTokenGroupPrices: '{}',
   ImageTokenBillingGroups: '[]',
   AutoGroups: '',
   DefaultUseAutoGroup: false,

@@ -12,6 +12,7 @@ type GroupRatioInfo struct {
 }
 
 type PriceData struct {
+	ImageTokenPrice        *ImageTokenPrice
 	FreeModel              bool
 	ModelPrice             float64
 	ModelRatio             float64

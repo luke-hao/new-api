@@ -364,6 +364,7 @@ export const ModelPricingEditorPanel = forwardRef<
   const warnings = useMemo(() => {
     const nextWarnings: string[] = []
     const hasConflict =
+      !editData?.tokenPriceGroups?.length &&
       !!editData?.price &&
       [
         editData.ratio,
@@ -499,6 +500,16 @@ export const ModelPricingEditorPanel = forwardRef<
           <div className='min-h-0 flex-1 overflow-y-auto p-4 pb-6'>
             <div className='grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(220px,260px)]'>
               <FieldGroup>
+                {Boolean(editData?.tokenPriceGroups?.length) && (
+                  <Alert>
+                    <AlertDescription>
+                      {t(
+                        'This is the global fallback price. Separate image token prices apply in: {{groups}}. Edit them in Billing settings → Group pricing.',
+                        { groups: editData?.tokenPriceGroups?.join(', ') }
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {warnings.length > 0 && (
                   <Alert variant='destructive'>
                     <AlertTriangle data-icon='inline-start' />

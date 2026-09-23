@@ -4996,6 +4996,25 @@
     "Authentication or permission error": "认证或权限异常",
     "Other channel errors": "其他渠道错误",
     "Recovery interval (minutes)": "恢复重试间隔（分钟）",
-    "Consecutive successful checks": "连续成功次数"
+    "Consecutive successful checks": "连续成功次数",
+    "Image token prices by group": "分组生图 Token 价格",
+    "Image token prices are saved separately for each billing group and model. Global model price changes do not overwrite them.": "按计费分组和模型独立保存生图 Token 价格，修改全局模型价格不会覆盖这里。",
+    "Image token billing group": "生图 Token 计费分组",
+    "Image token model": "生图 Token 模型",
+    "Bill images in this group by tokens": "本分组生图按 Token 计费",
+    "Prices below use USD per 1M tokens, before the group multiplier. Group multiplier: {{ratio}}. User-specific group multipliers take precedence.": "以下价格单位为美元／百万 Token，扣费时再乘分组倍率。当前分组倍率：{{ratio}}；用户专属分组倍率优先。",
+    "Token billing is off for this group. These prices are kept for later; per-image or global pricing currently applies.": "本分组尚未开启 Token 计费；这里的价格可以预先保存，当前仍使用按张价格或全局定价。",
+    "Fill every price field for each model used in a token billing group. Zero means free. Save group settings to apply. Per-image prices do not apply while token billing is on.": "请填写该分组使用的各模型全部单价，0 表示免费，点击“保存分组设置”生效。开启 Token 计费后，按张价格不参与扣费。",
+    "Token billing is enabled for this group; the per-image prices below are inactive.": "该分组已开启 Token 计费，下方按张价格暂不生效。",
+    "Text input": "文本输入",
+    "Text output": "文本输出",
+    "Image output": "图片输出",
+    "Cached text input": "缓存文本输入",
+    "Cached image input": "缓存图片输入",
+    "Cache creation": "缓存写入",
+    "Group pricing": "分组定价",
+    "This is the global fallback price. Separate image token prices apply in: {{groups}}. Edit them in Billing settings → Group pricing.": "这里设置全局兜底价格。{{groups}} 使用独立的生图 Token 价格，请到“计费设置 → 分组定价”修改。",
+    "Billing group": "计费分组",
+    "Save group settings": "保存分组设置"
   }
 }

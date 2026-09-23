@@ -41,7 +41,7 @@ func GetGroupImageModels(c *gin.Context) {
 		result[groupName] = []string{}
 	}
 	for _, row := range rows {
-		if capability, ok := getPlaygroundImageModelCapability(row.Model); ok && capability.Protocol == "image_api" {
+		if _, ok := getPlaygroundImageModelCapability(row.Model); ok {
 			result[row.Group] = append(result[row.Group], row.Model)
 		}
 	}

@@ -34,6 +34,7 @@ export type ModelPricingSnapshotInput = {
 }
 
 export type ModelPricingSnapshot = {
+  tokenPriceGroups?: string[]
   name: string
   price?: string
   ratio?: string

@@ -23,6 +23,7 @@ type GroupSettingsValues struct {
 	GroupGroupRatio         string `json:"GroupGroupRatio"`
 	ImageSizeGroupPrices    string `json:"ImageSizeGroupPrices"`
 	ImageTokenBillingGroups string `json:"ImageTokenBillingGroups"`
+	ImageTokenGroupPrices   string `json:"ImageTokenGroupPrices"`
 	AutoGroups              string `json:"AutoGroups"`
 	DefaultUseAutoGroup     bool   `json:"DefaultUseAutoGroup"`
 	GroupSpecialUsableGroup string `json:"GroupSpecialUsableGroup"`
@@ -36,6 +37,7 @@ type parsedGroupSettings struct {
 	groupRatios      map[string]map[string]float64
 	imageSizePrices  ratio_setting.ImageSizeGroupPrices
 	imageTokenGroups []string
+	imageTokenPrices ratio_setting.ImageTokenGroupPrices
 	autoGroups       []string
 	specialGroups    map[string]map[string]string
 }
@@ -49,6 +51,7 @@ func CurrentGroupSettingsValues() GroupSettingsValues {
 		GroupGroupRatio:         ratio_setting.GroupGroupRatio2JSONString(),
 		ImageSizeGroupPrices:    ratio_setting.ImageSizeGroupPrices2JSONString(),
 		ImageTokenBillingGroups: ratio_setting.ImageTokenBillingGroups2JSONString(),
+		ImageTokenGroupPrices:   ratio_setting.ImageTokenGroupPrices2JSONString(),
 		AutoGroups:              setting.AutoGroups2JsonString(),
 		DefaultUseAutoGroup:     setting.DefaultUseAutoGroup,
 		GroupSpecialUsableGroup: ratio_setting.GetGroupRatioSetting().GroupSpecialUsableGroup.MarshalJSONString(),
@@ -90,6 +93,10 @@ func parseGroupSettings(values GroupSettingsValues) (*parsedGroupSettings, error
 	parsed.imageSizePrices, err = ratio_setting.ParseImageSizeGroupPricesJSONString(values.ImageSizeGroupPrices)
 	if err != nil {
 		return nil, fmt.Errorf("invalid image size group prices: %w", err)
+	}
+	parsed.imageTokenPrices, err = ratio_setting.ParseImageTokenGroupPrices(values.ImageTokenGroupPrices)
+	if err != nil {
+		return nil, fmt.Errorf("invalid image token group prices: %w", err)
 	}
 	parsed.imageTokenGroups, err = ratio_setting.ParseImageTokenBillingGroups(values.ImageTokenBillingGroups)
 	if err != nil {
@@ -163,6 +170,11 @@ func validateParsedGroupSettings(parsed *parsedGroupSettings) error {
 			}
 		}
 	}
+	for billingGroup := range parsed.imageTokenPrices {
+		if _, ok := parsed.billingGroups[billingGroup]; !ok {
+			return fmt.Errorf("image token price target is not a billing group: %s", billingGroup)
+		}
+	}
 	for _, billingGroup := range parsed.imageTokenGroups {
 		if _, ok := parsed.billingGroups[billingGroup]; !ok {
 			return fmt.Errorf("image token billing target is not a billing group: %s", billingGroup)
@@ -220,6 +232,10 @@ func ValidateGroupSettings(values GroupSettingsValues) error {
 }
 
 func UpdateGroupSettings(values GroupSettingsValues) error {
+	// Older clients omit this field; preserve independently stored token prices.
+	if strings.TrimSpace(values.ImageTokenGroupPrices) == "" {
+		values.ImageTokenGroupPrices = ratio_setting.ImageTokenGroupPrices2JSONString()
+	}
 	parsed, err := parseGroupSettings(values)
 	if err != nil {
 		return err
@@ -239,6 +255,7 @@ func UpdateGroupSettings(values GroupSettingsValues) error {
 		"GroupGroupRatio":                values.GroupGroupRatio,
 		"ImageSizeGroupPrices":           normalizedImageSizeGroupPrices(values.ImageSizeGroupPrices),
 		"ImageTokenBillingGroups":        normalizedImageTokenBillingGroups(values.ImageTokenBillingGroups),
+		"ImageTokenGroupPrices":          values.ImageTokenGroupPrices,
 		"AutoGroups":                     values.AutoGroups,
 		"DefaultUseAutoGroup":            common.Interface2String(values.DefaultUseAutoGroup),
 		GroupSpecialUsableGroupOptionKey: values.GroupSpecialUsableGroup,
@@ -247,7 +264,7 @@ func UpdateGroupSettings(values GroupSettingsValues) error {
 
 func IsGroupSettingsOptionKey(key string) bool {
 	switch key {
-	case "UserGroups", "GroupRatio", "TopupGroupRatio", "UserUsableGroups", "GroupGroupRatio", "ImageSizeGroupPrices", "ImageTokenBillingGroups", "AutoGroups", GroupSpecialUsableGroupOptionKey:
+	case "UserGroups", "GroupRatio", "TopupGroupRatio", "UserUsableGroups", "GroupGroupRatio", "ImageSizeGroupPrices", "ImageTokenBillingGroups", "ImageTokenGroupPrices", "AutoGroups", GroupSpecialUsableGroupOptionKey:
 		return true
 	default:
 		return false
@@ -275,6 +292,8 @@ func ValidateGroupOptionUpdate(key, value string) error {
 		current.ImageSizeGroupPrices = value
 	case "ImageTokenBillingGroups":
 		current.ImageTokenBillingGroups = value
+	case "ImageTokenGroupPrices":
+		current.ImageTokenGroupPrices = value
 	case "AutoGroups":
 		current.AutoGroups = value
 	case GroupSpecialUsableGroupOptionKey:

@@ -159,7 +159,26 @@ function BillingBreakdown(props: {
   const fmtPrice = (usd: number) => formatBillingCurrencyFromUSD(usd, priceOpts)
   const baseInputUSD = other.model_ratio != null ? other.model_ratio * 2.0 : 0
 
-  if (isTieredExpr) {
+  if (other.image_token_prices) {
+    rows.push({
+      label: t('Billing Mode'),
+      value: t('Image token prices by group'),
+    })
+    for (const [key, label] of [
+      ['input', 'Text input'],
+      ['output', 'Text output'],
+      ['image_input', 'Image input'],
+      ['image_output', 'Image output'],
+      ['cached_input', 'Cached text input'],
+      ['cached_image_input', 'Cached image input'],
+      ['cache_creation', 'Cache creation'],
+    ] as const) {
+      rows.push({
+        label: t(label),
+        value: `${fmtPrice(other.image_token_prices[key])}/M`,
+      })
+    }
+  } else if (isTieredExpr) {
     rows.push({
       label: t('Billing Mode'),
       value: t('Dynamic Pricing'),
@@ -217,7 +236,12 @@ function BillingBreakdown(props: {
     })
   }
 
-  if (!isTieredExpr && isClaude && hasAnyCacheTokens(other)) {
+  if (
+    !other.image_token_prices &&
+    !isTieredExpr &&
+    isClaude &&
+    hasAnyCacheTokens(other)
+  ) {
     if (other.cache_ratio != null && other.cache_ratio !== 1) {
       rows.push({
         label: t('Cache Read'),
@@ -253,7 +277,7 @@ function BillingBreakdown(props: {
     }
   }
 
-  if (!isTieredExpr) {
+  if (!isTieredExpr && !other.image_token_prices) {
     if (other.audio_ratio != null && other.audio_ratio !== 1) {
       rows.push({
         label: t('Audio input'),

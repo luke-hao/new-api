@@ -22,6 +22,7 @@ import (
 )
 
 type textQuotaSummary struct {
+	GeneratedImages          int
 	PromptTokens             int
 	CompletionTokens         int
 	TotalTokens              int
@@ -204,6 +205,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		}
 	}
 
+	if usage.GeneratedImages != nil {
+		summary.GeneratedImages = max(*usage.GeneratedImages, 0)
+	}
 	summary.PromptTokens = usage.PromptTokens
 	summary.CompletionTokens = usage.CompletionTokens
 	summary.TotalTokens = usage.PromptTokens + usage.CompletionTokens
@@ -251,7 +255,10 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	summary.ToolCallSurchargeQuota = calculateTextToolCallSurcharge(ctx, relayInfo, &summary)
 
 	var audioInputQuota decimal.Decimal
-	if !relayInfo.PriceData.UsePrice {
+	if price := relayInfo.PriceData.ImageTokenPrice; price != nil {
+		cost := imageTokenCost(usage, *price).Mul(dGroupRatio).Mul(dQuotaPerUnit).Add(summary.ToolCallSurchargeQuota)
+		summary.Quota = safeRoundedTextQuota(ctx, relayInfo, "image token quota", cost)
+	} else if !relayInfo.PriceData.UsePrice {
 		baseTokens := dPromptTokens
 
 		var cachedTokensWithRatio decimal.Decimal
@@ -312,6 +319,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		summary.Quota = safeRoundedTextQuota(ctx, relayInfo, "text quota", quotaCalculateDecimal)
 	} else {
 		quotaCalculateDecimal := dModelPrice.Mul(dQuotaPerUnit).Mul(dGroupRatio)
+		if relayInfo.PriceData.ImageSizePriceOverride && usage.GeneratedImages != nil {
+			quotaCalculateDecimal = quotaCalculateDecimal.Mul(decimal.NewFromInt(int64(max(*usage.GeneratedImages, 0))))
+		}
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(summary.ToolCallSurchargeQuota)
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(audioInputQuota)
 		if len(relayInfo.PriceData.OtherRatios) > 0 {
@@ -324,7 +334,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 
 	if !hasBillableTextQuota(summary) {
 		summary.Quota = 0
-	} else if !ratio.IsZero() && summary.Quota == 0 {
+	} else if !ratio.IsZero() && summary.Quota == 0 && relayInfo.PriceData.ImageTokenPrice == nil {
 		summary.Quota = 1
 	}
 
@@ -350,7 +360,7 @@ func HasBillableClaudeUsage(usage *dto.Usage) bool {
 }
 
 func hasBillableTextQuota(summary textQuotaSummary) bool {
-	return summary.TotalTokens > 0 || (summary.IsClaudeUsageSemantic &&
+	return summary.GeneratedImages > 0 || summary.TotalTokens > 0 || (summary.IsClaudeUsageSemantic &&
 		(summary.CacheTokens > 0 || summary.CacheCreationTokens > 0 || summary.CacheCreationTokens5m > 0 || summary.CacheCreationTokens1h > 0))
 }
 
@@ -527,6 +537,15 @@ func postTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		// reliable total input value and tagged the usage source. Do not infer it from
 		// prompt/cache fields here, otherwise old upstream payloads may be double-counted.
 		other["input_tokens_total"] = usage.InputTokens
+	}
+	if relayInfo.PriceData.ImageTokenPrice != nil {
+		other["image_token_prices"] = relayInfo.PriceData.ImageTokenPrice
+		other["image_token_cost_usd"] = imageTokenCost(usage, *relayInfo.PriceData.ImageTokenPrice).String()
+		other["image_output_tokens"] = usage.CompletionTokenDetails.ImageTokens
+		other["cached_token_details"] = usage.PromptTokensDetails.CachedTokensDetails
+	}
+	if usage.GeneratedImages != nil {
+		other["generated_images"] = *usage.GeneratedImages
 	}
 	if tieredBillingApplied {
 		InjectTieredBillingInfo(other, relayInfo, tieredResult)

@@ -1028,6 +1028,8 @@ func buildUsageFromGeminiMetadata(metadata dto.GeminiUsageMetadata, fallbackProm
 	for _, detail := range metadata.PromptTokensDetails {
 		if detail.Modality == "AUDIO" {
 			usage.PromptTokensDetails.AudioTokens += detail.TokenCount
+		} else if detail.Modality == "IMAGE" {
+			usage.PromptTokensDetails.ImageTokens += detail.TokenCount
 		} else if detail.Modality == "TEXT" {
 			usage.PromptTokensDetails.TextTokens += detail.TokenCount
 		}
@@ -1035,8 +1037,20 @@ func buildUsageFromGeminiMetadata(metadata dto.GeminiUsageMetadata, fallbackProm
 	for _, detail := range metadata.ToolUsePromptTokensDetails {
 		if detail.Modality == "AUDIO" {
 			usage.PromptTokensDetails.AudioTokens += detail.TokenCount
+		} else if detail.Modality == "IMAGE" {
+			usage.PromptTokensDetails.ImageTokens += detail.TokenCount
 		} else if detail.Modality == "TEXT" {
 			usage.PromptTokensDetails.TextTokens += detail.TokenCount
+		}
+	}
+	if len(metadata.CacheTokensDetails) > 0 {
+		usage.PromptTokensDetails.CachedTokensDetails = &dto.CachedTokenDetails{}
+		for _, detail := range metadata.CacheTokensDetails {
+			if detail.Modality == "IMAGE" {
+				usage.PromptTokensDetails.CachedTokensDetails.ImageTokens += detail.TokenCount
+			} else if detail.Modality == "TEXT" {
+				usage.PromptTokensDetails.CachedTokensDetails.TextTokens += detail.TokenCount
+			}
 		}
 	}
 	for _, detail := range metadata.CandidatesTokensDetails {
@@ -1054,7 +1068,7 @@ func buildUsageFromGeminiMetadata(metadata dto.GeminiUsageMetadata, fallbackProm
 		usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
 	}
 
-	if usage.PromptTokens > 0 && usage.PromptTokensDetails.TextTokens == 0 && usage.PromptTokensDetails.AudioTokens == 0 {
+	if usage.PromptTokens > 0 && usage.PromptTokensDetails.TextTokens == 0 && usage.PromptTokensDetails.AudioTokens == 0 && usage.PromptTokensDetails.ImageTokens == 0 {
 		usage.PromptTokensDetails.TextTokens = usage.PromptTokens
 	}
 
@@ -1360,7 +1374,7 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		// 统计图片数量
 		for _, candidate := range geminiResponse.Candidates {
 			for _, part := range candidate.Content.Parts {
-				if part.InlineData != nil && part.InlineData.MimeType != "" {
+				if part.InlineData != nil && strings.HasPrefix(part.InlineData.MimeType, "image/") && part.InlineData.Data != "" && !part.Thought {
 					imageCount++
 				}
 				if part.Text != "" {
@@ -1371,7 +1385,7 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 
 		// 更新使用量统计
 		if geminiResponse.UsageMetadata.TotalTokenCount != 0 {
-			mappedUsage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, info.GetEstimatePromptTokens())
+			mappedUsage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, geminiUsagePromptEstimate(info))
 			*usage = mappedUsage
 		}
 
@@ -1380,13 +1394,13 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		}
 	})
 
-	if imageCount != 0 {
+	if imageCount != 0 && info.PriceData.ImageTokenPrice == nil {
 		if usage.CompletionTokens == 0 {
 			usage.CompletionTokens = imageCount * 1400
 		}
 	}
 
-	if usage.CompletionTokens <= 0 {
+	if usage.CompletionTokens <= 0 && info.PriceData.ImageTokenPrice == nil {
 		if info.ReceivedResponseCount > 0 {
 			usage = service.ResponseText2Usage(c, responseText.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
 		} else {
@@ -1394,6 +1408,7 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		}
 	}
 
+	usage.GeneratedImages = &imageCount
 	return usage, nil
 }
 
@@ -1514,8 +1529,10 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
 	if len(geminiResponse.Candidates) == 0 {
-		usage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, info.GetEstimatePromptTokens())
+		usage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, geminiUsagePromptEstimate(info))
 
+		imageCount := 0
+		usage.GeneratedImages = &imageCount
 		var newAPIError *types.NewAPIError
 		if geminiResponse.PromptFeedback != nil && geminiResponse.PromptFeedback.BlockReason != nil {
 			common.SetContextKey(c, constant.ContextKeyAdminRejectReason, fmt.Sprintf("gemini_block_reason=%s", *geminiResponse.PromptFeedback.BlockReason))
@@ -1550,8 +1567,17 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 	}
 	fullTextResponse := responseGeminiChat2OpenAI(c, &geminiResponse)
 	fullTextResponse.Model = info.UpstreamModelName
-	usage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, info.GetEstimatePromptTokens())
+	usage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, geminiUsagePromptEstimate(info))
 
+	imageCount := 0
+	for _, candidate := range geminiResponse.Candidates {
+		for _, part := range candidate.Content.Parts {
+			if part.InlineData != nil && strings.HasPrefix(part.InlineData.MimeType, "image/") && part.InlineData.Data != "" && !part.Thought {
+				imageCount++
+			}
+		}
+	}
+	usage.GeneratedImages = &imageCount
 	fullTextResponse.Usage = usage
 
 	switch info.RelayFormat {
@@ -1805,4 +1831,11 @@ func convertToolChoiceToGeminiConfig(toolChoice any) *dto.ToolConfig {
 
 	// Unsupported type, return nil
 	return nil
+}
+
+func geminiUsagePromptEstimate(info *relaycommon.RelayInfo) int {
+	if info.PriceData.ImageTokenPrice != nil {
+		return 0
+	}
+	return info.GetEstimatePromptTokens()
 }

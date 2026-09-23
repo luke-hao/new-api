@@ -199,6 +199,15 @@ export function buildLogDetailSegments(
         muted: true,
       })
     }
+  } else if (other.image_token_prices) {
+    const prices = other.image_token_prices
+    segments.push({
+      text: `${t('Image token prices by group')} · ${t('Text input')} ${formatPrice(prices.input)} · ${t('Text output')} ${formatPrice(prices.output)}`,
+    })
+    segments.push({
+      text: `${t('Image input')} ${formatPrice(prices.image_input)} · ${t('Image output')} ${formatPrice(prices.image_output)}`,
+      muted: true,
+    })
   } else {
     const isPerCall = isPerCallBilling(other.model_price)
     if (isPerCall) {

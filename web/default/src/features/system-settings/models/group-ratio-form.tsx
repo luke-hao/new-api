@@ -62,6 +62,7 @@ import { safeJsonParse } from '../utils/json-parser'
 import { GroupRatioVisualEditor } from './group-ratio-visual-editor'
 import { GroupSpecialUsableRulesEditor } from './group-special-usable-editor'
 import { ImageSizePriceOverridesEditor } from './image-size-price-overrides-editor'
+import { ImageTokenPricesEditor } from './image-token-prices-editor'
 
 type GroupFormValues = {
   UserGroups: string
@@ -70,6 +71,7 @@ type GroupFormValues = {
   UserUsableGroups: string
   GroupGroupRatio: string
   ImageSizeGroupPrices: string
+  ImageTokenGroupPrices: string
   ImageTokenBillingGroups: string
   AutoGroups: string
   DefaultUseAutoGroup: boolean
@@ -163,7 +165,7 @@ export const GroupRatioForm = memo(function GroupRatioForm({
             onClick={form.handleSubmit(onSave)}
             disabled={isSaving}
           >
-            {isSaving ? t('Saving...') : t('Save group ratios')}
+            {isSaving ? t('Saving...') : t('Save group settings')}
           </Button>
         </SettingsPageActionsPortal>
         {editMode === 'visual' ? (
@@ -180,15 +182,25 @@ export const GroupRatioForm = memo(function GroupRatioForm({
               }
             />
 
+            <ImageTokenPricesEditor
+              value={form.watch('ImageTokenGroupPrices')}
+              onChange={(value) =>
+                handleFieldChange('ImageTokenGroupPrices', value)
+              }
+              groups={billingGroupNames}
+              groupRatios={groupRatioValue}
+              modelsByGroup={modelsByGroup}
+              tokenGroups={form.watch('ImageTokenBillingGroups')}
+              onTokenGroupsChange={(value) =>
+                handleFieldChange('ImageTokenBillingGroups', value)
+              }
+            />
             <ImageSizePriceOverridesEditor
               value={form.watch('ImageSizeGroupPrices')}
               userGroups={userGroupNames}
               billingGroups={billingGroupNames}
               modelsByGroup={modelsByGroup}
               tokenBillingGroups={form.watch('ImageTokenBillingGroups')}
-              onTokenBillingGroupsChange={(value) =>
-                handleFieldChange('ImageTokenBillingGroups', value)
-              }
               onChange={(value) =>
                 handleFieldChange('ImageSizeGroupPrices', value)
               }
@@ -334,6 +346,19 @@ export const GroupRatioForm = memo(function GroupRatioForm({
                   <FormLabel>
                     {t('Image')} {t('Fixed price')}
                   </FormLabel>
+                  <FormControl>
+                    <Textarea rows={10} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='ImageTokenGroupPrices'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Image token prices by group')}</FormLabel>
                   <FormControl>
                     <Textarea rows={10} {...field} />
                   </FormControl>

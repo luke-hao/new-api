@@ -53,6 +53,11 @@ func trimModelThinking(modelName string) string {
 
 func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
 	info.InitChannelMeta(c)
+	if helper.IsImageTokenBillingModel(info.OriginModelName) {
+		if _, err := helper.ModelPriceHelper(c, info, info.GetEstimatePromptTokens(), info.Request.GetTokenCountMeta()); err != nil {
+			return types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithSkipRetry())
+		}
+	}
 
 	geminiReq, ok := info.Request.(*dto.GeminiChatRequest)
 	if !ok {

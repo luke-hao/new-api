@@ -149,6 +149,7 @@ func InitOptionMap() {
 	common.OptionMap["GroupGroupRatio"] = ratio_setting.GroupGroupRatio2JSONString()
 	common.OptionMap["ImageSizeGroupPrices"] = ratio_setting.ImageSizeGroupPrices2JSONString()
 	common.OptionMap["ImageTokenBillingGroups"] = ratio_setting.ImageTokenBillingGroups2JSONString()
+	common.OptionMap["ImageTokenGroupPrices"] = ratio_setting.ImageTokenGroupPrices2JSONString()
 	common.OptionMap["UserGroups"] = setting.UserGroups2JSONString()
 	common.OptionMap["UserUsableGroups"] = setting.UserUsableGroups2JSONString()
 	common.OptionMap["CompletionRatio"] = ratio_setting.CompletionRatio2JSONString()
@@ -190,6 +191,9 @@ func InitOptionMap() {
 	common.OptionMapRWMutex.Unlock()
 	loadOptionsFromDatabase()
 	if common.IsMasterNode {
+		if err := bootstrapImageTokenGroupPrices(); err != nil {
+			common.SysLog("failed to migrate image token group prices: " + err.Error())
+		}
 		if err := bootstrapUserGroupsOption(); err != nil {
 			common.SysLog("failed to bootstrap user identity groups: " + err.Error())
 		}
@@ -543,6 +547,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = ratio_setting.UpdateImageSizeGroupPricesByJSONString(value)
 	case "ImageTokenBillingGroups":
 		err = ratio_setting.UpdateImageTokenBillingGroupsByJSONString(value)
+	case "ImageTokenGroupPrices":
+		err = ratio_setting.UpdateImageTokenGroupPricesByJSONString(value)
 	case "UserGroups":
 		err = setting.UpdateUserGroupsByJSONString(value)
 	case "UserUsableGroups":

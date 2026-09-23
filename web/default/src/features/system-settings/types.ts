@@ -46,6 +46,7 @@ export type GroupSettingsUpdateRequest = {
   UserUsableGroups: string
   GroupGroupRatio: string
   ImageSizeGroupPrices: string
+  ImageTokenGroupPrices: string
   ImageTokenBillingGroups: string
   AutoGroups: string
   DefaultUseAutoGroup: boolean
@@ -188,6 +189,7 @@ export type ModelSettings = {
   UserUsableGroups: string
   GroupGroupRatio: string
   ImageSizeGroupPrices: string
+  ImageTokenGroupPrices: string
   ImageTokenBillingGroups: string
   AutoGroups: string
   DefaultUseAutoGroup: boolean
@@ -236,6 +238,7 @@ export type BillingSettings = {
   UserUsableGroups: string
   GroupGroupRatio: string
   ImageSizeGroupPrices: string
+  ImageTokenGroupPrices: string
   ImageTokenBillingGroups: string
   AutoGroups: string
   DefaultUseAutoGroup: boolean

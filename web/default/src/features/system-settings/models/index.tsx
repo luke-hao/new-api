@@ -61,6 +61,7 @@ const defaultModelSettings: ModelSettings = {
   UserUsableGroups: '',
   GroupGroupRatio: '',
   ImageSizeGroupPrices: '{}',
+  ImageTokenGroupPrices: '{}',
   ImageTokenBillingGroups: '[]',
   AutoGroups: '',
   DefaultUseAutoGroup: false,

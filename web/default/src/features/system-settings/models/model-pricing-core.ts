@@ -48,6 +48,7 @@ export type LaneKey =
   | 'audioOutput'
 
 export type ModelRatioData = {
+  tokenPriceGroups?: string[]
   name: string
   price?: string
   ratio?: string

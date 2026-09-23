@@ -48,6 +48,7 @@ import {
   useDataTable,
 } from '@/components/data-table'
 import { combineBillingExpr } from '@/features/pricing/lib/billing-expr'
+import { useSystemOptions } from '../hooks/use-system-options'
 import { safeJsonParse } from '../utils/json-parser'
 import {
   ModelPricingEditorPanel,
@@ -127,6 +128,26 @@ const ModelRatioVisualEditorComponent = forwardRef<
 ) {
   const { t } = useTranslation()
   const isMobile = useMediaQuery('(max-width: 767px)')
+  const { data: options } = useSystemOptions()
+  const groupTokenModels = useMemo(() => {
+    const data = options?.data ?? []
+    const groups = safeJsonParse<string[]>(
+      data.find((item) => item.key === 'ImageTokenBillingGroups')?.value ??
+        '[]',
+      { fallback: [], silent: true }
+    )
+    const prices = safeJsonParse<Record<string, Record<string, unknown>>>(
+      data.find((item) => item.key === 'ImageTokenGroupPrices')?.value ?? '{}',
+      { fallback: {}, silent: true }
+    )
+    const result: Record<string, string[]> = {}
+    for (const group of groups)
+      for (const model of Object.keys(prices[group] ?? {})) {
+        result[model] ??= []
+        result[model].push(group)
+      }
+    return result
+  }, [options])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editData, setEditData] = useState<ModelRatioData | null>(null)
@@ -204,6 +225,10 @@ const ModelRatioVisualEditorComponent = forwardRef<
       billingExpr,
     })
 
+    for (const row of [...savedRows, ...draftRows]) {
+      row.tokenPriceGroups = groupTokenModels[row.name]
+      if (row.tokenPriceGroups?.length) row.hasConflict = false
+    }
     const savedByName = new Map(savedRows.map((row) => [row.name, row]))
     const draftByName = new Map(draftRows.map((row) => [row.name, row]))
     const modelNames = new Set([...savedByName.keys(), ...draftByName.keys()])
@@ -227,6 +252,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       })
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [
+    groupTokenModels,
     savedModelPrice,
     savedModelRatio,
     savedCacheRatio,
@@ -275,6 +301,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
       const editableModel = model.draft ?? model.saved ?? model
       setEditData({
         name: editableModel.name,
+        tokenPriceGroups: editableModel.tokenPriceGroups,
         price: editableModel.price,
         ratio: editableModel.ratio,
         cacheRatio: editableModel.cacheRatio,

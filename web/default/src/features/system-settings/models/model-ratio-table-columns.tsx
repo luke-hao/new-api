@@ -89,6 +89,14 @@ export function buildModelRatioColumns({
               className='shrink-0'
             />
           )}
+          {Boolean(row.original.tokenPriceGroups?.length) && (
+            <StatusBadge
+              label={t('Group pricing')}
+              variant='info'
+              copyable={false}
+              className='shrink-0'
+            />
+          )}
           {row.original.hasConflict && (
             <StatusBadge
               label={t('Conflict')}

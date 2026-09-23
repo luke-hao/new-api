@@ -109,3 +109,12 @@
 ## 渠道按原因恢复
 
 见 `docs/channel-recovery.md`：独立调度、五类规则、事务防止旧测试结果误恢复，default/classic 均可设置。
+
+## 分组生图计费（2026-09-23）
+
+- `ImageTokenBillingGroups` 指定按 Token 计费的生图分组；`ImageTokenGroupPrices` 按计费分组、原始请求模型保存独立的美元／百万 Token 单价。文本输入输出、图片输入输出、文本与图片缓存命中、缓存写入分别计价，最后乘有效分组倍率。
+- 首次升级把旧版已开启分组的三个 GPT image 模型倍率复制到独立配置；保留旧全局配置以支持镜像回退。此后全局模型价格编辑不影响分组 Token 价格；缺少独立单价时提示配置，避免按错误单价扣费。
+- `ImageSizeGroupPrices` 仍按用户身份分组、`生图分组-` 计费分组、模型、1K/2K/4K 保存绝对美元／张价格，覆盖时有效倍率为 1。分组开启 Token 计费后按张覆盖暂停生效。
+- `/api/group/image-models` 从启用渠道枚举生图模型，包含 Gemini/nano-banana。Gemini 原生 `imageConfig` 与兼容接口 `extra_body.google.image_config` 共同参与尺寸匹配；原生返回中的图片计数排除思考图片和音频，流式与非流式都按实际张数结算。
+- Token 单价在请求时固定快照；缓存是输入子集，不重复收费。上游没有缓存模态拆分时先匹配文本缓存，再匹配图片；缺少真实 Token 用量时不推算图片 Token。
+- 默认主题“计费设置 → 分组定价”提供 Token 单价编辑器；“模型价格”只编辑全局兜底价格，并提示独立分组价格。`scripts/test-image-group-pricing.mjs` 通过模拟管理接口验证桌面与手机保存隔离，不写生产设置。

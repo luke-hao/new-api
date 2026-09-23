@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/billing_setting"
+	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -37,12 +38,8 @@ func modelPriceNotConfiguredError(modelName string, userId int) error {
 const claudeCacheCreation1hMultiplier = 6 / 3.75
 
 func IsImageTokenBillingModel(modelName string) bool {
-	switch modelName {
-	case "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst":
-		return true
-	default:
-		return false
-	}
+	value := strings.ToLower(modelName)
+	return model_setting.IsGeminiModelSupportImagine(modelName) || strings.Contains(value, "gpt-image-") || strings.Contains(value, "chatgpt-image") || strings.Contains(value, "dall-e") || strings.Contains(value, "imagen-") || strings.HasPrefix(value, "flux") || strings.Contains(value, "seedream")
 }
 
 // HandleGroupRatio checks for "auto_group" in the context and updates the group ratio and relayInfo.UsingGroup if present
@@ -75,11 +72,22 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 }
 
 func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens int, meta *types.TokenCountMeta) (types.PriceData, error) {
+	meta = imageRequestPricingMeta(info, meta)
 	modelPrice, usePrice := ratio_setting.GetModelPrice(info.OriginModelName, false)
 	groupRatioInfo := HandleGroupRatio(c, info)
 	groupImageTokenBilling := IsImageTokenBillingModel(info.OriginModelName) && ratio_setting.IsImageTokenBillingGroup(info.UsingGroup)
+	var tokenPrice *types.ImageTokenPrice
 	if groupImageTokenBilling {
+		price, ok := ratio_setting.GetImageTokenGroupPrice(info.UsingGroup, info.OriginModelName)
+		if !ok {
+			return types.PriceData{}, fmt.Errorf("请在分组生图 Token 价格中配置 %s / %s 的单价", info.UsingGroup, info.OriginModelName)
+		}
+		tokenPrice = &price
+		modelPrice = -1
 		usePrice = false
+	}
+	if IsImageTokenBillingModel(info.OriginModelName) {
+		info.TieredBillingSnapshot = nil
 	}
 
 	imageSizePriceTier := meta.ImagePriceTier
@@ -111,7 +119,20 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 	var audioCompletionRatio float64
 	var freeModel bool
 	var err error
-	if !usePrice {
+	if tokenPrice != nil {
+		modelRatio = tokenPrice.Input / 2
+		if tokenPrice.Input > 0 {
+			completionRatio = tokenPrice.Output / tokenPrice.Input
+			imageRatio = tokenPrice.ImageInput / tokenPrice.Input
+			cacheRatio = tokenPrice.CachedInput / tokenPrice.Input
+			cacheCreationRatio = tokenPrice.CacheCreation / tokenPrice.Input
+		}
+		rate := max(tokenPrice.Input, tokenPrice.Output, tokenPrice.ImageInput, tokenPrice.ImageOutput, tokenPrice.CachedInput, tokenPrice.CachedImageInput, tokenPrice.CacheCreation)
+		preConsumedQuota, err = common.SafeNonNegativeFloatToInt("image token pre-consumed quota", float64(max(promptTokens, common.PreConsumedQuota, meta.MaxTokens))*rate/1000000*common.QuotaPerUnit*groupRatioInfo.GroupRatio)
+		if err != nil {
+			return types.PriceData{}, err
+		}
+	} else if !usePrice {
 		preConsumedTokens := common.Max(promptTokens, common.PreConsumedQuota)
 		if meta.MaxTokens != 0 {
 			preConsumedTokens, err = common.SafeAddInt("pre-consumed tokens", preConsumedTokens, meta.MaxTokens)
@@ -167,7 +188,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 				freeModel = true
 			}
 		} else {
-			if modelRatio == 0 {
+			if modelRatio == 0 && (tokenPrice == nil || *tokenPrice == (types.ImageTokenPrice{})) {
 				preConsumedQuota = 0
 				freeModel = true
 			}
@@ -175,6 +196,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 	}
 
 	priceData := types.PriceData{
+		ImageTokenPrice:        tokenPrice,
 		FreeModel:              freeModel,
 		ModelPrice:             modelPrice,
 		ModelRatio:             modelRatio,

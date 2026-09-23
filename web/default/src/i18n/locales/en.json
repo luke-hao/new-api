@@ -4996,6 +4996,25 @@
     "Authentication or permission error": "Authentication or permission error",
     "Other channel errors": "Other channel errors",
     "Recovery interval (minutes)": "Recovery interval (minutes)",
-    "Consecutive successful checks": "Consecutive successful checks"
+    "Consecutive successful checks": "Consecutive successful checks",
+    "Image token prices by group": "Image token prices by group",
+    "Image token prices are saved separately for each billing group and model. Global model price changes do not overwrite them.": "Image token prices are saved separately for each billing group and model. Global model price changes do not overwrite them.",
+    "Image token billing group": "Image token billing group",
+    "Image token model": "Image token model",
+    "Bill images in this group by tokens": "Bill images in this group by tokens",
+    "Prices below use USD per 1M tokens, before the group multiplier. Group multiplier: {{ratio}}. User-specific group multipliers take precedence.": "Prices below use USD per 1M tokens, before the group multiplier. Group multiplier: {{ratio}}. User-specific group multipliers take precedence.",
+    "Token billing is off for this group. These prices are kept for later; per-image or global pricing currently applies.": "Token billing is off for this group. These prices are kept for later; per-image or global pricing currently applies.",
+    "Fill every price field for each model used in a token billing group. Zero means free. Save group settings to apply. Per-image prices do not apply while token billing is on.": "Fill every price field for each model used in a token billing group. Zero means free. Save group settings to apply. Per-image prices do not apply while token billing is on.",
+    "Token billing is enabled for this group; the per-image prices below are inactive.": "Token billing is enabled for this group; the per-image prices below are inactive.",
+    "Text input": "Text input",
+    "Text output": "Text output",
+    "Image output": "Image output",
+    "Cached text input": "Cached text input",
+    "Cached image input": "Cached image input",
+    "Cache creation": "Cache creation",
+    "Group pricing": "Group pricing",
+    "This is the global fallback price. Separate image token prices apply in: {{groups}}. Edit them in Billing settings → Group pricing.": "This is the global fallback price. Separate image token prices apply in: {{groups}}. Edit them in Billing settings → Group pricing.",
+    "Billing group": "Billing group",
+    "Save group settings": "Save group settings"
   }
 }

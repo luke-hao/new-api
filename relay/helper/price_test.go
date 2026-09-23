@@ -125,6 +125,7 @@ func TestImageModelsUseTokenBillingOnlyInConfiguredGroup(t *testing.T) {
 	originalImage := ratio_setting.ImageRatio2JSONString()
 	originalSizePrices := ratio_setting.ImageSizeGroupPrices2JSONString()
 	originalTokenGroups := ratio_setting.ImageTokenBillingGroups2JSONString()
+	originalTokenPrices := ratio_setting.ImageTokenGroupPrices2JSONString()
 	t.Cleanup(func() {
 		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(originalPrices))
 		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(originalRatios))
@@ -134,6 +135,7 @@ func TestImageModelsUseTokenBillingOnlyInConfiguredGroup(t *testing.T) {
 		require.NoError(t, ratio_setting.UpdateImageRatioByJSONString(originalImage))
 		require.NoError(t, ratio_setting.UpdateImageSizeGroupPricesByJSONString(originalSizePrices))
 		require.NoError(t, ratio_setting.UpdateImageTokenBillingGroupsByJSONString(originalTokenGroups))
+		require.NoError(t, ratio_setting.UpdateImageTokenGroupPricesByJSONString(originalTokenPrices))
 	})
 
 	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"gpt-image-2":0.06,"gpt-image-2.5-flare":0.1,"gpt-image-2.5-sunburst":0.1,"dall-e-3":0.04}`))
@@ -144,6 +146,15 @@ func TestImageModelsUseTokenBillingOnlyInConfiguredGroup(t *testing.T) {
 	require.NoError(t, ratio_setting.UpdateImageRatioByJSONString(`{"gpt-image-2":1.6,"gpt-image-2.5-flare":1.6,"gpt-image-2.5-sunburst":1.6}`))
 	require.NoError(t, ratio_setting.UpdateImageSizeGroupPricesByJSONString(`{"default":{"生图分组-image":{"gpt-image-2":{"4K":0.17}}}}`))
 	require.NoError(t, ratio_setting.UpdateImageTokenBillingGroupsByJSONString(`["OpenAI官key"]`))
+	prices := map[string]map[string]types.ImageTokenPrice{"OpenAI官key": {}}
+	for _, name := range []string{"gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"} {
+		prices["OpenAI官key"][name] = ratio_setting.LegacyImageTokenPrice(name)
+	}
+	serialized, err := common.Marshal(prices)
+	require.NoError(t, err)
+	require.NoError(t, ratio_setting.UpdateImageTokenGroupPricesByJSONString(string(serialized)))
+	// Group rates are independent even when the global editor clears token ratios.
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{}`))
 
 	for _, tc := range []struct {
 		model       string
@@ -196,8 +207,6 @@ func TestImageModelsUseTokenBillingOnlyInConfiguredGroup(t *testing.T) {
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	info := &relaycommon.RelayInfo{OriginModelName: "dall-e-3", UserGroup: "default", UsingGroup: "OpenAI官key"}
-	price, err := ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{})
-	require.NoError(t, err)
-	require.True(t, price.UsePrice)
-	require.Equal(t, 0.04, price.ModelPrice)
+	_, err = ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{})
+	require.ErrorContains(t, err, "dall-e-3")
 }
