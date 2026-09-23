@@ -27,6 +27,12 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 	if !ok {
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected dto.ImageRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
+	if helper.IsImageTokenBillingModel(info.OriginModelName) {
+		// A retry may switch billing groups before reaching the image channel.
+		if _, err := helper.ModelPriceHelper(c, info, info.GetEstimatePromptTokens(), imageReq.GetTokenCountMeta()); err != nil {
+			return types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithSkipRetry())
+		}
+	}
 
 	request, err := common.DeepCopy(imageReq)
 	if err != nil {

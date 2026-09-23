@@ -13,16 +13,22 @@ func TestImageSizeGroupPricesRoundTripAndLookup(t *testing.T) {
 	})
 
 	require.NoError(t, UpdateImageSizeGroupPricesByJSONString(`{
-		"vip": {"image": {"gpt-image-2": {"1K": 0.05, "4K": 0.17}}}
+		"vip": {"生图分组-image": {"gpt-image-2": {"1K": 0.05, "4K": 0.17}}}
 	}`))
 
-	price, ok := GetImageSizeGroupPrice("vip", "image", "gpt-image-2", "4K")
+	price, ok := GetImageSizeGroupPrice("vip", "生图分组-image", "gpt-image-2", "4K")
 	require.True(t, ok)
 	require.InDelta(t, 0.17, price, 1e-12)
-	_, ok = GetImageSizeGroupPrice("vip", "image", "gpt-image-2", "2K")
+	_, ok = GetImageSizeGroupPrice("vip", "生图分组-image", "gpt-image-2", "2K")
 	require.False(t, ok)
-	_, ok = GetImageSizeGroupPrice("default", "image", "gpt-image-2", "4K")
+	_, ok = GetImageSizeGroupPrice("default", "生图分组-image", "gpt-image-2", "4K")
 	require.False(t, ok)
+	require.NoError(t, UpdateImageSizeGroupPricesByJSONString(`{
+		"vip": {"生图分组-image": {"gpt-image-2": {"1K": 0.05}, "gpt-image-2.5-flare": {"1K": 0.09}}}
+	}`))
+	price, ok = GetImageSizeGroupPrice("vip", "生图分组-image", "gpt-image-2.5-flare", "1K")
+	require.True(t, ok)
+	require.Equal(t, 0.09, price)
 }
 
 func TestImageSizeGroupPricesRejectInvalidValues(t *testing.T) {
@@ -30,9 +36,10 @@ func TestImageSizeGroupPricesRejectInvalidValues(t *testing.T) {
 		name  string
 		value string
 	}{
-		{name: "negative price", value: `{"vip":{"image":{"gpt-image-2":{"4K":-0.1}}}}`},
-		{name: "unknown tier", value: `{"vip":{"image":{"gpt-image-2":{"8K":0.1}}}}`},
-		{name: "unknown model", value: `{"vip":{"image":{"other-model":{"4K":0.1}}}}`},
+		{name: "negative price", value: `{"vip":{"生图分组-image":{"gpt-image-2":{"4K":-0.1}}}}`},
+		{name: "unknown tier", value: `{"vip":{"生图分组-image":{"gpt-image-2":{"8K":0.1}}}}`},
+		{name: "empty model", value: `{"vip":{"生图分组-image":{"":{"4K":0.1}}}}`},
+		{name: "non-image group", value: `{"vip":{"OpenAI官key":{"gpt-image-2":{"4K":0.1}}}}`},
 	}
 
 	for _, tt := range tests {

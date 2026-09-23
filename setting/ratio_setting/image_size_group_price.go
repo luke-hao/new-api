@@ -8,8 +8,6 @@ import (
 	"sync"
 )
 
-const GPTImage2ModelName = "gpt-image-2"
-
 type ImageSizeGroupPrices map[string]map[string]map[string]map[string]float64
 
 var (
@@ -41,12 +39,12 @@ func ValidateImageSizeGroupPrices(prices ImageSizeGroupPrices) error {
 			return fmt.Errorf("image size price user group cannot be empty")
 		}
 		for usingGroup, models := range usingGroups {
-			if strings.TrimSpace(usingGroup) == "" {
-				return fmt.Errorf("image size price billing group cannot be empty")
+			if !strings.HasPrefix(usingGroup, "生图分组-") {
+				return fmt.Errorf("image size price billing group must start with 生图分组-: %s", usingGroup)
 			}
 			for modelName, tiers := range models {
-				if modelName != GPTImage2ModelName {
-					return fmt.Errorf("image size prices only support model %s: %s", GPTImage2ModelName, modelName)
+				if strings.TrimSpace(modelName) == "" || modelName != strings.TrimSpace(modelName) {
+					return fmt.Errorf("invalid image size price model: %q", modelName)
 				}
 				for tier, price := range tiers {
 					switch tier {

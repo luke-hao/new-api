@@ -23,9 +23,10 @@ func validGroupSettings(t *testing.T) GroupSettingsValues {
 			"vip":     "VIP users",
 		}),
 		GroupRatio: mustJSONString(t, map[string]float64{
-			"default": 1,
-			"vip":     0.8,
-			"premium": 0.5,
+			"default":      1,
+			"vip":          0.8,
+			"premium":      0.5,
+			"生图分组-premium": 0.5,
 		}),
 		TopupGroupRatio: mustJSONString(t, map[string]float64{
 			"default": 1,
@@ -40,13 +41,14 @@ func validGroupSettings(t *testing.T) GroupSettingsValues {
 		}),
 		ImageSizeGroupPrices: mustJSONString(t, ratio_setting.ImageSizeGroupPrices{
 			"vip": {
-				"premium": {
+				"生图分组-premium": {
 					"gpt-image-2": {"1K": 0.05, "2K": 0.11, "4K": 0.17},
 				},
 			},
 		}),
-		AutoGroups:          mustJSONString(t, []string{"default", "premium"}),
-		DefaultUseAutoGroup: true,
+		ImageTokenBillingGroups: mustJSONString(t, []string{"premium"}),
+		AutoGroups:              mustJSONString(t, []string{"default", "premium"}),
+		DefaultUseAutoGroup:     true,
 		GroupSpecialUsableGroup: mustJSONString(t, map[string]map[string]string{
 			"vip": {"+:premium": "Premium billing"},
 		}),
@@ -56,13 +58,13 @@ func validGroupSettings(t *testing.T) GroupSettingsValues {
 func TestValidateGroupSettingsValidatesImageSizePrices(t *testing.T) {
 	values := validGroupSettings(t)
 	values.ImageSizeGroupPrices = mustJSONString(t, ratio_setting.ImageSizeGroupPrices{
-		"missing": {"premium": {"gpt-image-2": {"4K": 0.17}}},
+		"missing": {"生图分组-premium": {"gpt-image-2": {"4K": 0.17}}},
 	})
 	require.ErrorContains(t, ValidateGroupSettings(values), "unregistered user group")
 
 	values = validGroupSettings(t)
 	values.ImageSizeGroupPrices = mustJSONString(t, ratio_setting.ImageSizeGroupPrices{
-		"vip": {"missing": {"gpt-image-2": {"4K": 0.17}}},
+		"vip": {"生图分组-missing": {"gpt-image-2": {"4K": 0.17}}},
 	})
 	require.ErrorContains(t, ValidateGroupSettings(values), "not a billing group")
 
@@ -77,6 +79,13 @@ func TestValidateGroupSettingsValidatesImageSizePrices(t *testing.T) {
 		"vip": {native4KImageGroup: {"gpt-image-2": {"2K": 0.11}}},
 	})
 	require.ErrorContains(t, ValidateGroupSettings(values), "only supports the 4K price tier")
+}
+
+func TestValidateGroupSettingsValidatesImageTokenBillingGroups(t *testing.T) {
+	values := validGroupSettings(t)
+	require.NoError(t, ValidateGroupSettings(values))
+	values.ImageTokenBillingGroups = `["missing"]`
+	require.ErrorContains(t, ValidateGroupSettings(values), "not a billing group")
 }
 
 func TestValidateGroupSettingsAllowsSameNameInBothRoles(t *testing.T) {

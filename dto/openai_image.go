@@ -131,11 +131,10 @@ func indexComma(s string) int {
 func (i *ImageRequest) GetTokenCountMeta() *types.TokenCountMeta {
 	var sizeRatio = 1.0
 	var qualityRatio = 1.0
-	var imagePriceTier string
+	imagePriceTier, _ := GPTImage2SizePriceTier(i.Size)
 
 	if i.Model == "gpt-image-2" {
 		sizeRatio = gptImage2SizePriceRatio(i.Size)
-		imagePriceTier, _ = GPTImage2SizePriceTier(i.Size)
 	} else if strings.HasPrefix(i.Model, "dall-e") {
 		// Size
 		if i.Size == "256x256" {

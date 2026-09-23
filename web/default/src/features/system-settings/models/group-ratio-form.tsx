@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { memo, useCallback, useMemo, useState } from 'react'
 import { type UseFormReturn } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { Code2, Eye, HelpCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -50,6 +51,7 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import { getGroupImageModels } from '../api'
 import {
   SettingsForm,
   SettingsSwitchContent,
@@ -68,6 +70,7 @@ type GroupFormValues = {
   UserUsableGroups: string
   GroupGroupRatio: string
   ImageSizeGroupPrices: string
+  ImageTokenBillingGroups: string
   AutoGroups: string
   DefaultUseAutoGroup: boolean
   GroupSpecialUsableGroup: string
@@ -87,6 +90,10 @@ export const GroupRatioForm = memo(function GroupRatioForm({
   const { t } = useTranslation()
   const [editMode, setEditMode] = useState<'visual' | 'json'>('visual')
   const [guideOpen, setGuideOpen] = useState(false)
+  const { data: modelsByGroup = {} } = useQuery({
+    queryKey: ['group-image-models'],
+    queryFn: getGroupImageModels,
+  })
   const userGroupsValue = form.watch('UserGroups')
   const groupRatioValue = form.watch('GroupRatio')
   const userGroupNames = useMemo(
@@ -177,6 +184,11 @@ export const GroupRatioForm = memo(function GroupRatioForm({
               value={form.watch('ImageSizeGroupPrices')}
               userGroups={userGroupNames}
               billingGroups={billingGroupNames}
+              modelsByGroup={modelsByGroup}
+              tokenBillingGroups={form.watch('ImageTokenBillingGroups')}
+              onTokenBillingGroupsChange={(value) =>
+                handleFieldChange('ImageTokenBillingGroups', value)
+              }
               onChange={(value) =>
                 handleFieldChange('ImageSizeGroupPrices', value)
               }
@@ -324,6 +336,20 @@ export const GroupRatioForm = memo(function GroupRatioForm({
                   </FormLabel>
                   <FormControl>
                     <Textarea rows={10} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='ImageTokenBillingGroups'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Token billing groups')}</FormLabel>
+                  <FormControl>
+                    <Textarea rows={4} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

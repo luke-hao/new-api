@@ -22,6 +22,7 @@ type GroupSettingsValues struct {
 	UserUsableGroups        string `json:"UserUsableGroups"`
 	GroupGroupRatio         string `json:"GroupGroupRatio"`
 	ImageSizeGroupPrices    string `json:"ImageSizeGroupPrices"`
+	ImageTokenBillingGroups string `json:"ImageTokenBillingGroups"`
 	AutoGroups              string `json:"AutoGroups"`
 	DefaultUseAutoGroup     bool   `json:"DefaultUseAutoGroup"`
 	GroupSpecialUsableGroup string `json:"GroupSpecialUsableGroup"`
@@ -34,6 +35,7 @@ type parsedGroupSettings struct {
 	selectableGroups map[string]string
 	groupRatios      map[string]map[string]float64
 	imageSizePrices  ratio_setting.ImageSizeGroupPrices
+	imageTokenGroups []string
 	autoGroups       []string
 	specialGroups    map[string]map[string]string
 }
@@ -46,6 +48,7 @@ func CurrentGroupSettingsValues() GroupSettingsValues {
 		UserUsableGroups:        setting.UserUsableGroups2JSONString(),
 		GroupGroupRatio:         ratio_setting.GroupGroupRatio2JSONString(),
 		ImageSizeGroupPrices:    ratio_setting.ImageSizeGroupPrices2JSONString(),
+		ImageTokenBillingGroups: ratio_setting.ImageTokenBillingGroups2JSONString(),
 		AutoGroups:              setting.AutoGroups2JsonString(),
 		DefaultUseAutoGroup:     setting.DefaultUseAutoGroup,
 		GroupSpecialUsableGroup: ratio_setting.GetGroupRatioSetting().GroupSpecialUsableGroup.MarshalJSONString(),
@@ -87,6 +90,10 @@ func parseGroupSettings(values GroupSettingsValues) (*parsedGroupSettings, error
 	parsed.imageSizePrices, err = ratio_setting.ParseImageSizeGroupPricesJSONString(values.ImageSizeGroupPrices)
 	if err != nil {
 		return nil, fmt.Errorf("invalid image size group prices: %w", err)
+	}
+	parsed.imageTokenGroups, err = ratio_setting.ParseImageTokenBillingGroups(values.ImageTokenBillingGroups)
+	if err != nil {
+		return nil, fmt.Errorf("invalid image token billing groups: %w", err)
 	}
 	if err := common.UnmarshalJsonStr(values.AutoGroups, &parsed.autoGroups); err != nil {
 		return nil, fmt.Errorf("invalid auto groups: %w", err)
@@ -154,6 +161,11 @@ func validateParsedGroupSettings(parsed *parsedGroupSettings) error {
 					}
 				}
 			}
+		}
+	}
+	for _, billingGroup := range parsed.imageTokenGroups {
+		if _, ok := parsed.billingGroups[billingGroup]; !ok {
+			return fmt.Errorf("image token billing target is not a billing group: %s", billingGroup)
 		}
 	}
 
@@ -226,6 +238,7 @@ func UpdateGroupSettings(values GroupSettingsValues) error {
 		"UserUsableGroups":               values.UserUsableGroups,
 		"GroupGroupRatio":                values.GroupGroupRatio,
 		"ImageSizeGroupPrices":           normalizedImageSizeGroupPrices(values.ImageSizeGroupPrices),
+		"ImageTokenBillingGroups":        normalizedImageTokenBillingGroups(values.ImageTokenBillingGroups),
 		"AutoGroups":                     values.AutoGroups,
 		"DefaultUseAutoGroup":            common.Interface2String(values.DefaultUseAutoGroup),
 		GroupSpecialUsableGroupOptionKey: values.GroupSpecialUsableGroup,
@@ -234,7 +247,7 @@ func UpdateGroupSettings(values GroupSettingsValues) error {
 
 func IsGroupSettingsOptionKey(key string) bool {
 	switch key {
-	case "UserGroups", "GroupRatio", "TopupGroupRatio", "UserUsableGroups", "GroupGroupRatio", "ImageSizeGroupPrices", "AutoGroups", GroupSpecialUsableGroupOptionKey:
+	case "UserGroups", "GroupRatio", "TopupGroupRatio", "UserUsableGroups", "GroupGroupRatio", "ImageSizeGroupPrices", "ImageTokenBillingGroups", "AutoGroups", GroupSpecialUsableGroupOptionKey:
 		return true
 	default:
 		return false
@@ -260,6 +273,8 @@ func ValidateGroupOptionUpdate(key, value string) error {
 		current.GroupGroupRatio = value
 	case "ImageSizeGroupPrices":
 		current.ImageSizeGroupPrices = value
+	case "ImageTokenBillingGroups":
+		current.ImageTokenBillingGroups = value
 	case "AutoGroups":
 		current.AutoGroups = value
 	case GroupSpecialUsableGroupOptionKey:
@@ -282,6 +297,13 @@ func ValidateGroupOptionUpdate(key, value string) error {
 func normalizedImageSizeGroupPrices(value string) string {
 	if strings.TrimSpace(value) == "" {
 		return "{}"
+	}
+	return value
+}
+
+func normalizedImageTokenBillingGroups(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "[]"
 	}
 	return value
 }

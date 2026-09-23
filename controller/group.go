@@ -26,6 +26,31 @@ func GetGroups(c *gin.Context) {
 	})
 }
 
+func GetGroupImageModels(c *gin.Context) {
+	groupNames := make([]string, 0)
+	for groupName := range ratio_setting.GetGroupRatioCopy() {
+		groupNames = append(groupNames, groupName)
+	}
+	rows, err := model.GetGroupsEnabledModels(groupNames)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	result := make(map[string][]string, len(groupNames))
+	for _, groupName := range groupNames {
+		result[groupName] = []string{}
+	}
+	for _, row := range rows {
+		if capability, ok := getPlaygroundImageModelCapability(row.Model); ok && capability.Protocol == "image_api" {
+			result[row.Group] = append(result[row.Group], row.Model)
+		}
+	}
+	for _, models := range result {
+		sort.Strings(models)
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": result})
+}
+
 type adminUserGroupInfo struct {
 	Name         string `json:"name"`
 	Description  string `json:"description"`

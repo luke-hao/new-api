@@ -60,6 +60,8 @@ var defaultModelRatio = map[string]float64{
 	"gpt-4.1-nano-2025-04-14":          0.05, // $0.1 / 1M tokens
 	"gpt-image-1":                      2.5,  // $5 / 1M tokens
 	"gpt-image-2":                      2.5,  // $5 / 1M tokens
+	"gpt-image-2.5-flare":              2.5,
+	"gpt-image-2.5-sunburst":           2.5,
 	"o1":                               7.5,  // $15 / 1M tokens
 	"o1-2024-12-17":                    7.5,  // $15 / 1M tokens
 	"o1-preview":                       7.5,  // $15 / 1M tokens
@@ -347,16 +349,18 @@ var modelRatioMap = types.NewRWMap[string, float64]()
 var completionRatioMap = types.NewRWMap[string, float64]()
 
 var defaultCompletionRatio = map[string]float64{
-	"gpt-4-gizmo-*":     2,
-	"gpt-4o-gizmo-*":    3,
-	"gpt-4-all":         2,
-	"gpt-image-1":       8,
-	"gpt-image-2":       8,
-	"kimi-k3":           5, // ¥100 output / ¥20 input
-	"grok-4.5":          3, // $6 output / $2 input
-	"grok-4.5-latest":   3,
-	"grok-build-latest": 3,
-	"glm-5.2":           4.4 / 1.4, // $4.40 output / $1.40 input
+	"gpt-4-gizmo-*":          2,
+	"gpt-4o-gizmo-*":         3,
+	"gpt-4-all":              2,
+	"gpt-image-1":            8,
+	"gpt-image-2":            6,
+	"gpt-image-2.5-flare":    6,
+	"gpt-image-2.5-sunburst": 6,
+	"kimi-k3":                5, // ¥100 output / ¥20 input
+	"grok-4.5":               3, // $6 output / $2 input
+	"grok-4.5-latest":        3,
+	"grok-build-latest":      3,
+	"glm-5.2":                4.4 / 1.4, // $4.40 output / $1.40 input
 }
 
 // InitRatioSettings initializes all model related settings maps
@@ -665,8 +669,10 @@ func ModelRatio2JSONString() string {
 }
 
 var defaultImageRatio = map[string]float64{
-	"gpt-image-1": 2,
-	"gpt-image-2": 2,
+	"gpt-image-1":            2,
+	"gpt-image-2":            1.6,
+	"gpt-image-2.5-flare":    1.6,
+	"gpt-image-2.5-sunburst": 1.6,
 }
 var imageRatioMap = types.NewRWMap[string, float64]()
 var audioRatioMap = types.NewRWMap[string, float64]()

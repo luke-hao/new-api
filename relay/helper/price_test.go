@@ -78,10 +78,10 @@ func TestModelPriceHelperUsesExactImageSizeGroupPrice(t *testing.T) {
 	})
 
 	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"gpt-image-2":0.06}`))
-	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"image":2}`))
-	require.NoError(t, ratio_setting.UpdateGroupGroupRatioByJSONString(`{"vip":{"image":3}}`))
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"生图分组-image":2}`))
+	require.NoError(t, ratio_setting.UpdateGroupGroupRatioByJSONString(`{"vip":{"生图分组-image":3}}`))
 	require.NoError(t, ratio_setting.UpdateImageSizeGroupPricesByJSONString(`{
-		"vip":{"image":{"gpt-image-2":{"4K":0.17}}}
+		"vip":{"生图分组-image":{"gpt-image-2":{"4K":0.17}}}
 	}`))
 
 	recorder := httptest.NewRecorder()
@@ -90,7 +90,7 @@ func TestModelPriceHelperUsesExactImageSizeGroupPrice(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		OriginModelName: "gpt-image-2",
 		UserGroup:       "vip",
-		UsingGroup:      "image",
+		UsingGroup:      "生图分组-image",
 	}
 
 	priceData, err := ModelPriceHelper(ctx, info, 0, &types.TokenCountMeta{
@@ -113,4 +113,91 @@ func TestModelPriceHelperUsesExactImageSizeGroupPrice(t *testing.T) {
 	require.False(t, priceData.ImageSizePriceOverride)
 	require.InDelta(t, 0.15, priceData.ModelPrice, 1e-12)
 	require.InDelta(t, 3, priceData.GroupRatioInfo.GroupRatio, 1e-12)
+}
+
+func TestImageModelsUseTokenBillingOnlyInConfiguredGroup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	originalPrices := ratio_setting.ModelPrice2JSONString()
+	originalRatios := ratio_setting.ModelRatio2JSONString()
+	originalCompletion := ratio_setting.CompletionRatio2JSONString()
+	originalCache := ratio_setting.CacheRatio2JSONString()
+	originalCreateCache := ratio_setting.CreateCacheRatio2JSONString()
+	originalImage := ratio_setting.ImageRatio2JSONString()
+	originalSizePrices := ratio_setting.ImageSizeGroupPrices2JSONString()
+	originalTokenGroups := ratio_setting.ImageTokenBillingGroups2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(originalPrices))
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(originalRatios))
+		require.NoError(t, ratio_setting.UpdateCompletionRatioByJSONString(originalCompletion))
+		require.NoError(t, ratio_setting.UpdateCacheRatioByJSONString(originalCache))
+		require.NoError(t, ratio_setting.UpdateCreateCacheRatioByJSONString(originalCreateCache))
+		require.NoError(t, ratio_setting.UpdateImageRatioByJSONString(originalImage))
+		require.NoError(t, ratio_setting.UpdateImageSizeGroupPricesByJSONString(originalSizePrices))
+		require.NoError(t, ratio_setting.UpdateImageTokenBillingGroupsByJSONString(originalTokenGroups))
+	})
+
+	require.NoError(t, ratio_setting.UpdateModelPriceByJSONString(`{"gpt-image-2":0.06,"gpt-image-2.5-flare":0.1,"gpt-image-2.5-sunburst":0.1,"dall-e-3":0.04}`))
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"gpt-image-2":2.5,"gpt-image-2.5-flare":2.5,"gpt-image-2.5-sunburst":2.5}`))
+	require.NoError(t, ratio_setting.UpdateCompletionRatioByJSONString(`{"gpt-image-2":6,"gpt-image-2.5-flare":6,"gpt-image-2.5-sunburst":6}`))
+	require.NoError(t, ratio_setting.UpdateCacheRatioByJSONString(`{"gpt-image-2":0.8,"gpt-image-2.5-flare":0.4,"gpt-image-2.5-sunburst":0.4}`))
+	require.NoError(t, ratio_setting.UpdateCreateCacheRatioByJSONString(`{"gpt-image-2":2,"gpt-image-2.5-flare":0.4,"gpt-image-2.5-sunburst":0.4}`))
+	require.NoError(t, ratio_setting.UpdateImageRatioByJSONString(`{"gpt-image-2":1.6,"gpt-image-2.5-flare":1.6,"gpt-image-2.5-sunburst":1.6}`))
+	require.NoError(t, ratio_setting.UpdateImageSizeGroupPricesByJSONString(`{"default":{"生图分组-image":{"gpt-image-2":{"4K":0.17}}}}`))
+	require.NoError(t, ratio_setting.UpdateImageTokenBillingGroupsByJSONString(`["OpenAI官key"]`))
+
+	for _, tc := range []struct {
+		model       string
+		cacheRatio  float64
+		createRatio float64
+	}{
+		{"gpt-image-2", 0.8, 2},
+		{"gpt-image-2.5-flare", 0.4, 0.4},
+		{"gpt-image-2.5-sunburst", 0.4, 0.4},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			info := &relaycommon.RelayInfo{OriginModelName: tc.model, UserGroup: "default", UsingGroup: "OpenAI官key"}
+			price, err := ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{ImagePriceTier: "4K", ImagePriceRatio: 10.0 / 3.0})
+			require.NoError(t, err)
+			require.False(t, price.UsePrice)
+			require.False(t, price.ImageSizePriceOverride)
+			require.Equal(t, 2.5, price.ModelRatio)
+			require.Equal(t, 6.0, price.CompletionRatio)
+			require.Equal(t, tc.cacheRatio, price.CacheRatio)
+			require.Equal(t, tc.createRatio, price.CacheCreationRatio)
+			require.Equal(t, 1.6, price.ImageRatio)
+		})
+	}
+
+	ctxAuto, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctxAuto.Set("auto_group", "OpenAI官key")
+	infoAuto := &relaycommon.RelayInfo{OriginModelName: "gpt-image-2", UserGroup: "default", UsingGroup: "auto"}
+	autoPrice, err := ModelPriceHelper(ctxAuto, infoAuto, 1000, &types.TokenCountMeta{})
+	require.NoError(t, err)
+	require.False(t, autoPrice.UsePrice)
+	require.Equal(t, "OpenAI官key", infoAuto.UsingGroup)
+
+	for _, modelName := range []string{"gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"} {
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		info := &relaycommon.RelayInfo{OriginModelName: modelName, UserGroup: "default", UsingGroup: "default"}
+		imagePriceRatio := 1.0
+		if modelName == "gpt-image-2" {
+			imagePriceRatio = 10.0 / 3.0
+		}
+		price, err := ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{ImagePriceTier: "4K", ImagePriceRatio: imagePriceRatio})
+		require.NoError(t, err)
+		require.True(t, price.UsePrice)
+		if modelName == "gpt-image-2" {
+			require.InDelta(t, 0.2, price.ModelPrice, 1e-12)
+		} else {
+			require.Equal(t, 0.1, price.ModelPrice)
+		}
+	}
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{OriginModelName: "dall-e-3", UserGroup: "default", UsingGroup: "OpenAI官key"}
+	price, err := ModelPriceHelper(ctx, info, 1000, &types.TokenCountMeta{})
+	require.NoError(t, err)
+	require.True(t, price.UsePrice)
+	require.Equal(t, 0.04, price.ModelPrice)
 }

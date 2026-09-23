@@ -5,6 +5,9 @@ import (
 )
 
 var defaultCacheRatio = map[string]float64{
+	"gpt-image-2":                         0.8,
+	"gpt-image-2.5-flare":                 0.4,
+	"gpt-image-2.5-sunburst":              0.4,
 	"kimi-k3":                             0.1,  // ¥2 cached input / ¥20 uncached input
 	"grok-4.5":                            0.15, // $0.30 cached input / $2 input
 	"grok-4.5-latest":                     0.15,
@@ -86,6 +89,9 @@ var defaultCacheRatio = map[string]float64{
 }
 
 var defaultCreateCacheRatio = map[string]float64{
+	"gpt-image-2":                         2,
+	"gpt-image-2.5-flare":                 0.4,
+	"gpt-image-2.5-sunburst":              0.4,
 	"claude-3-sonnet-20240229":            1.25,
 	"claude-3-opus-20240229":              1.25,
 	"claude-3-haiku-20240307":             1.25,

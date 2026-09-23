@@ -118,6 +118,12 @@ const createGroupSchema = (t: Translate) =>
     UserUsableGroups: createJsonStringField(t),
     GroupGroupRatio: createJsonStringField(t),
     ImageSizeGroupPrices: createJsonStringField(t),
+    ImageTokenBillingGroups: createJsonStringField(t, {
+      predicate: (parsed) =>
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === 'string'),
+      predicateMessage: 'Expected a JSON array of group identifiers',
+    }),
     AutoGroups: createJsonStringField(t, {
       predicate: (parsed) =>
         Array.isArray(parsed) &&
@@ -217,6 +223,9 @@ export function RatioSettingsCard({
     ImageSizeGroupPrices: normalizeJsonString(
       groupDefaults.ImageSizeGroupPrices
     ),
+    ImageTokenBillingGroups: normalizeJsonString(
+      groupDefaults.ImageTokenBillingGroups
+    ),
     AutoGroups: normalizeJsonString(groupDefaults.AutoGroups),
     DefaultUseAutoGroup: groupDefaults.DefaultUseAutoGroup,
     GroupSpecialUsableGroup: normalizeJsonString(
@@ -258,6 +267,9 @@ export function RatioSettingsCard({
       GroupGroupRatio: formatJsonForTextarea(groupDefaults.GroupGroupRatio),
       ImageSizeGroupPrices: formatJsonForTextarea(
         groupDefaults.ImageSizeGroupPrices
+      ),
+      ImageTokenBillingGroups: formatJsonForTextarea(
+        groupDefaults.ImageTokenBillingGroups
       ),
       AutoGroups: formatJsonForTextarea(groupDefaults.AutoGroups),
       GroupSpecialUsableGroup: formatJsonForTextarea(
@@ -311,6 +323,9 @@ export function RatioSettingsCard({
       ImageSizeGroupPrices: normalizeJsonString(
         groupDefaults.ImageSizeGroupPrices
       ),
+      ImageTokenBillingGroups: normalizeJsonString(
+        groupDefaults.ImageTokenBillingGroups
+      ),
       AutoGroups: normalizeJsonString(groupDefaults.AutoGroups),
       DefaultUseAutoGroup: groupDefaults.DefaultUseAutoGroup,
       GroupSpecialUsableGroup: normalizeJsonString(
@@ -327,6 +342,9 @@ export function RatioSettingsCard({
       GroupGroupRatio: formatJsonForTextarea(groupDefaults.GroupGroupRatio),
       ImageSizeGroupPrices: formatJsonForTextarea(
         groupDefaults.ImageSizeGroupPrices
+      ),
+      ImageTokenBillingGroups: formatJsonForTextarea(
+        groupDefaults.ImageTokenBillingGroups
       ),
       AutoGroups: formatJsonForTextarea(groupDefaults.AutoGroups),
       GroupSpecialUsableGroup: formatJsonForTextarea(
@@ -387,6 +405,9 @@ export function RatioSettingsCard({
         UserUsableGroups: normalizeJsonString(values.UserUsableGroups),
         GroupGroupRatio: normalizeJsonString(values.GroupGroupRatio),
         ImageSizeGroupPrices: normalizeJsonString(values.ImageSizeGroupPrices),
+        ImageTokenBillingGroups: normalizeJsonString(
+          values.ImageTokenBillingGroups
+        ),
         AutoGroups: normalizeJsonString(values.AutoGroups),
         DefaultUseAutoGroup: values.DefaultUseAutoGroup,
         GroupSpecialUsableGroup: normalizeJsonString(

@@ -87,3 +87,16 @@ func TestGPTImage2SizePriceTier(t *testing.T) {
 		}
 	}
 }
+
+func TestImageRequestGetTokenCountMetaIncludesTierForOtherImageModels(t *testing.T) {
+	for _, tc := range []struct{ model, size, tier string }{
+		{"gpt-image-2.5-flare", "2048x2048", "2K"},
+		{"gpt-image-2.5-sunburst", "3840x2160", "4K"},
+		{"dall-e-3", "1024x1024", "1K"},
+	} {
+		request := &ImageRequest{Model: tc.model, Size: tc.size}
+		if got := request.GetTokenCountMeta().ImagePriceTier; got != tc.tier {
+			t.Errorf("%s size %s tier = %s, want %s", tc.model, tc.size, got, tc.tier)
+		}
+	}
+}

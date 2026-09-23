@@ -190,6 +190,7 @@ export function ModelMutateDrawer({
       UserUsableGroups: '',
       GroupGroupRatio: '',
       ImageSizeGroupPrices: '{}',
+      ImageTokenBillingGroups: '[]',
       AutoGroups: '',
       DefaultUseAutoGroup: false,
       CreateCacheRatio: '',

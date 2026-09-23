@@ -48,6 +48,16 @@ export async function updateGroupSettings(request: GroupSettingsUpdateRequest) {
   return res.data
 }
 
+export async function getGroupImageModels() {
+  const res = await api.get<{
+    success: boolean
+    message: string
+    data: Record<string, string[]>
+  }>('/api/group/image-models')
+  if (!res.data.success) throw new Error(res.data.message)
+  return res.data.data
+}
+
 export async function confirmPaymentCompliance() {
   const res = await api.post<ConfirmPaymentComplianceResponse>(
     '/api/option/payment_compliance',

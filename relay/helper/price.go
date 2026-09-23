@@ -36,6 +36,15 @@ func modelPriceNotConfiguredError(modelName string, userId int) error {
 // https://docs.claude.com/en/docs/build-with-claude/prompt-caching#1-hour-cache-duration
 const claudeCacheCreation1hMultiplier = 6 / 3.75
 
+func IsImageTokenBillingModel(modelName string) bool {
+	switch modelName {
+	case "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst":
+		return true
+	default:
+		return false
+	}
+}
+
 // HandleGroupRatio checks for "auto_group" in the context and updates the group ratio and relayInfo.UsingGroup if present
 func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.GroupRatioInfo {
 	groupRatioInfo := types.GroupRatioInfo{
@@ -67,11 +76,15 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 
 func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens int, meta *types.TokenCountMeta) (types.PriceData, error) {
 	modelPrice, usePrice := ratio_setting.GetModelPrice(info.OriginModelName, false)
-
 	groupRatioInfo := HandleGroupRatio(c, info)
+	groupImageTokenBilling := IsImageTokenBillingModel(info.OriginModelName) && ratio_setting.IsImageTokenBillingGroup(info.UsingGroup)
+	if groupImageTokenBilling {
+		usePrice = false
+	}
+
 	imageSizePriceTier := meta.ImagePriceTier
 	imageSizePriceOverride := false
-	if fixedPrice, ok := ratio_setting.GetImageSizeGroupPrice(info.UserGroup, info.UsingGroup, info.OriginModelName, imageSizePriceTier); ok {
+	if fixedPrice, ok := ratio_setting.GetImageSizeGroupPrice(info.UserGroup, info.UsingGroup, info.OriginModelName, imageSizePriceTier); ok && !groupImageTokenBilling {
 		modelPrice = fixedPrice
 		usePrice = true
 		imageSizePriceOverride = true
@@ -82,7 +95,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 	}
 
 	// Check if this model uses tiered_expr billing
-	if !imageSizePriceOverride && billing_setting.GetBillingMode(info.OriginModelName) == billing_setting.BillingModeTieredExpr {
+	if !groupImageTokenBilling && !imageSizePriceOverride && billing_setting.GetBillingMode(info.OriginModelName) == billing_setting.BillingModeTieredExpr {
 		return modelPriceHelperTiered(c, info, promptTokens, meta, groupRatioInfo)
 	}
 

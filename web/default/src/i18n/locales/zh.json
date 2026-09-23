@@ -4023,6 +4023,7 @@
     "Token Name": "令牌名称",
     "Token estimator": "Token 估算器",
     "Token group": "令牌分组",
+    "Token billing groups": "按 Token 计费的生图分组",
     "Token management": "令牌管理",
     "Token obtained from your Gotify application": "从您的 Gotify 应用程序获取的 Token",
     "Token price for audio input.": "音频输入 token 价格。",

@@ -31,8 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 
-const MODEL_NAME = 'gpt-image-2'
 const NATIVE_4K_GROUP = '生图分组-image2-4k(原生)'
 const TIERS = ['1K', '2K', '4K'] as const
 
@@ -47,6 +47,7 @@ type PriceRow = {
   id: string
   userGroup: string
   billingGroup: string
+  model: string
   prices: TierPrices
 }
 
@@ -55,6 +56,9 @@ type ImageSizePriceOverridesEditorProps = {
   onChange: (value: string) => void
   userGroups: string[]
   billingGroups: string[]
+  modelsByGroup: Record<string, string[]>
+  tokenBillingGroups: string
+  onTokenBillingGroupsChange: (value: string) => void
 }
 
 let rowCounter = 0
@@ -75,16 +79,21 @@ function parseRows(value: string): PriceRow[] {
   for (const [userGroup, usingGroups] of Object.entries(parsed)) {
     if (!usingGroups || typeof usingGroups !== 'object') continue
     for (const [billingGroup, models] of Object.entries(usingGroups)) {
-      const tiers = models?.[MODEL_NAME]
-      if (!tiers || typeof tiers !== 'object') continue
-      const prices: TierPrices = {}
-      for (const tier of TIERS) {
-        const price = tiers[tier]
-        if (typeof price === 'number' && Number.isFinite(price) && price >= 0) {
-          prices[tier] = String(price)
+      for (const [model, tiers] of Object.entries(models ?? {})) {
+        if (!tiers || typeof tiers !== 'object') continue
+        const prices: TierPrices = {}
+        for (const tier of TIERS) {
+          const price = tiers[tier]
+          if (
+            typeof price === 'number' &&
+            Number.isFinite(price) &&
+            price >= 0
+          ) {
+            prices[tier] = String(price)
+          }
         }
+        rows.push({ id: createRowId(), userGroup, billingGroup, model, prices })
       }
-      rows.push({ id: createRowId(), userGroup, billingGroup, prices })
     }
   }
   return rows
@@ -93,7 +102,7 @@ function parseRows(value: string): PriceRow[] {
 function serializeRows(rows: PriceRow[]): string {
   const result: PriceMap = {}
   for (const row of rows) {
-    if (!row.userGroup || !row.billingGroup) continue
+    if (!row.userGroup || !row.billingGroup || !row.model) continue
     const tiers: Partial<Record<Tier, number>> = {}
     for (const tier of TIERS) {
       if (row.billingGroup === NATIVE_4K_GROUP && tier !== '4K') continue
@@ -105,7 +114,7 @@ function serializeRows(rows: PriceRow[]): string {
     if (Object.keys(tiers).length === 0) continue
     result[row.userGroup] ??= {}
     result[row.userGroup][row.billingGroup] ??= {}
-    result[row.userGroup][row.billingGroup][MODEL_NAME] = tiers
+    result[row.userGroup][row.billingGroup][row.model] = tiers
   }
   return JSON.stringify(result, null, 2)
 }
@@ -119,6 +128,9 @@ export function ImageSizePriceOverridesEditor({
   onChange,
   userGroups,
   billingGroups,
+  modelsByGroup,
+  tokenBillingGroups,
+  onTokenBillingGroupsChange,
 }: ImageSizePriceOverridesEditorProps) {
   const { t } = useTranslation()
   const [rows, setRows] = useState<PriceRow[]>(() => parseRows(value))
@@ -131,21 +143,45 @@ export function ImageSizePriceOverridesEditor({
     }
   }, [value])
 
+  const selectedTokenGroups = useMemo(() => {
+    try {
+      const parsed: unknown = JSON.parse(tokenBillingGroups || '[]')
+      return Array.isArray(parsed)
+        ? parsed.filter((group): group is string => typeof group === 'string')
+        : []
+    } catch {
+      return []
+    }
+  }, [tokenBillingGroups])
+
+  const imageBillingGroups = useMemo(
+    () => billingGroups.filter((group) => group.startsWith('生图分组-')),
+    [billingGroups]
+  )
+
   const usedPairs = useMemo(
     () =>
-      new Set(rows.map((row) => `${row.userGroup}\u0000${row.billingGroup}`)),
+      new Set(
+        rows.map(
+          (row) => `${row.userGroup}\u0000${row.billingGroup}\u0000${row.model}`
+        )
+      ),
     [rows]
   )
   const nextPair = useMemo(() => {
     for (const userGroup of userGroups) {
-      for (const billingGroup of billingGroups) {
-        if (!usedPairs.has(`${userGroup}\u0000${billingGroup}`)) {
-          return { userGroup, billingGroup }
+      for (const billingGroup of imageBillingGroups) {
+        for (const model of modelsByGroup[billingGroup] ?? []) {
+          if (
+            !usedPairs.has(`${userGroup}\u0000${billingGroup}\u0000${model}`)
+          ) {
+            return { userGroup, billingGroup, model }
+          }
         }
       }
     }
     return null
-  }, [billingGroups, usedPairs, userGroups])
+  }, [imageBillingGroups, modelsByGroup, usedPairs, userGroups])
 
   const commit = (nextRows: PriceRow[]) => {
     setRows(nextRows)
@@ -158,6 +194,12 @@ export function ImageSizePriceOverridesEditor({
     const nextRows = rows.map((row, rowIndex) => {
       if (rowIndex !== index) return row
       const next = { ...row, ...patch }
+      if (patch.billingGroup && patch.billingGroup !== row.billingGroup) {
+        const available = modelsByGroup[patch.billingGroup] ?? []
+        next.model = available.includes(row.model)
+          ? row.model
+          : (available[0] ?? '')
+      }
       if (next.billingGroup === NATIVE_4K_GROUP) {
         next.prices = { ...next.prices, '1K': '', '2K': '' }
       }
@@ -180,6 +222,7 @@ export function ImageSizePriceOverridesEditor({
         id: createRowId(),
         userGroup: nextPair.userGroup,
         billingGroup: nextPair.billingGroup,
+        model: nextPair.model,
         prices: {},
       },
     ])
@@ -203,6 +246,31 @@ export function ImageSizePriceOverridesEditor({
         </Button>
       </CardHeader>
       <CardContent className='space-y-3 pt-4'>
+        <div className='space-y-2 border-b pb-4'>
+          <Label>{t('Token billing groups')}</Label>
+          <div className='flex flex-wrap gap-x-5 gap-y-2'>
+            {billingGroups
+              .filter(
+                (group) =>
+                  (modelsByGroup[group]?.length ?? 0) > 0 ||
+                  selectedTokenGroups.includes(group)
+              )
+              .map((group) => (
+                <label key={group} className='flex items-center gap-2 text-sm'>
+                  <Switch
+                    checked={selectedTokenGroups.includes(group)}
+                    onCheckedChange={(checked) => {
+                      const next = checked
+                        ? [...selectedTokenGroups, group]
+                        : selectedTokenGroups.filter((item) => item !== group)
+                      onTokenBillingGroupsChange(JSON.stringify(next.sort()))
+                    }}
+                  />
+                  {group}
+                </label>
+              ))}
+          </div>
+        </div>
         {rows.length === 0 ? (
           <div className='text-muted-foreground py-6 text-center text-sm'>
             {t('No data')}
@@ -212,8 +280,12 @@ export function ImageSizePriceOverridesEditor({
             const native4K = row.billingGroup === NATIVE_4K_GROUP
             const userOptions = uniqueOptions(userGroups, row.userGroup)
             const billingOptions = uniqueOptions(
-              billingGroups,
+              imageBillingGroups,
               row.billingGroup
+            )
+            const modelOptions = uniqueOptions(
+              modelsByGroup[row.billingGroup] ?? [],
+              row.model
             )
             return (
               <div
@@ -241,7 +313,8 @@ export function ImageSizePriceOverridesEditor({
                               (candidate, candidateIndex) =>
                                 candidateIndex !== index &&
                                 candidate.userGroup === userGroup &&
-                                candidate.billingGroup === row.billingGroup
+                                candidate.billingGroup === row.billingGroup &&
+                                candidate.model === row.model
                             )}
                           >
                             {userGroup}
@@ -273,7 +346,8 @@ export function ImageSizePriceOverridesEditor({
                               (candidate, candidateIndex) =>
                                 candidateIndex !== index &&
                                 candidate.userGroup === row.userGroup &&
-                                candidate.billingGroup === billingGroup
+                                candidate.billingGroup === billingGroup &&
+                                candidate.model === row.model
                             )}
                           >
                             {billingGroup}
@@ -286,7 +360,35 @@ export function ImageSizePriceOverridesEditor({
 
                 <div className='space-y-1.5'>
                   <Label>{t('Model')}</Label>
-                  <Input value={MODEL_NAME} disabled />
+                  <Select
+                    value={row.model}
+                    onValueChange={(model) => {
+                      if (model) updateRow(index, { model })
+                    }}
+                  >
+                    <SelectTrigger className='w-full'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false}>
+                      <SelectGroup>
+                        {modelOptions.map((model) => (
+                          <SelectItem
+                            key={model}
+                            value={model}
+                            disabled={rows.some(
+                              (candidate, candidateIndex) =>
+                                candidateIndex !== index &&
+                                candidate.userGroup === row.userGroup &&
+                                candidate.billingGroup === row.billingGroup &&
+                                candidate.model === model
+                            )}
+                          >
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {TIERS.map((tier) => {
