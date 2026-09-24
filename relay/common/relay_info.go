@@ -169,6 +169,10 @@ type RelayInfo struct {
 	// captured at pre-consume time. Non-nil only when billing mode is "tiered_expr".
 	TieredBillingSnapshot *billingexpr.BillingSnapshot
 	BillingRequestInput   *billingexpr.RequestInput
+	// The outbound probe is replaced on every attempt, after filtering and overrides.
+	OutboundBillingRequestInput *billingexpr.RequestInput
+	RequestedServiceTier        string
+	UpstreamServiceTier         string
 
 	Request dto.Request
 

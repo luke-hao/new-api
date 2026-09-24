@@ -118,3 +118,10 @@
 - `/api/group/image-models` 从启用渠道枚举生图模型，包含 Gemini/nano-banana。Gemini 原生 `imageConfig` 与兼容接口 `extra_body.google.image_config` 共同参与尺寸匹配；原生返回中的图片计数排除思考图片和音频，流式与非流式都按实际张数结算。
 - Token 单价在请求时固定快照；缓存是输入子集，不重复收费。上游没有缓存模态拆分时先匹配文本缓存，再匹配图片；缺少真实 Token 用量时不推算图片 Token。
 - 默认主题“计费设置 → 分组定价”提供 Token 单价编辑器；“模型价格”只编辑全局兜底价格，并提示独立分组价格。`scripts/test-image-group-pricing.mjs` 通过模拟管理接口验证桌面与手机保存隔离，不写生产设置。
+
+## OpenAI Fast 档位计费（2026-09-24）
+
+- `docs/fast-service-tier-billing.md` 说明配置入口、别名与生图现有优先级。本次保留生图计费优先级。
+- Chat Completions / Responses 在转换、过滤、参数覆盖后的最终 JSON 上检查 `service_tier`；请求体透传沿用原有跳过覆盖逻辑。Fast / priority 必须有显式表达式价格条件，否则返回“fast 价格未配置”，发送前发现时不访问上游。
+- 表达式快照保持冻结，每次渠道尝试刷新最终请求计费探针、分组倍率及预扣。上游实际档位用于结算，default 降级回基础分支；fast / priority 在计费探针中按已配置名称兼容，原始上游 JSON 保持不变。
+- 流式和非流式响应、Chat → Responses 转换都观察实际档位；意外未配价 Fast 返回配置错误，不转入普通价部分结算。官方项目默认 Fast 可能只能在收到响应后发现，此时已经可能产生上游成本。

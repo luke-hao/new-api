@@ -387,6 +387,11 @@ func ChatCompletionsRequestToResponsesRequest(req *dto.GeneralOpenAIRequest) (*d
 		Store:             req.Store,
 		Metadata:          req.Metadata,
 	}
+	if len(req.ServiceTier) > 0 {
+		if err := common.Unmarshal(req.ServiceTier, &out.ServiceTier); err != nil {
+			return nil, fmt.Errorf("invalid service_tier: %w", err)
+		}
+	}
 	if req.MaxTokens != nil || req.MaxCompletionTokens != nil {
 		out.MaxOutputTokens = lo.ToPtr(maxOutputTokens)
 	}

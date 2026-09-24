@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 func modelPriceNotConfiguredError(modelName string, userId int) error {
@@ -321,6 +322,20 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 		return types.PriceData{}, err
 	}
 
+	// This is only the initial reserve estimate. Final outbound pricing runs
+	// after conversion/overrides and tops up the reserve before contacting upstream.
+	if info.ChannelMeta != nil {
+		requestInput.Body, err = relaycommon.RemoveDisabledFields(requestInput.Body, info.ChannelOtherSettings, info.ChannelSetting.PassThroughBodyEnabled)
+		if err != nil {
+			return types.PriceData{}, err
+		}
+	}
+	requestedTier := gjson.GetBytes(requestInput.Body, "service_tier").String()
+	if billingexpr.IsFastServiceTier(requestedTier) {
+		if adjusted, configured := billingexpr.ServiceTierPriceInput(exprStr, requestInput, requestedTier); configured {
+			requestInput = adjusted
+		}
+	}
 	rawCost, trace, err := billingexpr.RunExprWithRequest(exprStr, billingexpr.TokenParams{
 		P:   float64(promptTokens),
 		C:   float64(estimatedCompletionTokens),

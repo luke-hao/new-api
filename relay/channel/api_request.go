@@ -485,6 +485,36 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	return doRequest(c, req, info)
 }
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	// All OpenAI chat/Responses paths converge here, including raw body
+	// passthrough and protocol conversion. Validate before sending or pinging.
+	if (info.RelayMode == constant.RelayModeChatCompletions || info.RelayMode == constant.RelayModeResponses) && req.Body != nil {
+		data, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, types.NewError(err, types.ErrorCodeReadRequestBodyFailed, types.ErrOptionWithSkipRetry())
+		}
+		_ = req.Body.Close()
+		// Retain the configured disk spill behavior for large multimodal bodies.
+		storage, err := common2.CreateBodyStorage(data)
+		if err != nil {
+			return nil, types.NewError(err, types.ErrorCodeReadRequestBodyFailed, types.ErrOptionWithSkipRetry())
+		}
+		defer storage.Close()
+		req.Body = storage
+		if err := helper.PrepareServiceTierBilling(c, info, data, req.Header); err != nil {
+			return nil, err
+		}
+		if info.TieredBillingSnapshot != nil && !info.IsChannelTest {
+			if info.Billing != nil {
+				if err := info.Billing.Reserve(info.PriceData.QuotaToPreConsume); err != nil {
+					return nil, types.NewError(err, types.ErrorCodeInsufficientUserQuota, types.ErrOptionWithSkipRetry(), types.ErrOptionWithStatusCode(http.StatusForbidden))
+				}
+			} else if !info.PriceData.FreeModel {
+				if err := service.PreConsumeBilling(c, info.PriceData.QuotaToPreConsume, info); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	// Probes must release their global concurrency slot when cancelled, including
 	// while waiting for upstream headers or reading a response body.
 	if info.IsChannelTest {

@@ -34,6 +34,10 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
 
+	if err := helper.ObserveServiceTierBilling(info, responseBody); err != nil {
+		return nil, err
+	}
+
 	if responsesResponse.HasImageGenerationCall() {
 		c.Set("image_generation_call", true)
 		c.Set("image_generation_call_quality", responsesResponse.GetQuality())
@@ -97,6 +101,11 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
+		if err := helper.ObserveServiceTierBilling(info, common.StringToByteSlice(data)); err != nil {
+			streamErr = err
+			sr.Stop(err)
+			return
+		}
 		var event dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &event); err != nil {
 			streamErr = types.NewErrorWithStatusCode(fmt.Errorf("invalid Responses stream event: %w", err), types.ErrorCodeIncompleteStream, http.StatusBadGateway)
@@ -171,6 +180,10 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		// are charged for an interrupted attempt; settlement uses upstream usage only.
 		if committed || service.HasBillableClaudeUsage(usage) {
 			types.ErrOptionWithSkipRetry()(streamErr)
+		}
+		// A missing Fast price must not fall into partial settlement at base price.
+		if streamErr.GetErrorCode() == types.ErrorCodeModelPriceError {
+			return nil, streamErr
 		}
 		return usage, streamErr
 	}

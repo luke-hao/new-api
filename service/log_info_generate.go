@@ -275,6 +275,12 @@ func InjectTieredBillingInfo(other map[string]interface{}, relayInfo *relaycommo
 	if relayInfo == nil || other == nil {
 		return
 	}
+	if relayInfo.RequestedServiceTier != "" {
+		other["requested_service_tier"] = relayInfo.RequestedServiceTier
+	}
+	if relayInfo.UpstreamServiceTier != "" {
+		other["upstream_service_tier"] = relayInfo.UpstreamServiceTier
+	}
 	snap := relayInfo.TieredBillingSnapshot
 	if snap == nil {
 		return

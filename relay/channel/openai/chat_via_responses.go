@@ -59,6 +59,10 @@ func OaiResponsesToChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
 
+	if err := helper.ObserveServiceTierBilling(info, body); err != nil {
+		return nil, err
+	}
+
 	chatId := helper.GetResponseID(c)
 	chatResp, usage, err := service.ResponsesResponseToChatCompletionsResponse(&responsesResp, chatId)
 	if err != nil {
@@ -297,6 +301,11 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 	}
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
+		if err := helper.ObserveServiceTierBilling(info, common.StringToByteSlice(data)); err != nil {
+			streamErr = err
+			sr.Stop(err)
+			return
+		}
 		if streamErr != nil {
 			sr.Stop(streamErr)
 			return
