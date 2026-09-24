@@ -173,6 +173,8 @@ type RelayInfo struct {
 	OutboundBillingRequestInput *billingexpr.RequestInput
 	RequestedServiceTier        string
 	UpstreamServiceTier         string
+	RequestedClaudeSpeed        string
+	UpstreamClaudeSpeed         string
 
 	Request dto.Request
 

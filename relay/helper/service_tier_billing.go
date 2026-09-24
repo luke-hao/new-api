@@ -27,6 +27,8 @@ func fastPriceMissing(model string) *types.NewAPIError {
 func PrepareServiceTierBilling(c *gin.Context, info *relaycommon.RelayInfo, data []byte, headers http.Header) error {
 	info.OutboundBillingRequestInput = nil
 	info.UpstreamServiceTier = ""
+	info.UpstreamClaudeSpeed = ""
+	info.RequestedClaudeSpeed = gjson.GetBytes(data, "speed").String()
 	info.RequestedServiceTier = gjson.GetBytes(data, "service_tier").String()
 	snap := info.TieredBillingSnapshot
 	if snap == nil {
@@ -95,4 +97,19 @@ func ObserveServiceTierBilling(info *relaycommon.RelayInfo, data []byte) *types.
 		}
 	}
 	return nil
+}
+
+// ObserveClaudeBillingSpeed uses confirmed upstream speed, including the Opus
+// 4.6 standard-speed fallback. Missing fields preserve the last observed value.
+func ObserveClaudeBillingSpeed(info *relaycommon.RelayInfo, data []byte) {
+	if info == nil {
+		return
+	}
+	speed := gjson.GetBytes(data, "usage.speed").String()
+	if speed == "" {
+		speed = gjson.GetBytes(data, "message.usage.speed").String()
+	}
+	if speed == "fast" || speed == "standard" {
+		info.UpstreamClaudeSpeed = speed
+	}
 }

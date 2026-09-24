@@ -485,9 +485,9 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	return doRequest(c, req, info)
 }
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
-	// All OpenAI chat/Responses paths converge here, including raw body
+	// OpenAI chat/Responses and native Claude paths converge here, including raw body
 	// passthrough and protocol conversion. Validate before sending or pinging.
-	if (info.RelayMode == constant.RelayModeChatCompletions || info.RelayMode == constant.RelayModeResponses) && req.Body != nil {
+	if (info.RelayMode == constant.RelayModeChatCompletions || info.RelayMode == constant.RelayModeResponses || info.RelayFormat == types.RelayFormatClaude) && req.Body != nil {
 		data, err := io.ReadAll(req.Body)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeReadRequestBodyFailed, types.ErrOptionWithSkipRetry())

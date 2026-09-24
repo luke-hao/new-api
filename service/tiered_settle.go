@@ -4,6 +4,7 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/tidwall/sjson"
 )
 
 // TieredResultWrapper wraps billingexpr.TieredResult for use at the service layer.
@@ -109,6 +110,11 @@ func TryTieredSettle(relayInfo *relaycommon.RelayInfo, params billingexpr.TokenP
 	if relayInfo.UpstreamServiceTier != "" {
 		if adjusted, ok := billingexpr.ServiceTierPriceInput(snap.ExprString, requestInput, relayInfo.UpstreamServiceTier); ok {
 			requestInput = adjusted
+		}
+	}
+	if relayInfo.UpstreamClaudeSpeed != "" {
+		if body, err := sjson.SetBytes(requestInput.Body, "speed", relayInfo.UpstreamClaudeSpeed); err == nil {
+			requestInput.Body = body
 		}
 	}
 	tr, err := billingexpr.ComputeTieredQuotaWithRequest(snap, params, requestInput)

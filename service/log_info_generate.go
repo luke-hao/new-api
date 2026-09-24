@@ -275,6 +275,12 @@ func InjectTieredBillingInfo(other map[string]interface{}, relayInfo *relaycommo
 	if relayInfo == nil || other == nil {
 		return
 	}
+	if relayInfo.RequestedClaudeSpeed != "" {
+		other["requested_claude_speed"] = relayInfo.RequestedClaudeSpeed
+	}
+	if relayInfo.UpstreamClaudeSpeed != "" {
+		other["upstream_claude_speed"] = relayInfo.UpstreamClaudeSpeed
+	}
 	if relayInfo.RequestedServiceTier != "" {
 		other["requested_service_tier"] = relayInfo.RequestedServiceTier
 	}

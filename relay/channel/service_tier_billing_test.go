@@ -136,3 +136,32 @@ func TestServiceTierReserveFailureStopsBeforeUpstream(t *testing.T) {
 	require.ErrorContains(t, err, "insufficient quota")
 	require.Zero(t, calls)
 }
+
+func TestNativeClaudePricingUsesFinalSpeedAndGeography(t *testing.T) {
+	service.InitHttpClient()
+	for _, body := range []string{`{}`, `{"speed":"fast","inference_geo":"us"}`} {
+		t.Run(body, func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; io.WriteString(w, `{}`) }))
+			defer server.Close()
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest("POST", "/v1/messages", strings.NewReader(`{}`))
+			reserve := &tierBillingReserve{}
+			info := &relaycommon.RelayInfo{RelayFormat: types.RelayFormatClaude, ChannelMeta: &relaycommon.ChannelMeta{}, UsingGroup: "default", UserGroup: "default", OriginModelName: "claude-opus-5", Billing: reserve, TieredBillingSnapshot: &billingexpr.BillingSnapshot{BillingMode: "tiered_expr", ExprString: `(p*5)*(param("speed")=="fast"?2:1)*(param("inference_geo")=="us"?1.1:1)`, QuotaPerUnit: 500000, EstimatedPromptTokens: 100}, BillingRequestInput: &billingexpr.RequestInput{Body: []byte(`{"speed":"fast"}`)}, UpstreamClaudeSpeed: "fast"}
+			req, _ := http.NewRequest("POST", server.URL, strings.NewReader(body))
+			resp, err := DoRequest(c, req, info)
+			require.NoError(t, err)
+			resp.Body.Close()
+			require.Equal(t, 1, calls)
+			expected := 250
+			if body != "{}" {
+				expected = 550
+			}
+			require.Equal(t, expected, reserve.target)
+			require.Empty(t, info.UpstreamClaudeSpeed)
+			ok, quota, _ := service.TryTieredSettle(info, billingexpr.TokenParams{P: 100})
+			require.True(t, ok)
+			require.Equal(t, expected, quota)
+		})
+	}
+}

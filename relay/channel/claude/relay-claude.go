@@ -802,6 +802,7 @@ func FormatClaudeResponseInfo(claudeResponse *dto.ClaudeResponse, oaiResponse *d
 }
 
 func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, data string) *types.NewAPIError {
+	helper.ObserveClaudeBillingSpeed(info, common.StringToByteSlice(data))
 	var claudeResponse dto.ClaudeResponse
 	err := common.UnmarshalJsonStr(data, &claudeResponse)
 	if err != nil {
@@ -912,6 +913,7 @@ func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 // observeClaudeStreamPassthroughData records billing and model metadata while
 // leaving the original SSE bytes untouched for the downstream client.
 func observeClaudeStreamPassthroughData(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, data string) *types.NewAPIError {
+	helper.ObserveClaudeBillingSpeed(info, common.StringToByteSlice(data))
 	var claudeResponse dto.ClaudeResponse
 	if err := common.UnmarshalJsonStr(data, &claudeResponse); err != nil {
 		common.SysLog("error unmarshalling passthrough stream response: " + err.Error())
@@ -1059,6 +1061,7 @@ func ClaudeStreamPassthroughHandler(c *gin.Context, resp *http.Response, info *r
 }
 
 func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, httpResp *http.Response, data []byte) *types.NewAPIError {
+	helper.ObserveClaudeBillingSpeed(info, data)
 	var claudeResponse dto.ClaudeResponse
 	err := common.Unmarshal(data, &claudeResponse)
 	if err != nil {
