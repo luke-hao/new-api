@@ -5054,7 +5054,7 @@
     "Disable selected keys": "批量禁用",
     "Apply this status change to {{count}} selected keys?": "将更改所选 {{count}} 把密钥的状态，是否继续？",
     "Token unavailable, expired, or quota exhausted": "密钥不存在、无权操作，或已过期 / 额度耗尽",
-    "Status update failed": "状态更新失败"
-  },
-  "In progress": "进行中"
+    "Status update failed": "状态更新失败",
+    "In progress": "进行中"
+  }
 }

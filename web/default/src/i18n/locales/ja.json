@@ -5054,7 +5054,7 @@
     "Disable selected keys": "Disable selected keys",
     "Apply this status change to {{count}} selected keys?": "Apply this status change to {{count}} selected keys?",
     "Token unavailable, expired, or quota exhausted": "Token unavailable, expired, or quota exhausted",
-    "Status update failed": "Status update failed"
-  },
-  "In progress": "処理中"
+    "Status update failed": "Status update failed",
+    "In progress": "処理中"
+  }
 }
