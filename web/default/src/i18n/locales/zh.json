@@ -4624,7 +4624,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相关项目",
     "footer.defaultCopyright": "版权所有。",
-    "footer.new\u0061pi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
+    "footer.newapi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
     "gpt-3.5-turbo": "gpt-3.5-turbo",
     "gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
     "gpt-4": "gpt-4",
@@ -5055,5 +5055,6 @@
     "Apply this status change to {{count}} selected keys?": "将更改所选 {{count}} 把密钥的状态，是否继续？",
     "Token unavailable, expired, or quota exhausted": "密钥不存在、无权操作，或已过期 / 额度耗尽",
     "Status update failed": "状态更新失败"
-  }
+  },
+  "In progress": "进行中"
 }

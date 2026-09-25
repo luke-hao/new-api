@@ -305,7 +305,7 @@ export function ApiKeysTable() {
         <Button onClick={() => setOpen('create')}>{t('Create API Key')}</Button>
       }
       applyHeaderSize
-      className='keys-workspace'
+      className='keys-workspace max-sm:overflow-y-auto max-sm:[&>div]:shrink-0 max-sm:[&>div:nth-child(2)]:flex-none max-sm:[&>div:nth-child(2)]:overflow-visible'
       tableClassName={cn(
         'rounded-xl bg-card shadow-xs [&_td]:align-middle',
         compact ? '[&_td]:py-2' : '[&_td]:py-4'

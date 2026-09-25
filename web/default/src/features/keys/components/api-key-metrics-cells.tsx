@@ -91,7 +91,7 @@ export function KeyActivityCell(props: { metric?: TokenMetric }) {
       <div className='flex items-center gap-1.5'>
         <Activity className='size-3.5 text-emerald-600 dark:text-emerald-400' />
         <span className='font-semibold'>{props.metric?.active ?? '—'}</span>
-        <span className='text-muted-foreground'>{t('Active')}</span>
+        <span className='text-muted-foreground'>{t('In progress')}</span>
       </div>
       <div className='text-muted-foreground'>
         {props.metric?.rpm ?? '—'} RPM

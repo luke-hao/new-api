@@ -4624,7 +4624,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Projets liés",
     "footer.defaultCopyright": "Tous droits réservés.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Tous droits réservés. Conçu et développé par les contributeurs du projet.",
+    "footer.newapi.projectAttributionSuffix": "Tous droits réservés. Conçu et développé par les contributeurs du projet.",
     "gpt-3.5-turbo": "gpt-3.5-turbo",
     "gpt-3.5-turbo-0125": "gpt-3.5-turbo-0125",
     "gpt-4": "gpt-4",
@@ -5055,5 +5055,6 @@
     "Apply this status change to {{count}} selected keys?": "Apply this status change to {{count}} selected keys?",
     "Token unavailable, expired, or quota exhausted": "Token unavailable, expired, or quota exhausted",
     "Status update failed": "Status update failed"
-  }
+  },
+  "In progress": "En cours"
 }
