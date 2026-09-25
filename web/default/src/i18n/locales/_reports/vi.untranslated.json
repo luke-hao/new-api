@@ -73,5 +73,22 @@
   "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.": "Test auto-disabled channels independently of scheduled channel tests. Manual disables are never restored. When enabled, these rules replace the legacy re-enable switch.",
   "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.": "Recovery tests send real upstream requests. Checks run when due, with a 30-second timeout. Failed checks reset the success count. These rules do not add auto-disable triggers.",
   "Timeout or slow response": "Timeout or slow response",
-  "Authentication or permission error": "Authentication or permission error"
+  "Authentication or permission error": "Authentication or permission error",
+  "Image token prices are saved separately for each billing group and model. Global model price changes do not overwrite them.": "Image token prices are saved separately for each billing group and model. Global model price changes do not overwrite them.",
+  "Prices below use USD per 1M tokens, before the group multiplier. Group multiplier: {{ratio}}. User-specific group multipliers take precedence.": "Prices below use USD per 1M tokens, before the group multiplier. Group multiplier: {{ratio}}. User-specific group multipliers take precedence.",
+  "Token billing is off for this group. These prices are kept for later; per-image or global pricing currently applies.": "Token billing is off for this group. These prices are kept for later; per-image or global pricing currently applies.",
+  "Fill every price field for each model used in a token billing group. Zero means free. Save group settings to apply. Per-image prices do not apply while token billing is on.": "Fill every price field for each model used in a token billing group. Zero means free. Save group settings to apply. Per-image prices do not apply while token billing is on.",
+  "Token billing is enabled for this group; the per-image prices below are inactive.": "Token billing is enabled for this group; the per-image prices below are inactive.",
+  "This is the global fallback price. Separate image token prices apply in: {{groups}}. Edit them in Billing settings → Group pricing.": "This is the global fallback price. Separate image token prices apply in: {{groups}}. Edit them in Billing settings → Group pricing.",
+  "Browser round-trip latency · No model usage · Select a route for copied addresses and setup guides": "Browser round-trip latency · No model usage · Select a route for copied addresses and setup guides",
+  "Active requests on this instance · RPM counts requests started in the last 60 seconds": "Active requests on this instance · RPM counts requests started in the last 60 seconds",
+  "Try another filter or create a new API key.": "Try another filter or create a new API key.",
+  "Usage statistics temporarily unavailable. Refresh to retry.": "Usage statistics temporarily unavailable. Refresh to retry.",
+  "Use your selected endpoint with this API key. Running examples consumes quota.": "Use your selected endpoint with this API key. Running examples consumes quota.",
+  "Copy configuration with key": "Copy configuration with key",
+  "Merge the env fields into ~/.claude/settings.json.": "Merge the env fields into ~/.claude/settings.json.",
+  "Merge the TOML section into config.toml, then set the environment variable in your terminal.": "Merge the TOML section into config.toml, then set the environment variable in your terminal.",
+  "Run this command in a macOS or Linux terminal. Choose a model supported by your group.": "Run this command in a macOS or Linux terminal. Choose a model supported by your group.",
+  "Apply this status change to {{count}} selected keys?": "Apply this status change to {{count}} selected keys?",
+  "Token unavailable, expired, or quota exhausted": "Token unavailable, expired, or quota exhausted"
 }

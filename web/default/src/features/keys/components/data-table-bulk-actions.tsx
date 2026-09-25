@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useState, useCallback } from 'react'
 import { type Table } from '@tanstack/react-table'
-import { Copy, Trash2, Loader2, Layers3 } from 'lucide-react'
+import { Copy, Trash2, Loader2, Layers3, Power, PowerOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
@@ -29,6 +29,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
+import { Dialog } from '@/components/dialog'
+import { batchUpdateApiKeyStatus } from '../api'
 import { type ApiKey } from '../types'
 import { ApiKeysBatchGroupDialog } from './api-keys-batch-group-dialog'
 import { ApiKeysMultiDeleteDialog } from './api-keys-multi-delete-dialog'
@@ -42,10 +44,15 @@ export function DataTableBulkActions<TData>({
   table,
 }: DataTableBulkActionsProps<TData>) {
   const { t } = useTranslation()
-  const { resolveRealKeysBatch } = useApiKeys()
+  const { resolveRealKeysBatch, triggerRefresh } = useApiKeys()
   const [showBatchGroupDialog, setShowBatchGroupDialog] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isCopying, setIsCopying] = useState(false)
+  const [batchStatus, setBatchStatus] = useState<number | null>(null)
+  const [statusBusy, setStatusBusy] = useState(false)
+  const [statusResults, setStatusResults] = useState<
+    { id: number; success: boolean; message?: string }[] | null
+  >(null)
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
   const handleBatchCopy = useCallback(async () => {
@@ -80,9 +87,55 @@ export function DataTableBulkActions<TData>({
     }
   }, [selectedRows, resolveRealKeysBatch, t])
 
+  const applyStatus = async () => {
+    if (batchStatus === null) return
+    setStatusBusy(true)
+    try {
+      const result = await batchUpdateApiKeyStatus(
+        selectedRows.map((row) => (row.original as ApiKey).id),
+        batchStatus
+      )
+      if (!result.success) {
+        toast.error(result.message || t('Status update failed'))
+        return
+      }
+      setStatusResults(result.data || [])
+      triggerRefresh()
+      table.resetRowSelection()
+    } catch {
+      toast.error(t('Status update failed'))
+    } finally {
+      setStatusBusy(false)
+    }
+  }
+
   return (
     <>
       <BulkActionsToolbar table={table} entityName='API key'>
+        <Button
+          variant='outline'
+          size='icon'
+          className='size-8'
+          aria-label={t('Enable selected keys')}
+          onClick={() => {
+            setStatusResults(null)
+            setBatchStatus(1)
+          }}
+        >
+          <Power className='size-4' />
+        </Button>
+        <Button
+          variant='outline'
+          size='icon'
+          className='size-8'
+          aria-label={t('Disable selected keys')}
+          onClick={() => {
+            setStatusResults(null)
+            setBatchStatus(2)
+          }}
+        >
+          <PowerOff className='size-4' />
+        </Button>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -147,6 +200,49 @@ export function DataTableBulkActions<TData>({
         </Tooltip>
       </BulkActionsToolbar>
 
+      <Dialog
+        open={batchStatus !== null}
+        onOpenChange={(value) => {
+          if (!value && !statusBusy) setBatchStatus(null)
+        }}
+        title={t(
+          batchStatus === 1 ? 'Enable selected keys' : 'Disable selected keys'
+        )}
+        footer={
+          statusResults ? (
+            <Button onClick={() => setBatchStatus(null)}>{t('Close')}</Button>
+          ) : (
+            <Button disabled={statusBusy} onClick={() => void applyStatus()}>
+              {statusBusy && <Loader2 className='size-4 animate-spin' />}
+              {t('Confirm')}
+            </Button>
+          )
+        }
+      >
+        {statusResults ? (
+          <div className='space-y-2'>
+            {statusResults.map((result) => (
+              <p
+                key={result.id}
+                className={
+                  result.success ? 'text-sm' : 'text-destructive text-sm'
+                }
+              >
+                #{result.id} ·{' '}
+                {result.success
+                  ? t('Success')
+                  : t(result.message || 'Status update failed')}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p>
+            {t('Apply this status change to {{count}} selected keys?', {
+              count: selectedRows.length,
+            })}
+          </p>
+        )}
+      </Dialog>
       <ApiKeysBatchGroupDialog
         open={showBatchGroupDialog}
         onOpenChange={setShowBatchGroupDialog}

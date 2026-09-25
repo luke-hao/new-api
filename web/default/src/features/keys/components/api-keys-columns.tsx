@@ -17,22 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { type ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { getUserGroups } from '@/lib/api'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Progress } from '@/components/ui/progress'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { StatusBadge } from '@/components/status-badge'
 import { API_KEY_STATUSES } from '../constants'
-import { type ApiKey } from '../types'
-import { type ApiKeyGroupOption } from './api-key-group-combobox'
+import type { ApiKey, TokenMetric } from '../types'
+import type { ApiKeyGroupOption } from './api-key-group-combobox'
+import {
+  KeyQuotaCell,
+  KeyActivityCell,
+  KeyTimeCell,
+} from './api-key-metrics-cells'
 import {
   ApiKeyCell,
   ApiKeyGroupCell,
@@ -41,255 +39,184 @@ import {
 } from './api-keys-cells'
 import { DataTableRowActions } from './data-table-row-actions'
 
-function getQuotaProgressColor(percentage: number): string {
-  if (percentage <= 10) return '[&_[data-slot=progress-indicator]]:bg-rose-500'
-  if (percentage <= 30) return '[&_[data-slot=progress-indicator]]:bg-amber-500'
-  return '[&_[data-slot=progress-indicator]]:bg-emerald-500'
-}
-
-type GroupData = {
-  options: ApiKeyGroupOption[]
-}
-
-const EMPTY_GROUP_DATA: GroupData = { options: [] }
-
-function useGroupData(): GroupData {
+export function useKeyGroups() {
   const { data } = useQuery({
     queryKey: ['user-groups'],
     queryFn: getUserGroups,
-    staleTime: 0,
-    select: (res): GroupData => {
-      if (!res.success || !res.data) return EMPTY_GROUP_DATA
-
-      return {
-        options: Object.entries(res.data).map(([group, info]) => ({
-          value: group,
-          label: group,
-          desc: info.desc || group,
-          ratio: info.ratio,
-        })),
-      }
-    },
+    staleTime: 30000,
   })
-
-  return data ?? EMPTY_GROUP_DATA
+  const options: ApiKeyGroupOption[] = Object.entries(data?.data || {}).map(
+    ([group, info]) => ({
+      value: group,
+      label: group,
+      desc: info.desc || group,
+      ratio: info.ratio,
+    })
+  )
+  return options
 }
-
-export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
+export function useApiKeysColumns(
+  metrics: Record<number, TokenMetric>,
+  unit: 'quota' | 'tokens',
+  consumptionStatus?: string
+): ColumnDef<ApiKey>[] {
   const { t } = useTranslation()
-  const { options: groupOptions } = useGroupData()
+  const groupOptions = useKeyGroups()
   return [
     {
       id: 'select',
+      size: 36,
+      enableSorting: false,
+      enableHiding: false,
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
           indeterminate={table.getIsSomePageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label='Select all'
-          className='translate-y-[2px]'
+          aria-label={t('Select all')}
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label='Select row'
-          className='translate-y-[2px]'
+          aria-label={t('Select row')}
         />
       ),
-      enableSorting: false,
-      enableHiding: false,
-      size: 40,
     },
     {
       accessorKey: 'name',
-      header: t('Name'),
-      cell: ({ row }) => (
-        <span className='font-medium'>{row.getValue('name')}</span>
-      ),
-      size: 180,
-      meta: { mobileTitle: true },
+      header: t('Name / API Key'),
+      size: 235,
+      enableHiding: false,
+      cell: ({ row }) => {
+        const config = API_KEY_STATUSES[row.original.status]
+        return (
+          <div className='min-w-0 space-y-1.5'>
+            <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+              <span className='font-medium break-all'>{row.original.name}</span>
+              {config && (
+                <StatusBadge
+                  label={t(config.label)}
+                  variant={config.variant}
+                  copyable={false}
+                />
+              )}
+            </div>
+            <ApiKeyCell apiKey={row.original} />
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'status',
       header: t('Status'),
+      enableHiding: true,
+      size: 90,
       cell: ({ row }) => {
-        const statusConfig = API_KEY_STATUSES[row.getValue('status') as number]
-        if (!statusConfig) return null
-        return (
+        const config = API_KEY_STATUSES[row.original.status]
+        return config ? (
           <StatusBadge
-            label={t(statusConfig.label)}
-            variant={statusConfig.variant}
+            label={t(config.label)}
+            variant={config.variant}
             copyable={false}
-            className='-ml-1.5'
           />
-        )
+        ) : null
       },
-      filterFn: (row, id, value) => value.includes(String(row.getValue(id))),
-      size: 120,
-      meta: { mobileBadge: true },
     },
     {
-      id: 'key',
-      accessorKey: 'key',
-      header: t('API Key'),
-      cell: ({ row }) => <ApiKeyCell apiKey={row.original} />,
-      enableSorting: false,
-      size: 260,
-    },
-    {
-      id: 'quota',
+      id: 'remain_quota',
       accessorKey: 'remain_quota',
-      header: t('Quota'),
-      cell: ({ row }) => {
-        const apiKey = row.original
-        if (apiKey.unlimited_quota) {
-          return (
-            <StatusBadge
-              label={t('Unlimited')}
-              variant='neutral'
-              copyable={false}
-              className='-ml-1.5'
-            />
-          )
-        }
-
-        const used = apiKey.used_quota
-        const remaining = apiKey.remain_quota
-        const total = used + remaining
-        const percentage = total > 0 ? (remaining / total) * 100 : 0
-
-        return (
-          <Tooltip>
-            <TooltipTrigger render={<div className='w-[150px] space-y-1' />}>
-              <div className='flex justify-between text-xs'>
-                <span className='font-medium tabular-nums'>
-                  {formatQuota(remaining)}
-                </span>
-                <span className='text-muted-foreground tabular-nums'>
-                  {formatQuota(total)}
-                </span>
-              </div>
-              <Progress
-                value={percentage}
-                className={cn('h-1.5', getQuotaProgressColor(percentage))}
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className='space-y-1 text-xs'>
-                <div>
-                  {t('Used:')} {formatQuota(used)}
-                </div>
-                <div>
-                  {t('Remaining:')} {formatQuota(remaining)} (
-                  {percentage.toFixed(1)}%)
-                </div>
-                <div>
-                  {t('Total:')} {formatQuota(total)}
-                </div>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        )
-      },
-      size: 170,
+      header: t('Quota & usage'),
+      size: 174,
+      cell: ({ row }) => (
+        <KeyQuotaCell
+          apiKey={row.original}
+          metric={metrics[row.original.id]}
+          unit={unit}
+          consumptionStatus={consumptionStatus}
+        />
+      ),
     },
     {
       accessorKey: 'group',
       header: t('Group'),
+      size: 234,
       cell: ({ row }) => (
         <ApiKeyGroupCell
-          key={`${row.original.id}:${row.original.group || ''}`}
+          key={row.original.id + ':' + (row.original.group || '')}
           apiKey={row.original}
           options={groupOptions}
         />
       ),
-      size: 160,
-      meta: { mobileHidden: true },
     },
     {
-      id: 'model_limits',
-      accessorKey: 'model_limits',
-      header: t('Models'),
-      cell: ({ row }) => <ModelLimitsCell apiKey={row.original} />,
+      id: 'activity',
+      header: t('Live activity'),
+      size: 112,
       enableSorting: false,
-      size: 160,
-      meta: { mobileHidden: true },
+      cell: ({ row }) => <KeyActivityCell metric={metrics[row.original.id]} />,
     },
     {
-      id: 'allow_ips',
-      accessorKey: 'allow_ips',
-      header: t('IP Restriction'),
-      cell: ({ row }) => <IpRestrictionsCell apiKey={row.original} />,
+      id: 'restrictions',
+      header: t('Models / IP'),
+      size: 128,
       enableSorting: false,
-      size: 160,
-      meta: { mobileHidden: true },
+      cell: ({ row }) => (
+        <div className='space-y-1.5 text-xs'>
+          <div>
+            <span className='text-muted-foreground mr-1'>{t('Models')}</span>
+            <ModelLimitsCell apiKey={row.original} />
+          </div>
+          <div>
+            <span className='text-muted-foreground mr-1'>IP</span>
+            <IpRestrictionsCell apiKey={row.original} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'accessed_time',
+      header: t('Time'),
+      size: 162,
+      cell: ({ row }) => <KeyTimeCell apiKey={row.original} />,
     },
     {
       accessorKey: 'created_time',
       header: t('Created'),
+      size: 155,
       cell: ({ row }) => (
-        <span className='text-muted-foreground block truncate font-mono text-xs tabular-nums'>
-          {formatTimestampToDate(row.getValue('created_time'))}
+        <span className='text-xs'>
+          {formatTimestampToDate(row.original.created_time)}
         </span>
       ),
-      size: 180,
-      meta: { mobileHidden: true },
-    },
-    {
-      accessorKey: 'accessed_time',
-      header: t('Last Used'),
-      cell: ({ row }) => {
-        const accessedTime = row.getValue('accessed_time') as number
-        if (!accessedTime) {
-          return <span className='text-muted-foreground text-xs'>-</span>
-        }
-        return (
-          <span className='text-muted-foreground block truncate font-mono text-xs tabular-nums'>
-            {formatTimestampToDate(accessedTime)}
-          </span>
-        )
-      },
-      size: 180,
-      meta: { mobileHidden: true },
     },
     {
       accessorKey: 'expired_time',
       header: t('Expires'),
-      cell: ({ row }) => {
-        const expiredTime = row.getValue('expired_time') as number
-        if (expiredTime === -1) {
-          return (
-            <StatusBadge
-              label={t('Never')}
-              variant='neutral'
-              copyable={false}
-              className='-ml-1.5'
-            />
-          )
-        }
-        const isExpired = expiredTime * 1000 < Date.now()
-        return (
-          <span
-            className={cn(
-              'block truncate font-mono text-xs tabular-nums',
-              isExpired ? 'text-destructive' : 'text-muted-foreground'
-            )}
-          >
-            {formatTimestampToDate(expiredTime)}
-          </span>
-        )
-      },
-      size: 180,
-      meta: { mobileHidden: true },
+      size: 155,
+      cell: ({ row }) => (
+        <span className='text-xs'>
+          {row.original.expired_time === -1
+            ? t('Never')
+            : formatTimestampToDate(row.original.expired_time)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'used_quota',
+      header: t('Total used'),
+      size: 120,
+      cell: ({ row }) => formatQuota(row.original.used_quota),
     },
     {
       id: 'actions',
-      header: () => t('Actions'),
-      cell: ({ row }) => <DataTableRowActions row={row} />,
+      header: t('Actions'),
+      enableSorting: false,
+      enableHiding: false,
+      size: 110,
       meta: { pinned: 'right' as const },
-      size: 88,
+      cell: ({ row }) => <DataTableRowActions row={row} />,
     },
   ]
 }

@@ -16,236 +16,158 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { type Table as TanstackTable } from '@tanstack/react-table'
-import { Database } from 'lucide-react'
+import type {
+  SortingState,
+  Table,
+  VisibilityState,
+} from '@tanstack/react-table'
+import { Activity, KeyRound, RefreshCw, Rows3 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import { formatQuota } from '@/lib/format'
+import { getUserGroups } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
-import { CopyButton } from '@/components/copy-button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  DISABLED_ROW_DESKTOP,
-  DISABLED_ROW_MOBILE,
   DataTablePage,
   DataTableToolbar,
-  useDebouncedColumnFilter,
   useDataTable,
 } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
-import { getApiKeys, searchApiKeys } from '../api'
+import { getApiKeys, getTokenMetrics, searchApiKeys } from '../api'
+import { API_KEY_STATUS_OPTIONS, API_KEY_STATUSES } from '../constants'
+import type { ApiKey, TokenListFilters, TokenMetric } from '../types'
+import { ApiEndpointsPanel } from './api-endpoints-panel'
 import {
-  API_KEY_STATUS,
-  API_KEY_STATUS_OPTIONS,
-  API_KEY_STATUSES,
-  ERROR_MESSAGES,
-} from '../constants'
-import { type ApiKey } from '../types'
-import { ApiKeyCell } from './api-keys-cells'
-import { useApiKeysColumns } from './api-keys-columns'
+  KeyQuotaCell,
+  KeyTimeCell,
+  KeyActivityCell,
+} from './api-key-metrics-cells'
+import {
+  ApiKeyCell,
+  ApiKeyGroupCell,
+  ModelLimitsCell,
+  IpRestrictionsCell,
+} from './api-keys-cells'
+import { useApiKeysColumns, useKeyGroups } from './api-keys-columns'
 import { useApiKeys } from './api-keys-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { DataTableRowActions } from './data-table-row-actions'
 
 const route = getRouteApi('/_authenticated/keys/')
+const EMPTY_KEYS: ApiKey[] = []
+const EMPTY_METRICS: Record<number, TokenMetric> = {}
 
-const API_URLS = [
-  {
-    labelKey: 'Codex corresponding URL (default)',
-    url: 'https://code28.ccwu.cc/v1',
-  },
-  {
-    labelKey: 'Claude corresponding URL (default)',
-    url: 'https://code28.ccwu.cc',
-  },
-] as const
-
-function isDisabledApiKeyRow(apiKey: ApiKey) {
-  return apiKey.status !== API_KEY_STATUS.ENABLED
-}
-
-function ApiUrlRow({
-  label,
-  url,
-}: {
-  label: string
-  url: string
+function MobileKeys(props: {
+  table: Table<ApiKey>
+  loading: boolean
+  metrics: Record<number, TokenMetric>
+  unit: 'quota' | 'tokens'
+  consumptionStatus?: string
 }) {
   const { t } = useTranslation()
-
-  return (
-    <div className='bg-muted/30 flex min-w-0 flex-col gap-1.5 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:gap-3'>
-      <div className='min-w-0 flex-1'>
-        <div className='truncate text-sm font-medium'>{label}</div>
-      </div>
-
-      <div className='flex min-w-0 items-center gap-2 sm:flex-1 sm:justify-end'>
-        <span
-          className='text-muted-foreground min-w-0 flex-1 select-all font-mono text-xs break-all sm:truncate sm:whitespace-nowrap'
-          title={url}
-        >
-          {url}
-        </span>
-        <CopyButton
-          value={url}
-          className='size-7 shrink-0'
-          iconClassName='size-3.5'
-          tooltip={t('Copy URL')}
-          aria-label={t('Copy URL')}
-        />
-      </div>
-    </div>
-  )
-}
-
-function ApiUrlsPanel() {
-  const { t } = useTranslation()
-
-  return (
-    <div className='space-y-2'>
-      {API_URLS.map((item) => (
-        <ApiUrlRow
-          key={item.labelKey}
-          label={t(item.labelKey)}
-          url={item.url}
-        />
-      ))}
-    </div>
-  )
-}
-
-function ApiKeysMobileSkeleton() {
-  return (
-    <div className='divide-border overflow-hidden rounded-lg border'>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div
-          key={index}
-          className='space-y-2 border-b px-3 py-2.5 last:border-b-0'
-        >
-          <div className='flex items-center justify-between'>
-            <Skeleton className='h-4 w-32' />
-            <Skeleton className='h-5 w-16 rounded-md' />
-          </div>
-          <div className='flex items-center justify-between gap-3'>
-            <Skeleton className='h-7 w-44' />
-            <Skeleton className='h-8 w-16' />
-          </div>
-          <Skeleton className='h-3 w-28' />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function ApiKeysMobileList({
-  table,
-  isLoading,
-}: {
-  table: TanstackTable<ApiKey>
-  isLoading: boolean
-}) {
-  const { t } = useTranslation()
-  const rows = table.getRowModel().rows
-
-  if (isLoading) return <ApiKeysMobileSkeleton />
-
-  if (!rows.length) {
+  const groups = useKeyGroups()
+  if (props.loading)
     return (
-      <div className='rounded-lg border p-8'>
-        <Empty className='border-none p-0'>
-          <EmptyHeader>
-            <EmptyMedia variant='icon'>
-              <Database className='size-6' />
-            </EmptyMedia>
-            <EmptyTitle>{t('No API Keys Found')}</EmptyTitle>
-            <EmptyDescription>
-              {t(
-                'No API keys available. Create your first API key to get started.'
-              )}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+      <div className='space-y-3'>
+        {[1, 2, 3].map((n) => (
+          <Skeleton key={n} className='h-44 w-full rounded-xl' />
+        ))}
       </div>
     )
-  }
-
+  if (!props.table.getRowModel().rows.length)
+    return (
+      <div className='text-muted-foreground rounded-xl border border-dashed p-10 text-center'>
+        {t('No API Keys Found')}
+      </div>
+    )
   return (
-    <div className='divide-border overflow-hidden rounded-lg border'>
-      {rows.map((row) => {
-        const apiKey = row.original
-        const statusConfig = API_KEY_STATUSES[apiKey.status]
-        const total = apiKey.used_quota + apiKey.remain_quota
-
+    <div className='space-y-3'>
+      <div className='flex items-center gap-2 text-xs'>
+        <Checkbox
+          checked={props.table.getIsAllPageRowsSelected()}
+          indeterminate={props.table.getIsSomePageRowsSelected()}
+          onCheckedChange={(v) => props.table.toggleAllPageRowsSelected(!!v)}
+          aria-label={t('Select all')}
+        />
+        {t('Select all')}
+      </div>
+      {props.table.getRowModel().rows.map((row) => {
+        const key = row.original
+        const status = API_KEY_STATUSES[key.status]
         return (
-          <div
+          <article
             key={row.id}
-            className={cn(
-              'bg-card space-y-2.5 border-b px-3 py-2.5 last:border-b-0',
-              isDisabledApiKeyRow(apiKey) && DISABLED_ROW_MOBILE
-            )}
+            className='bg-card min-w-0 space-y-3 rounded-xl border p-3.5'
           >
-            <div className='flex items-start justify-between gap-3'>
-              <div className='min-w-0'>
-                <div className='truncate text-sm font-semibold'>
-                  {apiKey.name}
-                </div>
-                <div className='text-muted-foreground text-[11px]'>
-                  {t('API Key')}
-                </div>
+            <div className='flex items-start justify-between gap-2'>
+              <div className='flex min-w-0 items-center gap-2'>
+                <Checkbox
+                  checked={row.getIsSelected()}
+                  onCheckedChange={(v) => row.toggleSelected(!!v)}
+                  aria-label={t('Select row')}
+                />
+                <span className='font-medium break-all'>{key.name}</span>
               </div>
-              {statusConfig && (
+              {status && (
                 <StatusBadge
-                  label={t(statusConfig.label)}
-                  variant={statusConfig.variant}
+                  label={t(status.label)}
+                  variant={status.variant}
                   copyable={false}
                 />
               )}
             </div>
-
-            <div className='flex min-w-0 items-center justify-between gap-2'>
-              <div className='min-w-0 flex-1 [&_button:first-child]:max-w-full [&_button:first-child]:truncate [&_button:first-child]:px-0'>
-                <ApiKeyCell apiKey={apiKey} />
-              </div>
+            <div className='flex items-center justify-between gap-1'>
+              <ApiKeyCell apiKey={key} />
               <DataTableRowActions row={row} />
             </div>
-
-            <div className='flex items-center justify-between gap-2 text-xs'>
-              <span className='text-muted-foreground'>{t('Quota')}</span>
-              {apiKey.unlimited_quota ? (
-                <span className='font-medium'>{t('Unlimited')}</span>
-              ) : (
-                <span className='font-medium tabular-nums'>
-                  {formatQuota(apiKey.remain_quota)}
-                  <span className='text-muted-foreground font-normal'>
-                    {' / '}
-                    {formatQuota(total)}
-                  </span>
-                </span>
-              )}
+            <div className='bg-muted/30 grid grid-cols-[minmax(0,1fr)_auto] gap-5 rounded-lg p-3'>
+              <KeyQuotaCell
+                apiKey={key}
+                metric={props.metrics[key.id]}
+                unit={props.unit}
+                consumptionStatus={props.consumptionStatus}
+              />
+              <KeyActivityCell metric={props.metrics[key.id]} />
             </div>
-          </div>
+            <ApiKeyGroupCell apiKey={key} options={groups} />
+            <details className='text-xs'>
+              <summary className='text-muted-foreground cursor-pointer py-1'>
+                {t('Limits & timestamps')}
+              </summary>
+              <div className='grid gap-3 pt-3'>
+                <div className='flex gap-4'>
+                  <ModelLimitsCell apiKey={key} />
+                  <IpRestrictionsCell apiKey={key} />
+                </div>
+                <KeyTimeCell apiKey={key} />
+              </div>
+            </details>
+          </article>
         )
       })}
+      <DataTableBulkActions table={props.table} />
     </div>
   )
 }
 
 export function ApiKeysTable() {
   const { t } = useTranslation()
-  const { refreshTrigger } = useApiKeys()
-  const columns = useApiKeysColumns()
-
+  const { refreshTrigger, triggerRefresh, setOpen } = useApiKeys()
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [compact, setCompact] = useState(false)
+  const [unit, setUnit] = useState<'quota' | 'tokens'>('quota')
+  const [visibility, setVisibility] = useState<VisibilityState>({
+    status: false,
+    created_time: false,
+    expired_time: false,
+    used_quota: false,
+  })
   const {
     globalFilter,
     onGlobalFilterChange,
@@ -261,83 +183,116 @@ export function ApiKeysTable() {
     globalFilter: { enabled: true, key: 'filter' },
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: '_tokenSearch', searchKey: 'token', type: 'string' },
+      { columnId: 'group', searchKey: 'group', type: 'array' },
     ],
   })
-
-  const {
-    value: tokenFilter,
-    inputValue: tokenFilterInput,
-    setInputValue: setTokenFilterInput,
-  } = useDebouncedColumnFilter({
-    columnFilters,
-    columnId: '_tokenSearch',
-    onColumnFiltersChange,
-  })
+  const [tokenFilterInput, setTokenFilterInput] = useState('')
+  const [tokenFilter, setTokenFilter] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setTokenFilter(tokenFilterInput.trim()), 350)
+    return () => clearTimeout(timer)
+  }, [tokenFilterInput])
+  const statusFilter = columnFilters.find((f) => f.id === 'status')?.value as
+    | string[]
+    | undefined
+  const groupFilter = columnFilters.find((f) => f.id === 'group')?.value as
+    | string[]
+    | undefined
+  const filters: TokenListFilters = {
+    status: statusFilter?.join(','),
+    group: groupFilter?.[0],
+    sort: sorting[0]?.id,
+    order: sorting[0]?.desc ? 'desc' : 'asc',
+    name_match: 'contains',
+  }
   const shouldSearch = Boolean(globalFilter?.trim() || tokenFilter.trim())
-
-  // Fetch data with React Query
-  // eslint-disable-next-line @tanstack/query/exhaustive-deps
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: [
       'keys',
-      pagination.pageIndex + 1,
+      pagination.pageIndex,
       pagination.pageSize,
       globalFilter,
       tokenFilter,
+      filters,
       refreshTrigger,
+      shouldSearch,
     ],
     queryFn: async () => {
-      const result = shouldSearch
+      const params = {
+        p: pagination.pageIndex + 1,
+        size: pagination.pageSize,
+        ...filters,
+      }
+      const response = shouldSearch
         ? await searchApiKeys({
+            ...params,
             keyword: globalFilter,
             token: tokenFilter,
-            p: pagination.pageIndex + 1,
-            size: pagination.pageSize,
           })
-        : await getApiKeys({
-            p: pagination.pageIndex + 1,
-            size: pagination.pageSize,
-          })
-
-      if (!result.success) {
-        toast.error(
-          result.message ||
-            t(
-              shouldSearch
-                ? ERROR_MESSAGES.SEARCH_FAILED
-                : ERROR_MESSAGES.LOAD_FAILED
-            )
-        )
-        return { items: [], total: 0 }
-      }
-
-      return {
-        items: result.data?.items || [],
-        total: result.data?.total || 0,
-      }
+        : await getApiKeys(params)
+      if (!response.success)
+        throw new Error(response.message || 'Failed to load API keys')
+      return response.data
     },
-    placeholderData: (previousData) => previousData,
+    placeholderData: (previous) => previous,
   })
-
-  const apiKeys = data?.items || []
-
+  const keys = data?.items || EMPTY_KEYS
+  const ids = useMemo(() => keys.map((key) => key.id), [keys])
+  const metricsQuery = useQuery({
+    queryKey: ['token-metrics', ids, refreshTrigger],
+    queryFn: () => getTokenMetrics(ids),
+    enabled: ids.length > 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    retry: 1,
+  })
+  const metrics = useMemo(
+    () =>
+      metricsQuery.data
+        ? Object.fromEntries(
+            metricsQuery.data.items.map((item) => [item.id, item])
+          )
+        : EMPTY_METRICS,
+    [metricsQuery.data]
+  )
+  const columns = useApiKeysColumns(
+    metrics,
+    unit,
+    metricsQuery.data?.consumption_status
+  )
+  const groups = useQuery({
+    queryKey: ['user-groups'],
+    queryFn: getUserGroups,
+    staleTime: 30000,
+  })
   const { table } = useDataTable({
-    data: apiKeys,
+    data: keys,
     columns,
     enableRowSelection: true,
+    getRowId: (key) => String(key.id),
     columnFilters,
     globalFilter,
     pagination,
-    globalFilterFn: () => true,
     onPaginationChange,
     onGlobalFilterChange,
     onColumnFiltersChange,
+    sorting,
+    onSortingChange: (updater) => {
+      setSorting(updater)
+      onPaginationChange({ ...pagination, pageIndex: 0 })
+    },
     manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
     totalCount: data?.total || 0,
     ensurePageInRange,
+    columnVisibility: visibility,
+    onColumnVisibilityChange: setVisibility,
   })
-
+  const active = Object.values(metrics).reduce(
+    (sum, metric) => sum + metric.active,
+    0
+  )
   return (
     <DataTablePage
       table={table}
@@ -345,25 +300,98 @@ export function ApiKeysTable() {
       isLoading={isLoading}
       isFetching={isFetching}
       emptyTitle={t('No API Keys Found')}
-      emptyDescription={t(
-        'No API keys available. Create your first API key to get started.'
-      )}
-      skeletonKeyPrefix='api-keys-skeleton'
+      emptyDescription={t('Try another filter or create a new API key.')}
+      emptyAction={
+        <Button onClick={() => setOpen('create')}>{t('Create API Key')}</Button>
+      }
       applyHeaderSize
+      className='keys-workspace'
+      tableClassName={cn(
+        'rounded-xl bg-card shadow-xs [&_td]:align-middle',
+        compact ? '[&_td]:py-2' : '[&_td]:py-4'
+      )}
+      tableHeaderClassName='bg-muted/45'
       toolbar={
-        <div className='space-y-3'>
+        <div className='space-y-5 pb-1'>
+          <ApiEndpointsPanel />
+          <div className='flex flex-wrap items-center justify-between gap-2 border-t pt-4'>
+            <div className='text-muted-foreground flex flex-wrap items-center gap-4 text-xs'>
+              <span className='inline-flex items-center gap-1.5'>
+                <KeyRound className='size-3.5' />
+                {t('Matching keys')}:{' '}
+                <strong className='text-foreground'>
+                  {data?.total ?? '—'}
+                </strong>
+              </span>
+              <span className='inline-flex items-center gap-1.5'>
+                <Activity className='size-3.5' />
+                {t('Active on this page')}:{' '}
+                <strong className='text-foreground'>
+                  {metricsQuery.data ? active : '—'}
+                </strong>
+              </span>
+              <span>
+                {metricsQuery.data
+                  ? t('Updated at') +
+                    ' ' +
+                    new Date(
+                      metricsQuery.data.as_of * 1000
+                    ).toLocaleTimeString()
+                  : t('Live updates every 5 seconds')}
+              </span>
+            </div>
+            <div className='flex items-center gap-1'>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => setUnit(unit === 'quota' ? 'tokens' : 'quota')}
+              >
+                {t(unit === 'quota' ? 'Today: amount' : 'Today: tokens')}
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon-sm'
+                aria-label={t('Compact rows')}
+                aria-pressed={compact}
+                onClick={() => setCompact(!compact)}
+              >
+                <Rows3 className='size-4' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon-sm'
+                aria-label={t('Refresh')}
+                disabled={isFetching}
+                onClick={triggerRefresh}
+              >
+                <RefreshCw
+                  className={cn('size-4', isFetching && 'animate-spin')}
+                />
+              </Button>
+            </div>
+          </div>
           <DataTableToolbar
             table={table}
             searchPlaceholder={t('Filter by name...')}
+            searchDebounceMs={350}
             additionalSearch={
               <Input
                 placeholder={t('Filter by API key...')}
                 aria-label={t('Filter by API key...')}
                 value={tokenFilterInput}
-                onChange={(e) => setTokenFilterInput(e.target.value)}
-                className='w-full sm:w-50 lg:w-60'
+                onChange={(e) => {
+                  setTokenFilterInput(e.target.value)
+                  onPaginationChange({ ...pagination, pageIndex: 0 })
+                }}
+                className='w-full sm:w-52'
               />
             }
+            hasAdditionalFilters={Boolean(tokenFilter || sorting.length)}
+            onReset={() => {
+              setTokenFilterInput('')
+              setSorting([])
+              table.resetRowSelection()
+            }}
             filters={[
               {
                 columnId: 'status',
@@ -371,14 +399,46 @@ export function ApiKeysTable() {
                 options: API_KEY_STATUS_OPTIONS,
                 singleSelect: true,
               },
+              {
+                columnId: 'group',
+                title: t('Group'),
+                options: Object.keys(groups.data?.data || {}).map((group) => ({
+                  label: group,
+                  value: group,
+                })),
+                singleSelect: true,
+              },
             ]}
           />
-          <ApiUrlsPanel />
+          {error && (
+            <p role='alert' className='text-destructive text-sm'>
+              {t('Failed to load API keys')} · {error.message}
+            </p>
+          )}
+          {(metricsQuery.isError ||
+            metricsQuery.data?.consumption_status === 'unavailable') && (
+            <p role='status' className='text-destructive text-xs'>
+              {t('Usage statistics temporarily unavailable. Refresh to retry.')}
+            </p>
+          )}
+          {metricsQuery.data?.consumption_status === 'disabled' && (
+            <p className='text-muted-foreground text-xs'>
+              {t('Consumption logging is disabled')}
+            </p>
+          )}
         </div>
       }
-      mobile={<ApiKeysMobileList table={table} isLoading={isLoading} />}
+      mobile={
+        <MobileKeys
+          table={table}
+          loading={isLoading}
+          metrics={metrics}
+          unit={unit}
+          consumptionStatus={metricsQuery.data?.consumption_status}
+        />
+      }
       getRowClassName={(row) =>
-        isDisabledApiKeyRow(row.original) ? DISABLED_ROW_DESKTOP : undefined
+        row.original.status === 1 ? undefined : 'bg-muted/20'
       }
       bulkActions={<DataTableBulkActions table={table} />}
     />

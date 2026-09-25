@@ -69,15 +69,11 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   )
 
   const handleCopy = useCallback(async () => {
-    const realKey = resolvedFullKey
-    if (!realKey) {
-      void resolveRealKey(apiKey.id)
-      toast.info(t('API key is loading, please try again in a moment'))
-      return
-    }
+    const realKey = resolvedFullKey || (await resolveRealKey(apiKey.id))
     if (realKey) {
       const ok = await copyToClipboard(realKey)
       if (ok) markKeyCopied(apiKey.id)
+      else toast.error(t('Failed to copy keys'))
     }
   }, [resolvedFullKey, resolveRealKey, apiKey.id, markKeyCopied, t])
 
@@ -128,12 +124,7 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
               size='icon'
               className='size-7 shrink-0'
               onClick={handleCopy}
-              onFocus={() => {
-                if (!resolvedFullKey) void resolveRealKey(apiKey.id)
-              }}
-              onPointerEnter={() => {
-                if (!resolvedFullKey) void resolveRealKey(apiKey.id)
-              }}
+              aria-label={t('Copy API key')}
               disabled={isLoading}
             />
           }

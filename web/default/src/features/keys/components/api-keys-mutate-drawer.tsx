@@ -275,7 +275,9 @@ export function ApiKeysMutateDrawer({
           <form
             id='api-key-form'
             onSubmit={form.handleSubmit(onSubmit, onInvalid)}
-            className={sideDrawerFormClassName('gap-5')}
+            className={sideDrawerFormClassName(
+              '[&>section]:bg-card gap-4 [&>section]:rounded-xl [&>section]:border [&>section]:p-4'
+            )}
           >
             <SideDrawerSection>
               <SideDrawerSectionHeader

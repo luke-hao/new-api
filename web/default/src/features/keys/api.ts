@@ -25,6 +25,7 @@ import type {
   SearchApiKeysParams,
   ApiKeyFormData,
   BatchUpdateApiKeyGroupData,
+  TokenMetrics,
 } from './types'
 
 // ============================================================================
@@ -35,8 +36,11 @@ import type {
 export async function getApiKeys(
   params: GetApiKeysParams = {}
 ): Promise<GetApiKeysResponse> {
-  const { p = 1, size = 10 } = params
-  const res = await api.get(`/api/token/?p=${p}&size=${size}`)
+  const { p = 1, size = 10, ...filters } = params
+  const query = new URLSearchParams({ p: String(p), size: String(size) })
+  for (const [key, value] of Object.entries(filters))
+    if (value !== undefined && value !== '') query.set(key, value)
+  const res = await api.get('/api/token/?' + query.toString())
   return res.data
 }
 
@@ -44,8 +48,10 @@ export async function getApiKeys(
 export async function searchApiKeys(
   params: SearchApiKeysParams
 ): Promise<GetApiKeysResponse> {
-  const { keyword = '', token = '', p, size } = params
+  const { keyword = '', token = '', p, size, ...filters } = params
   const queryParams = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters))
+    if (value !== undefined && value !== '') queryParams.set(key, value)
   if (keyword) queryParams.set('keyword', keyword)
   if (token) queryParams.set('token', token)
   if (p != null) queryParams.set('p', String(p))
@@ -122,5 +128,21 @@ export async function fetchTokenKeysBatch(ids: number[]): Promise<{
   data?: { keys: Record<number, string> }
 }> {
   const res = await api.post('/api/token/batch/keys', { ids })
+  return res.data
+}
+
+export async function getTokenMetrics(ids: number[]): Promise<TokenMetrics> {
+  const res = await api.get('/api/token/metrics', {
+    params: { ids: ids.join(',') },
+  })
+  if (!res.data.success)
+    throw new Error(res.data.message || 'Metrics unavailable')
+  return res.data.data
+}
+export async function batchUpdateApiKeyStatus(
+  ids: number[],
+  status: number
+): Promise<ApiResponse<{ id: number; success: boolean; message?: string }[]>> {
+  const res = await api.put('/api/token/batch/status', { ids, status })
   return res.data
 }

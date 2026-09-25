@@ -30,6 +30,7 @@ func SetSpeedtestRouter(router *gin.Engine, assets ThemeAssets) {
 			serveSpeedtestAsset(c, assets.SpeedtestBuildFS, "speedtest/"+name, contentType)
 		})
 		speedtest.GET("/ping", controller.SpeedtestPing)
+		speedtest.OPTIONS("/ping", controller.SpeedtestPing)
 		speedtest.POST("/upload", middleware.TokenAuth(), middleware.UploadRateLimit(), controller.SpeedtestUpload)
 	}
 }

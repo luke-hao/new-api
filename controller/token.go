@@ -23,6 +23,7 @@ func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	}
 	maskedToken := *token
 	maskedToken.Key = token.GetMaskedKey()
+	maskedToken.Status = model.EffectiveTokenStatus(token, common.GetTimestamp())
 	return &maskedToken
 }
 
@@ -35,14 +36,17 @@ func buildMaskedTokenResponses(tokens []*model.Token) []*model.Token {
 }
 
 func GetAllTokens(c *gin.Context) {
-	userId := c.GetInt("id")
-	pageInfo := common.GetPageQuery(c)
-	tokens, err := model.GetAllUserTokens(userId, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	opts, err := parseTokenListOptions(c)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	total, _ := model.CountUserTokens(userId)
+	pageInfo := common.GetPageQuery(c)
+	tokens, total, err := model.SearchUserTokens(c.GetInt("id"), "", "", pageInfo.GetStartIdx(), pageInfo.GetPageSize(), opts)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(buildMaskedTokenResponses(tokens))
 	common.ApiSuccess(c, pageInfo)
@@ -55,7 +59,12 @@ func SearchTokens(c *gin.Context) {
 
 	pageInfo := common.GetPageQuery(c)
 
-	tokens, total, err := model.SearchUserTokens(userId, keyword, token, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	opts, err := parseTokenListOptions(c)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	tokens, total, err := model.SearchUserTokens(userId, keyword, token, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), opts)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -290,7 +299,13 @@ func UpdateToken(c *gin.Context) {
 		}
 	}
 	if statusOnly != "" {
-		cleanToken.Status = token.Status
+		updated, err := model.UpdateTokenStatusOnly(token.Id, userId, token.Status)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		common.ApiSuccess(c, buildMaskedTokenResponse(updated))
+		return
 	} else {
 		// If you add more fields, please also update token.Update()
 		cleanToken.Name = token.Name

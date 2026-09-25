@@ -52,26 +52,13 @@ const APP_CONFIGS = {
 
 type AppType = keyof typeof APP_CONFIGS
 
-function getServerAddress(): string {
-  try {
-    const raw = localStorage.getItem('status')
-    if (raw) {
-      const status = JSON.parse(raw)
-      if (status.server_address) return status.server_address
-    }
-  } catch {
-    /* empty */
-  }
-  return window.location.origin
-}
-
 function buildCCSwitchURL(
   app: string,
   name: string,
   models: Record<string, string>,
-  apiKey: string
+  apiKey: string,
+  serverAddress: string
 ): string {
-  const serverAddress = getServerAddress()
   const endpoint = app === 'codex' ? serverAddress + '/v1' : serverAddress
   const params = new URLSearchParams()
   params.set('resource', 'provider')
@@ -91,6 +78,7 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   tokenKey: string
+  serverAddress: string
 }
 
 export function CCSwitchDialog(props: Props) {
@@ -139,7 +127,7 @@ export function CCSwitchDialog(props: Props) {
     const key = props.tokenKey.startsWith('sk-')
       ? props.tokenKey
       : `sk-${props.tokenKey}`
-    const url = buildCCSwitchURL(app, name, models, key)
+    const url = buildCCSwitchURL(app, name, models, key, props.serverAddress)
     window.open(url, '_blank')
     props.onOpenChange(false)
   }

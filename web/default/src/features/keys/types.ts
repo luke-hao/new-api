@@ -59,7 +59,14 @@ export interface ApiResponse<T = unknown> {
   data?: T
 }
 
-export interface GetApiKeysParams {
+export interface TokenListFilters {
+  status?: string
+  group?: string
+  sort?: string
+  order?: 'asc' | 'desc'
+  name_match?: 'contains'
+}
+export interface GetApiKeysParams extends TokenListFilters {
   p?: number
   size?: number
 }
@@ -75,7 +82,7 @@ export interface GetApiKeysResponse {
   }
 }
 
-export interface SearchApiKeysParams {
+export interface SearchApiKeysParams extends TokenListFilters {
   keyword?: string
   token?: string
   p?: number
@@ -110,3 +117,20 @@ export type ApiKeysDialogType =
   | 'delete'
   | 'batch-delete'
   | 'cc-switch'
+  | 'setup'
+
+export interface TokenMetric {
+  id: number
+  active: number
+  rpm: number
+  today_quota: number | null
+  today_tokens: number | null
+}
+export interface TokenMetrics {
+  items: TokenMetric[]
+  consumption_status: 'available' | 'disabled' | 'unavailable'
+  consumption_updated_at: number
+  as_of: number
+  timezone: string
+  activity_scope: string
+}

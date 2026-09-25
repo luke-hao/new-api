@@ -145,7 +145,7 @@ export function ApiKeyGroupCombobox({
             className={cn(
               'border-input bg-muted/40 hover:bg-muted/55 hover:text-foreground active:bg-background data-popup-open:border-ring data-popup-open:bg-background data-popup-open:ring-ring/20 w-full justify-between text-start shadow-none transition-[background-color,border-color,box-shadow] duration-150 data-popup-open:ring-[3px]',
               compact
-                ? 'h-9 min-h-0 gap-1 rounded-md px-2 py-1'
+                ? 'h-auto min-h-12 gap-2 rounded-lg px-2.5 py-2'
                 : 'h-auto min-h-14 gap-2 rounded-lg px-3 py-2 sm:min-h-20 sm:gap-3 sm:px-4 sm:py-3'
             )}
           />
@@ -153,12 +153,12 @@ export function ApiKeyGroupCombobox({
       >
         <span
           className={cn(
-            'flex min-w-0 flex-1 items-center justify-between gap-2',
+            'flex min-w-0 flex-1 flex-col items-start gap-1.5',
             !compact && 'sm:gap-3'
           )}
         >
           <span className='min-w-0'>
-            <span className='block truncate font-medium'>
+            <span className='block font-medium break-words whitespace-normal'>
               {selectedOption?.label || placeholder || t('Select a group')}
             </span>
             {!compact && selectedOption?.desc && (
@@ -167,9 +167,7 @@ export function ApiKeyGroupCombobox({
               </span>
             )}
           </span>
-          <span
-            className={cn(compact ? 'hidden 2xl:block' : 'hidden sm:block')}
-          >
+          <span className='block'>
             <GroupRatioBadge ratio={selectedOption?.ratio} />
           </span>
         </span>
@@ -213,7 +211,7 @@ export function ApiKeyGroupCombobox({
                     )}
                   />
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate font-medium'>
+                    <span className='block font-medium break-words whitespace-normal'>
                       {option.label}
                     </span>
                     {option.desc && (

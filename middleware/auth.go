@@ -412,6 +412,8 @@ func TokenAuth() func(c *gin.Context) {
 		if err != nil {
 			return
 		}
+		finishActivity := beginTokenActivity(c)
+		defer finishActivity()
 		c.Next()
 	}
 }

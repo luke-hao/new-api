@@ -78,10 +78,19 @@ func (token *Token) GetIpLimits() []string {
 	return ipLimits
 }
 
-func GetAllUserTokens(userId int, startIdx int, num int) ([]*Token, error) {
+func GetAllUserTokens(userId int, startIdx int, num int, options ...TokenListOptions) ([]*Token, error) {
 	var tokens []*Token
 	var err error
-	err = DB.Where("user_id = ?", userId).Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
+	q := DB.Where("user_id = ?", userId)
+	opts := TokenListOptions{}
+	if len(options) > 0 {
+		opts = options[0]
+	}
+	q, err = applyTokenListOptions(q, opts)
+	if err != nil {
+		return nil, err
+	}
+	err = q.Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, err
 }
 
@@ -124,7 +133,7 @@ func sanitizeLikePattern(input string) (string, error) {
 
 const searchHardLimit = 100
 
-func SearchUserTokens(userId int, keyword string, token string, offset int, limit int) (tokens []*Token, total int64, err error) {
+func SearchUserTokens(userId int, keyword string, token string, offset int, limit int, options ...TokenListOptions) (tokens []*Token, total int64, err error) {
 	// model 层强制截断
 	if limit <= 0 || limit > searchHardLimit {
 		limit = searchHardLimit
@@ -139,7 +148,7 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 
 	// 超量用户（令牌数超过上限）只允许精确搜索，禁止模糊搜索
 	maxTokens := operation_setting.GetMaxUserTokens()
-	hasFuzzy := strings.Contains(keyword, "%") || strings.Contains(token, "%")
+	hasFuzzy := strings.Contains(keyword, "%") || strings.Contains(token, "%") || (keyword != "" && len(options) > 0 && options[0].ContainsName)
 	if hasFuzzy {
 		count, err := CountUserTokens(userId)
 		if err != nil {
@@ -151,11 +160,23 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 		}
 	}
 
+	opts := TokenListOptions{}
+	if len(options) > 0 {
+		opts = options[0]
+	}
 	baseQuery := DB.Model(&Token{}).Where("user_id = ?", userId)
+	baseQuery, err = applyTokenListOptions(baseQuery, opts)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// 非空才加 LIKE 条件，空则跳过（不过滤该字段）
 	if keyword != "" {
 		keywordPattern, err := sanitizeLikePattern(keyword)
+		if opts.ContainsName {
+			keywordPattern = tokenNameContainsPattern(keyword)
+			err = nil
+		}
 		if err != nil {
 			return nil, 0, err
 		}
@@ -170,14 +191,14 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 	}
 
 	// 先查匹配总数（用于分页，受 maxTokens 上限保护，避免全表 COUNT）
-	err = baseQuery.Limit(maxTokens).Count(&total).Error
+	err = baseQuery.Session(&gorm.Session{}).Count(&total).Error
 	if err != nil {
 		common.SysError("failed to count search tokens: " + err.Error())
 		return nil, 0, errors.New("搜索令牌失败")
 	}
 
 	// 再分页查数据
-	err = baseQuery.Order("id desc").Offset(offset).Limit(limit).Find(&tokens).Error
+	err = baseQuery.Offset(offset).Limit(limit).Find(&tokens).Error
 	if err != nil {
 		common.SysError("failed to search tokens: " + err.Error())
 		return nil, 0, errors.New("搜索令牌失败")
@@ -454,7 +475,7 @@ func BatchUpdateTokenGroup(ids []int, userId int, group string, crossGroupRetry 
 	}
 
 	var tokens []Token
-	if err := tx.Select("id", commonKeyCol).
+	if err := tx.Select("id", "key").
 		Where("user_id = ? AND id IN ?", userId, ids).
 		Find(&tokens).Error; err != nil {
 		tx.Rollback()

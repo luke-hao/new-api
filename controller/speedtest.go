@@ -13,6 +13,9 @@ import (
 const speedtestMaxUploadBytes int64 = 128 << 20
 
 func SpeedtestPing(c *gin.Context) {
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
+	c.Header("Timing-Allow-Origin", "*")
 	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	c.Header("Pragma", "no-cache")
 	c.Status(http.StatusNoContent)
