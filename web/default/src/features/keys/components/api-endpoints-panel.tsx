@@ -109,17 +109,21 @@ export function ApiEndpointsPanel() {
             <div
               key={origin}
               className={cn(
-                'bg-card min-w-0 rounded-xl border px-3 py-3 transition-colors sm:px-4',
-                selected && 'border-primary/35 bg-primary/[0.025]'
+                'bg-card relative min-w-0 rounded-lg border px-3 py-3 transition-colors sm:px-4',
+                selected
+                  ? 'border-primary/60 bg-primary/[0.06] ring-primary/20 ring-1'
+                  : 'hover:border-primary/35 hover:bg-muted/30'
               )}
             >
+              <button
+                type='button'
+                onClick={() => setSelectedEndpoint(origin)}
+                aria-pressed={selected}
+                aria-label={`${t(index === 0 ? 'Primary endpoint' : 'Backup endpoint')}: ${origin}`}
+                className='focus-visible:outline-primary absolute inset-0 z-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2'
+              />
               <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-                <button
-                  type='button'
-                  onClick={() => setSelectedEndpoint(origin)}
-                  aria-pressed={selected}
-                  className='flex items-center gap-2 text-sm font-medium'
-                >
+                <div className='flex items-center gap-2 text-sm font-medium'>
                   <span
                     className={cn(
                       'flex size-4 items-center justify-center rounded-full border',
@@ -130,7 +134,12 @@ export function ApiEndpointsPanel() {
                     {selected && <Check className='size-3' />}
                   </span>
                   {index === 0 ? t('Primary endpoint') : t('Backup endpoint')}
-                </button>
+                  {selected && (
+                    <span className='text-primary text-xs font-normal'>
+                      {t('Active')}
+                    </span>
+                  )}
+                </div>
                 <div className='flex items-center gap-2 text-xs'>
                   {faster === origin && !Object.values(busy).some(Boolean) && (
                     <span className='inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400'>
@@ -160,6 +169,7 @@ export function ApiEndpointsPanel() {
                   <Button
                     size='icon-sm'
                     variant='ghost'
+                    className='relative z-10'
                     onClick={() => void test(origin)}
                     disabled={busy[origin]}
                     aria-label={t('Test route') + ': ' + origin}
@@ -180,7 +190,7 @@ export function ApiEndpointsPanel() {
                   value={protocolUrl(origin, protocol)}
                   tooltip={t('Copy URL')}
                   aria-label={t('Copy URL')}
-                  className='size-8 shrink-0'
+                  className='relative z-10 size-8 shrink-0'
                 />
               </div>
             </div>

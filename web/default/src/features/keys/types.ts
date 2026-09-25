@@ -121,14 +121,14 @@ export type ApiKeysDialogType =
 
 export interface TokenMetric {
   id: number
-  active: number
-  rpm: number
+  active: number | null
+  rpm: number | null
   today_quota: number | null
   today_tokens: number | null
 }
 export interface TokenMetrics {
   items: TokenMetric[]
-  consumption_status: 'available' | 'disabled' | 'unavailable'
+  consumption_status: 'available' | 'disabled' | 'unavailable' | 'not_requested'
   consumption_updated_at: number
   as_of: number
   timezone: string

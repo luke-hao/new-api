@@ -56,8 +56,24 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
       ? status.server_address
       : 'https://code28.ccwu.cc'
   )
-  const [endpointChoice, setSelectedEndpoint] = useState<string | null>(null)
-  const selectedEndpoint = endpointChoice || primaryEndpoint
+  const [endpointChoice, setEndpointChoice] = useState<'primary' | 'backup'>(
+    () =>
+      typeof window !== 'undefined' &&
+      window.localStorage.getItem('api-key-endpoint') === 'backup'
+        ? 'backup'
+        : 'primary'
+  )
+  const selectedEndpoint =
+    endpointChoice === 'backup' ? 'https://kele520.com' : primaryEndpoint
+  const setSelectedEndpoint = useCallback((endpoint: string) => {
+    const choice = endpoint === 'https://kele520.com' ? 'backup' : 'primary'
+    setEndpointChoice(choice)
+    try {
+      window.localStorage.setItem('api-key-endpoint', choice)
+    } catch {
+      // The selection still works when browser storage is unavailable.
+    }
+  }, [])
   const [open, setOpen] = useDialogState<ApiKeysDialogType>(null)
   const [currentRow, setCurrentRow] = useState<ApiKey | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)

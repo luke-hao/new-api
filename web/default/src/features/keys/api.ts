@@ -131,9 +131,12 @@ export async function fetchTokenKeysBatch(ids: number[]): Promise<{
   return res.data
 }
 
-export async function getTokenMetrics(ids: number[]): Promise<TokenMetrics> {
+export async function getTokenMetrics(
+  ids: number[],
+  activityOnly = false
+): Promise<TokenMetrics> {
   const res = await api.get('/api/token/metrics', {
-    params: { ids: ids.join(',') },
+    params: { ids: ids.join(','), ...(activityOnly && { activity_only: 1 }) },
   })
   if (!res.data.success)
     throw new Error(res.data.message || 'Metrics unavailable')

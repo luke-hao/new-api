@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
@@ -100,5 +101,24 @@ func TestKeyConsoleMetricsOwnershipAndBatch(t *testing.T) {
 	two, _ := model.GetTokenByIds(2, 2)
 	if one.Status != 2 || two.Status != 1 {
 		t.Fatalf("%+v %+v", one, two)
+	}
+}
+
+func TestKeyConsoleActivityOnlySkipsConsumptionQuery(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	if err := db.Create(&model.Token{Id: 1, UserId: 1, Key: "activity-only", Status: 1, ExpiredTime: -1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	previous := common.LogConsumeEnabled
+	common.LogConsumeEnabled = true
+	t.Cleanup(func() { common.LogConsumeEnabled = previous })
+	// No logs table exists in this fixture, so a consumption query would fail.
+	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("id", 1) })
+	r.GET("/metrics", GetTokenMetrics)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/metrics?ids=1&activity_only=1", nil))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"consumption_status":"not_requested"`) || !strings.Contains(w.Body.String(), `"today_quota":null`) || !strings.Contains(w.Body.String(), `"active":0`) {
+		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 }

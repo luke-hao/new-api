@@ -36,10 +36,13 @@ func GetTokenMetrics(c *gin.Context) {
 		c.JSON(403, gin.H{"success": false, "message": "Token unavailable"})
 		return
 	}
+	activityOnly := c.Query("activity_only") == "1"
 	state := "available"
 	updated := int64(0)
 	usage := map[int]model.TokenDailyUsage{}
-	if !common.LogConsumeEnabled {
+	if activityOnly {
+		state = "not_requested"
+	} else if !common.LogConsumeEnabled {
 		state = "disabled"
 	} else {
 		rows, at, err := service.CachedTokenDailyUsage(c.Request.Context(), userID, ids)

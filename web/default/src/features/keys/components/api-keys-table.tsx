@@ -103,7 +103,11 @@ function MobileKeys(props: {
         return (
           <article
             key={row.id}
-            className='bg-card min-w-0 space-y-3 rounded-xl border p-3.5'
+            className={cn(
+              'bg-card min-w-0 space-y-3 rounded-xl border p-3.5',
+              key.status === 2 &&
+                'border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/35'
+            )}
           >
             <div className='flex items-start justify-between gap-2'>
               <div className='flex min-w-0 items-center gap-2'>
@@ -238,27 +242,45 @@ export function ApiKeysTable() {
   })
   const keys = data?.items || EMPTY_KEYS
   const ids = useMemo(() => keys.map((key) => key.id), [keys])
-  const metricsQuery = useQuery({
-    queryKey: ['token-metrics', ids, refreshTrigger],
+  const usageQuery = useQuery({
+    queryKey: ['token-usage', ids, refreshTrigger],
     queryFn: () => getTokenMetrics(ids),
+    enabled: ids.length > 0,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: false,
+    retry: 1,
+  })
+  const activityQuery = useQuery({
+    queryKey: ['token-activity', ids, refreshTrigger],
+    queryFn: () => getTokenMetrics(ids, true),
     enabled: ids.length > 0,
     refetchInterval: 5000,
     refetchIntervalInBackground: false,
     retry: 1,
   })
-  const metrics = useMemo(
-    () =>
-      metricsQuery.data
-        ? Object.fromEntries(
-            metricsQuery.data.items.map((item) => [item.id, item])
-          )
-        : EMPTY_METRICS,
-    [metricsQuery.data]
-  )
+  const metrics = useMemo(() => {
+    if (!usageQuery.data && !activityQuery.data) return EMPTY_METRICS
+    const usage = new Map(usageQuery.data?.items.map((item) => [item.id, item]))
+    const activity = new Map(
+      activityQuery.data?.items.map((item) => [item.id, item])
+    )
+    return Object.fromEntries(
+      ids.map((id) => [
+        id,
+        {
+          id,
+          active: activity.get(id)?.active ?? null,
+          rpm: activity.get(id)?.rpm ?? null,
+          today_quota: usage.get(id)?.today_quota ?? null,
+          today_tokens: usage.get(id)?.today_tokens ?? null,
+        },
+      ])
+    )
+  }, [ids, usageQuery.data, activityQuery.data])
   const columns = useApiKeysColumns(
     metrics,
     unit,
-    metricsQuery.data?.consumption_status
+    usageQuery.data?.consumption_status
   )
   const groups = useQuery({
     queryKey: ['user-groups'],
@@ -290,7 +312,7 @@ export function ApiKeysTable() {
     onColumnVisibilityChange: setVisibility,
   })
   const active = Object.values(metrics).reduce(
-    (sum, metric) => sum + metric.active,
+    (sum, metric) => sum + (metric.active ?? 0),
     0
   )
   return (
@@ -327,15 +349,15 @@ export function ApiKeysTable() {
                 <Activity className='size-3.5' />
                 {t('Active on this page')}:{' '}
                 <strong className='text-foreground'>
-                  {metricsQuery.data ? active : '—'}
+                  {activityQuery.data ? active : '—'}
                 </strong>
               </span>
               <span>
-                {metricsQuery.data
+                {activityQuery.data
                   ? t('Updated at') +
                     ' ' +
                     new Date(
-                      metricsQuery.data.as_of * 1000
+                      activityQuery.data.as_of * 1000
                     ).toLocaleTimeString()
                   : t('Live updates every 5 seconds')}
               </span>
@@ -415,13 +437,13 @@ export function ApiKeysTable() {
               {t('Failed to load API keys')} · {error.message}
             </p>
           )}
-          {(metricsQuery.isError ||
-            metricsQuery.data?.consumption_status === 'unavailable') && (
+          {(usageQuery.isError ||
+            usageQuery.data?.consumption_status === 'unavailable') && (
             <p role='status' className='text-destructive text-xs'>
               {t('Usage statistics temporarily unavailable. Refresh to retry.')}
             </p>
           )}
-          {metricsQuery.data?.consumption_status === 'disabled' && (
+          {usageQuery.data?.consumption_status === 'disabled' && (
             <p className='text-muted-foreground text-xs'>
               {t('Consumption logging is disabled')}
             </p>
@@ -434,12 +456,14 @@ export function ApiKeysTable() {
           loading={isLoading}
           metrics={metrics}
           unit={unit}
-          consumptionStatus={metricsQuery.data?.consumption_status}
+          consumptionStatus={usageQuery.data?.consumption_status}
         />
       }
-      getRowClassName={(row) =>
-        row.original.status === 1 ? undefined : 'bg-muted/20'
-      }
+      getRowClassName={(row) => {
+        if (row.original.status === 2)
+          return '!bg-rose-50 dark:!bg-rose-950/35 hover:!bg-rose-100 dark:hover:!bg-rose-950/55'
+        return row.original.status === 1 ? undefined : 'bg-muted/20'
+      }}
       bulkActions={<DataTableBulkActions table={table} />}
     />
   )
