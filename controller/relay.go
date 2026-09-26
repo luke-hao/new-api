@@ -255,8 +255,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			break
 		}
 		if relayInfo.TokenGroup == "auto" && service.HasCustomAutoGroups(c) && service.IsImageAutoModel(relayInfo.OriginModelName) {
-			if _, err := helper.ModelPriceHelper(c, relayInfo, tokens, meta); err != nil {
-				newAPIError = types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithSkipRetry())
+			if newAPIError = prepareAutoImageAttemptBilling(c, relayInfo, tokens, meta); newAPIError != nil {
 				break
 			}
 		}
