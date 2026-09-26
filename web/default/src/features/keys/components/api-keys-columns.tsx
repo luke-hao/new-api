@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { getUserGroups } from '@/lib/api'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
@@ -56,13 +56,27 @@ export function useKeyGroups() {
   )
   return options
 }
+// Keep the component type stable when live metrics recreate column definitions.
+// flexRender treats an inline cell function as a React component: a new function
+// would unmount its open popover and personal Auto draft on every polling tick.
+// eslint-disable-next-line react-refresh/only-export-components -- Stable TanStack renderer for this columns hook.
+function GroupTableCell(props: CellContext<ApiKey, unknown>) {
+  const options = useKeyGroups()
+  return (
+    <ApiKeyGroupCell
+      key={props.row.original.id + ':' + (props.row.original.group || '')}
+      apiKey={props.row.original}
+      options={options}
+    />
+  )
+}
+
 export function useApiKeysColumns(
   metrics: Record<number, TokenMetric>,
   unit: 'quota' | 'tokens',
   consumptionStatus?: string
 ): ColumnDef<ApiKey>[] {
   const { t } = useTranslation()
-  const groupOptions = useKeyGroups()
   return [
     {
       id: 'select',
@@ -143,13 +157,7 @@ export function useApiKeysColumns(
       accessorKey: 'group',
       header: t('Group'),
       size: 234,
-      cell: ({ row }) => (
-        <ApiKeyGroupCell
-          key={row.original.id + ':' + (row.original.group || '')}
-          apiKey={row.original}
-          options={groupOptions}
-        />
-      ),
+      cell: GroupTableCell,
     },
     {
       id: 'activity',

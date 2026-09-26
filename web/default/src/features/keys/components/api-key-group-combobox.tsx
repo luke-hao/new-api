@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +35,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import './api-key-group-combobox.css'
 
 export type ApiKeyGroupOption = {
   value: string
@@ -117,9 +118,12 @@ export function ApiKeyGroupCombobox({
 
   const filteredOptions = useMemo(() => {
     const search = searchValue.trim().toLowerCase()
-    if (!search) return options
+    const ordered = [...options].sort(
+      (a, b) => Number(b.value === 'auto') - Number(a.value === 'auto')
+    )
+    if (!search) return ordered
 
-    return options.filter((option) => {
+    return ordered.filter((option) => {
       const ratioText = String(option.ratio ?? '').toLowerCase()
       return (
         option.value.toLowerCase().includes(search) ||
@@ -150,11 +154,17 @@ export function ApiKeyGroupCombobox({
               'border-input bg-muted/40 hover:bg-muted/55 hover:text-foreground active:bg-background data-popup-open:border-ring data-popup-open:bg-background data-popup-open:ring-ring/20 w-full justify-between text-start shadow-none transition-[background-color,border-color,box-shadow] duration-150 data-popup-open:ring-[3px]',
               compact
                 ? 'h-auto min-h-12 gap-2 rounded-lg px-2.5 py-2'
-                : 'h-auto min-h-14 gap-2 rounded-lg px-3 py-2 sm:min-h-20 sm:gap-3 sm:px-4 sm:py-3'
+                : 'h-auto min-h-14 gap-2 rounded-lg px-3 py-2 sm:min-h-20 sm:gap-3 sm:px-4 sm:py-3',
+              value === 'auto' && 'key-auto-surface'
             )}
           />
         }
       >
+        {value === 'auto' && (
+          <span className='key-auto-icon' aria-hidden='true'>
+            <Sparkles className='size-4' />
+          </span>
+        )}
         <span
           className={cn(
             'flex min-w-0 flex-1 flex-col items-start gap-1.5',
@@ -162,7 +172,12 @@ export function ApiKeyGroupCombobox({
           )}
         >
           <span className='min-w-0'>
-            <span className='block font-medium break-words whitespace-normal'>
+            <span
+              className={cn(
+                'block font-medium break-words whitespace-normal',
+                value === 'auto' && 'key-auto-title font-semibold'
+              )}
+            >
               {value === 'auto'
                 ? t('Auto · Automatic groups')
                 : selectedOption?.label || placeholder || t('Select a group')}
@@ -174,7 +189,13 @@ export function ApiKeyGroupCombobox({
             )}
           </span>
           <span className='block'>
-            <GroupRatioBadge ratio={selectedOption?.ratio} />
+            {value === 'auto' ? (
+              <span className='text-xs text-violet-700 dark:text-violet-300'>
+                {t('Charged at the actual group rate')}
+              </span>
+            ) : (
+              <GroupRatioBadge ratio={selectedOption?.ratio} />
+            )}
           </span>
         </span>
         {loading ? (
@@ -208,27 +229,65 @@ export function ApiKeyGroupCombobox({
                   key={option.value}
                   value={option.value}
                   onSelect={() => handleSelect(option.value)}
-                  className='data-[selected=true]:bg-muted items-start gap-3 rounded-lg px-3 py-3 transition-colors'
+                  className={cn(
+                    'data-[selected=true]:bg-muted items-start gap-3 rounded-lg px-3 py-3 transition-colors',
+                    option.value === 'auto' &&
+                      'key-auto-surface key-auto-option'
+                  )}
                 >
-                  <Check
-                    className={cn(
-                      'mt-0.5 h-4 w-4',
-                      value === option.value ? 'opacity-100' : 'opacity-0'
-                    )}
-                  />
+                  {option.value === 'auto' ? (
+                    <span className='key-auto-icon mt-0.5' aria-hidden='true'>
+                      <Sparkles className='size-4' />
+                    </span>
+                  ) : (
+                    <Check
+                      className={cn(
+                        'mt-0.5 h-4 w-4',
+                        value === option.value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                  )}
                   <span className='min-w-0 flex-1'>
-                    <span className='block font-medium break-words whitespace-normal'>
+                    <span
+                      className={cn(
+                        'block font-medium break-words whitespace-normal',
+                        option.value === 'auto' &&
+                          'key-auto-title font-semibold'
+                      )}
+                    >
                       {option.value === 'auto'
                         ? t('Auto · Automatic groups')
                         : option.label}
                     </span>
-                    {option.desc && (
-                      <span className='text-muted-foreground block truncate text-xs'>
-                        {option.desc}
+                    {option.value === 'auto' ? (
+                      <span className='mt-1 block text-xs leading-relaxed text-violet-700/85 dark:text-violet-200/80'>
+                        {t(
+                          'Try text groups from top to bottom. Charged at the actual group rate.'
+                        )}
                       </span>
+                    ) : (
+                      option.desc && (
+                        <span className='text-muted-foreground block truncate text-xs'>
+                          {option.desc}
+                        </span>
+                      )
                     )}
                   </span>
-                  <GroupRatioBadge ratio={option.ratio} />
+                  {option.value === 'auto' ? (
+                    <span className='flex shrink-0 flex-col items-end gap-2'>
+                      <Badge
+                        variant='outline'
+                        className='key-auto-badge text-[10px]'
+                      >
+                        AUTO
+                      </Badge>
+                      {value === 'auto' && (
+                        <Check className='size-3.5 text-violet-600 dark:text-violet-300' />
+                      )}
+                    </span>
+                  ) : (
+                    <GroupRatioBadge ratio={option.ratio} />
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

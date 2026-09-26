@@ -1,0 +1,78 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+SPDX-License-Identifier: AGPL-3.0-or-later
+*/
+
+/* Layered backgrounds keep the decorative border clear of text and focus rings. */
+.key-auto-surface {
+  --auto-surface-start: #f4f0ff;
+  --auto-surface-end: #edfaff;
+  position: relative;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(112deg, var(--auto-surface-start), var(--auto-surface-end))
+      padding-box,
+    linear-gradient(115deg, #8b5cf6, #6366f1 38%, #06b6d4 72%, #a78bfa)
+      border-box;
+  box-shadow:
+    0 2px 12px rgb(99 102 241 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 55%);
+}
+.key-auto-surface:hover,
+.key-auto-surface[data-selected='true'],
+.key-auto-surface[data-popup-open] {
+  --auto-surface-start: #eae3ff;
+  --auto-surface-end: #e2f6ff;
+  box-shadow:
+    0 3px 18px rgb(99 102 241 / 18%),
+    0 0 0 2px rgb(139 92 246 / 9%);
+}
+.dark .key-auto-surface {
+  --auto-surface-start: #261d43;
+  --auto-surface-end: #102b39;
+  box-shadow:
+    0 2px 16px rgb(99 102 241 / 15%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+.dark .key-auto-surface:hover,
+.dark .key-auto-surface[data-selected='true'],
+.dark .key-auto-surface[data-popup-open] {
+  --auto-surface-start: #342751;
+  --auto-surface-end: #153947;
+  box-shadow:
+    0 3px 20px rgb(99 102 241 / 25%),
+    0 0 0 2px rgb(139 92 246 / 12%);
+}
+.key-auto-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 0.65rem;
+  color: white;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1 55%, #0891b2);
+  box-shadow: 0 3px 9px rgb(99 102 241 / 24%);
+}
+.key-auto-title {
+  color: #5b21b6;
+  letter-spacing: 0.01em;
+}
+.dark .key-auto-title {
+  color: #ddd6fe;
+}
+.key-auto-badge {
+  border-color: rgb(139 92 246 / 28%);
+  background: rgb(255 255 255 / 65%);
+  color: #6d28d9;
+}
+.dark .key-auto-badge {
+  border-color: rgb(167 139 250 / 35%);
+  background: rgb(139 92 246 / 14%);
+  color: #ddd6fe;
+}
+.key-auto-option {
+  margin-block: 0.25rem 0.5rem;
+}
