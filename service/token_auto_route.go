@@ -5,6 +5,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/gin-gonic/gin"
 	"strings"
 )
@@ -24,8 +25,12 @@ func PrepareTokenAutoRoute(c *gin.Context, modelName string) error {
 		strings.HasSuffix(path, "/responses") || strings.HasSuffix(path, "/responses/compact") ||
 		strings.HasSuffix(path, "/messages") || strings.HasSuffix(path, "/messages/count_tokens") ||
 		strings.HasSuffix(path, ":generateContent") || strings.HasSuffix(path, ":streamGenerateContent") || strings.HasSuffix(path, ":countTokens")
-	if !textPath || !IsTextAutoModel(modelName) {
-		return fmt.Errorf("custom auto groups support text models and text endpoints only")
+	imagePath := strings.HasSuffix(path, "/images/generations") || strings.HasSuffix(path, "/images/edits") || path == "/v1/edits"
+	validText := textPath && IsTextAutoModel(modelName)
+	validImage := IsImageAutoModel(modelName) &&
+		(imagePath || (textPath && model_setting.IsGeminiModelSupportImagine(modelName)))
+	if !validText && !validImage {
+		return fmt.Errorf("custom auto groups support text and image-generation models on compatible endpoints only")
 	}
 	groups := GetTokenAutoGroups(c, common.GetContextKeyString(c, constant.ContextKeyUserGroup))
 	if len(groups) == 0 {

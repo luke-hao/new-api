@@ -249,6 +249,17 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			newAPIError = channelErr
 			break
 		}
+		if err := validateNative4KImageRequest(relayInfo, request); err != nil {
+			newAPIError = types.NewErrorWithStatusCode(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest,
+				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			break
+		}
+		if relayInfo.TokenGroup == "auto" && service.HasCustomAutoGroups(c) && service.IsImageAutoModel(relayInfo.OriginModelName) {
+			if _, err := helper.ModelPriceHelper(c, relayInfo, tokens, meta); err != nil {
+				newAPIError = types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithSkipRetry())
+				break
+			}
+		}
 
 		addUsedChannel(c, channel.Id)
 		bodyStorage, bodyErr := common.GetBodyStorage(c)

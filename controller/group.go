@@ -111,7 +111,7 @@ func GetUserGroups(c *gin.Context) {
 	userId := c.GetInt("id")
 	userGroup, _ = model.GetUserGroup(userId, false)
 	userUsableGroups := service.GetUserUsableGroups(userGroup)
-	eligible, err := service.GetUserTextAutoGroups(userGroup)
+	eligible, err := service.GetUserAutoGroupCapabilities(userGroup)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -119,17 +119,26 @@ func GetUserGroups(c *gin.Context) {
 	for groupName, _ := range ratio_setting.GetGroupRatioCopy() {
 		// UserUsableGroups contains the groups that the user can use
 		if desc, ok := userUsableGroups[groupName]; ok {
+			capability := eligible[groupName]
+			autoTypes := make([]string, 0, 2)
+			if capability.Text {
+				autoTypes = append(autoTypes, "text")
+			}
+			if capability.Image {
+				autoTypes = append(autoTypes, "image")
+			}
 			usableGroups[groupName] = map[string]interface{}{
 				"ratio":         service.GetUserGroupRatio(userGroup, groupName),
 				"desc":          desc,
-				"auto_eligible": eligible[groupName],
+				"auto_eligible": capability.Text || capability.Image,
+				"auto_types":    autoTypes,
 			}
 		}
 	}
 	if _, ok := userUsableGroups["auto"]; ok || len(eligible) > 0 {
 		usableGroups["auto"] = map[string]interface{}{
 			"ratio": "自动",
-			"desc":  "按个人顺序选择文字分组，按实际分组计费",
+			"desc":  "按个人顺序选择文字或生图分组，按实际分组计费",
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{

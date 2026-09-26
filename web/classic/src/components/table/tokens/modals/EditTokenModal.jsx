@@ -145,6 +145,7 @@ const EditTokenModal = (props) => {
         value: group,
         ratio: info.ratio,
         auto_eligible: info.auto_eligible,
+        auto_types: info.auto_types,
       }));
       if (statusState?.status?.default_use_auto_group) {
         if (localGroupOptions.some((group) => group.value === 'auto')) {
@@ -232,7 +233,7 @@ const EditTokenModal = (props) => {
             ),
         ))
     ) {
-      showError(t('请至少选择一个有效的文字分组'));
+      showError(t('请至少选择一个有效的文字或生图分组'));
       return;
     }
     values = { ...values };

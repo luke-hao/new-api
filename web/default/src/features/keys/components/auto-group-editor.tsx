@@ -35,9 +35,7 @@ export function AutoGroupEditor(props: Props) {
     <div className='space-y-3' data-testid='auto-group-editor'>
       <p className='text-sm font-medium'>{t('Auto group priority')}</p>
       <p className='text-muted-foreground text-xs'>
-        {t(
-          'Try text groups from top to bottom. Charged at the actual group rate.'
-        )}
+        {t('Charged at the actual group rate')}
       </p>
       <ol className='space-y-2'>
         {props.value.map((name, index) => {
@@ -54,6 +52,16 @@ export function AutoGroupEditor(props: Props) {
                 <div className='text-muted-foreground text-xs break-words'>
                   {option?.desc}
                 </div>
+                <div className='mt-1 flex flex-wrap gap-1'>
+                  {option?.auto_types?.map((type) => (
+                    <span
+                      key={type}
+                      className='bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px]'
+                    >
+                      {t(type === 'image' ? 'Image' : 'Text')}
+                    </span>
+                  ))}
+                </div>
                 {option?.auto_eligible ? (
                   <span className='text-xs'>
                     {option.ratio}x {t('Ratio')}
@@ -61,7 +69,7 @@ export function AutoGroupEditor(props: Props) {
                 ) : (
                   <span className='text-destructive text-xs'>
                     {option
-                      ? t('No text models available')
+                      ? t('No available groups')
                       : t('Group removed or access revoked')}
                   </span>
                 )}
@@ -110,13 +118,11 @@ export function AutoGroupEditor(props: Props) {
         })}
       </ol>
       {props.value.length === 0 && (
-        <p className='text-muted-foreground text-xs'>
-          {t('Select at least one text group')}
-        </p>
+        <p className='text-muted-foreground text-xs'>{t('Select a group')}</p>
       )}
       <Input
-        aria-label={t('Search text groups')}
-        placeholder={t('Search text groups')}
+        aria-label={t('Search...')}
+        placeholder={t('Search...')}
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         disabled={props.disabled}
@@ -136,6 +142,11 @@ export function AutoGroupEditor(props: Props) {
               {option.label}
               <span className='text-muted-foreground block text-xs'>
                 {option.desc}
+              </span>
+              <span className='text-muted-foreground block text-xs'>
+                {option.auto_types
+                  ?.map((type) => t(type === 'image' ? 'Image' : 'Text'))
+                  .join(' / ')}
               </span>
             </span>
             <span className='shrink-0 text-xs'>{option.ratio}x</span>

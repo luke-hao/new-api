@@ -52,6 +52,7 @@ export function useKeyGroups() {
       desc: info.desc || group,
       ratio: info.ratio,
       auto_eligible: info.auto_eligible,
+      auto_types: info.auto_types,
     })
   )
   return options

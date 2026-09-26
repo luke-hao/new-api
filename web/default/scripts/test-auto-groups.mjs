@@ -15,11 +15,11 @@ const repo = process.env.AUTO_QA_SOURCE || '/work'
 const status = JSON.parse(readFileSync(out+'/status.json','utf8'))
 const user={id:1,username:'auto-fixture',display_name:'Auto Fixture',role:100,status:1,group:'default',quota:1000000,used_quota:0,request_count:0,setting:'{}'}
 const groupData={
-  'codex特惠分组':{desc:'低价文字分组',ratio:0.08,auto_eligible:true},
-  'codex-稳定版':{desc:'稳定文字分组',ratio:0.35,auto_eligible:true},
-  'claude特惠分组':{desc:'Claude 文字分组',ratio:0.3,auto_eligible:true},
-  '生图分组-image2':{desc:'图片专用',ratio:1,auto_eligible:false},
-  auto:{desc:'按个人顺序选择文字分组，按实际分组计费',ratio:'自动'}
+  'codex特惠分组':{desc:'低价文字分组',ratio:0.08,auto_eligible:true,auto_types:['text']},
+  'codex-稳定版':{desc:'稳定文字分组',ratio:0.35,auto_eligible:true,auto_types:['text']},
+  'claude特惠分组':{desc:'Claude 文字分组',ratio:0.3,auto_eligible:true,auto_types:['text']},
+  '生图分组-image2':{desc:'图片专用',ratio:1,auto_eligible:true,auto_types:['image']},
+  auto:{desc:'按个人顺序选择文字或生图分组，按实际分组计费',ratio:'自动'}
 }
 const base={id:11,user_id:1,name:'Auto fixture',key:'sk-fixture********',status:1,created_time:1,accessed_time:1,expired_time:-1,remain_quota:1000,used_quota:0,unlimited_quota:true,group:'codex特惠分组',cross_group_retry:false,auto_groups:[],model_limits:'',model_limits_enabled:false,allow_ips:''}
 const servers=[]
@@ -83,21 +83,24 @@ try {
   await page.getByRole('option').filter({hasText:'Auto · 自动分组'}).click()
   const editor=page.getByTestId('auto-group-editor')
   await editor.waitFor();record.renderMs=Date.now()-start
-  assert.equal(await editor.getByRole('button',{name:/生图分组/}).count(),0)
   await editor.getByRole('button',{name:/codex特惠分组/}).click()
   await editor.getByRole('button',{name:/codex-稳定版/}).click()
   await editor.getByRole('button',{name:'上移: codex-稳定版',exact:true}).click()
-  assert.deepEqual(await editor.locator('[data-auto-group]').evaluateAll(nodes=>nodes.map(n=>n.dataset.autoGroup)),['codex-稳定版','codex特惠分组'])
-  await editor.getByRole('textbox',{name:'搜索文字分组'}).fill('claude')
+  await editor.getByRole('button',{name:/生图分组-image2/}).click()
+  await editor.getByRole('button',{name:'上移: 生图分组-image2',exact:true}).click()
+  await editor.getByRole('button',{name:'上移: 生图分组-image2',exact:true}).click()
+  assert.deepEqual(await editor.locator('[data-auto-group]').evaluateAll(nodes=>nodes.map(n=>n.dataset.autoGroup)),['生图分组-image2','codex-稳定版','codex特惠分组'])
+  assert((await editor.locator('[data-auto-group="生图分组-image2"]').innerText()).includes('图片'))
+  await editor.getByRole('textbox',{name:'搜索...'}).fill('claude')
   await editor.getByRole('button',{name:/claude特惠分组/}).click()
   await editor.getByRole('button',{name:'移除: claude特惠分组',exact:true}).click()
-  record.checks.push('text_only_add_search_reorder_remove')
+  record.checks.push('mixed_text_image_add_search_reorder_remove')
   await editor.scrollIntoViewIfNeeded()
   await page.screenshot({path:out+'/'+viewport.width+'-editor-final.png'})
   await drawer.getByRole('button',{name:/保存更改|Save changes/}).click()
   await page.waitForTimeout(300)
   const saved=record.writes.find(w=>w.payload.name==='My auto key')?.payload
-  assert(saved);assert.equal(saved.group,'auto');assert.equal(saved.cross_group_retry,true);assert.deepEqual(saved.auto_groups,['codex-稳定版','codex特惠分组'])
+  assert(saved);assert.equal(saved.group,'auto');assert.equal(saved.cross_group_retry,true);assert.deepEqual(saved.auto_groups,['生图分组-image2','codex-稳定版','codex特惠分组'])
   record.checks.push('create_persists_order_and_default_retry')
   // Reopen personal order via the inline group editor on desktop and mobile cards.
   const combos=page.getByRole('combobox').filter({hasText:'Auto · 自动分组'})
@@ -120,11 +123,12 @@ try {
   await batchEditor.getByRole('button',{name:/codex特惠分组/}).click()
   await batchEditor.getByRole('button',{name:/claude特惠分组/}).click()
   await batchEditor.getByRole('button',{name:'上移: claude特惠分组',exact:true}).click()
+  await batchEditor.getByRole('button',{name:/生图分组-image2/}).click()
   await page.screenshot({path:out+'/'+viewport.width+'-batch-final.png'})
   await batchDialog.getByRole('button',{name:'修改分组',exact:true}).click()
   await page.waitForTimeout(200)
   assert.equal(record.writes.at(-1).path,'/api/token/batch/group')
-  assert.deepEqual(record.writes.at(-1).payload.auto_groups,['claude特惠分组','codex特惠分组'])
+  assert.deepEqual(record.writes.at(-1).payload.auto_groups,['claude特惠分组','codex特惠分组','生图分组-image2'])
   record.checks.push('batch_order_and_save')
   record.overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)
   assert.equal(record.overflow,false)
@@ -167,11 +171,14 @@ try {
   await editor.getByRole('button',{name:/codex特惠分组/}).click()
   await editor.getByRole('button',{name:/codex-稳定版/}).click()
   await editor.getByRole('button',{name:'上移: codex-稳定版'}).click()
+  await editor.getByRole('button',{name:/生图分组-image2/}).click()
+  await editor.getByRole('button',{name:'上移: 生图分组-image2'}).click()
+  await editor.getByRole('button',{name:'上移: 生图分组-image2'}).click()
   await editor.scrollIntoViewIfNeeded()
   await page.screenshot({path:out+'/classic-'+viewport.width+'-final.png'})
   await page.getByText('提交',{exact:true}).last().click()
   await page.waitForTimeout(300)
-  assert.deepEqual(record.writes.at(-1).auto_groups,['codex-稳定版','codex特惠分组'])
+  assert.deepEqual(record.writes.at(-1).auto_groups,['生图分组-image2','codex-稳定版','codex特惠分组'])
   assert.equal(record.writes.at(-1).cross_group_retry,true)
   record.checks.push('classic_ordered_create')
   assert.deepEqual(record.errors,[]);assert.deepEqual(record.console,[])

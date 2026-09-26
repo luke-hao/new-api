@@ -43,6 +43,7 @@ export type ApiKeyGroupOption = {
   desc?: string
   ratio?: number | string
   auto_eligible?: boolean
+  auto_types?: ('text' | 'image')[]
 }
 
 type ApiKeyGroupComboboxProps = {
@@ -261,9 +262,7 @@ export function ApiKeyGroupCombobox({
                     </span>
                     {option.value === 'auto' ? (
                       <span className='mt-1 block text-xs leading-relaxed text-violet-700/85 dark:text-violet-200/80'>
-                        {t(
-                          'Try text groups from top to bottom. Charged at the actual group rate.'
-                        )}
+                        {t('Charged at the actual group rate')}
                       </span>
                     ) : (
                       option.desc && (

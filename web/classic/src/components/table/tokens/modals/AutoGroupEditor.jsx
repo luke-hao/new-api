@@ -31,7 +31,9 @@ export default function AutoGroupEditor({ groups, value, onChange }) {
   return (
     <div className='space-y-3 py-3' data-testid='classic-auto-group-editor'>
       <strong>{t('自动分组优先级')}</strong>
-      <p className='text-xs'>{t('从上到下选择文字分组，按实际使用分组计费')}</p>
+      <p className='text-xs'>
+        {t('从上到下选择文字或生图分组，按实际使用分组计费')}
+      </p>
       {value.map((name, index) => {
         const option = groups.find((group) => group.value === name);
         return (
@@ -43,9 +45,14 @@ export default function AutoGroupEditor({ groups, value, onChange }) {
               {index + 1}. {name}
               <div className='text-xs'>{option?.label}</div>
               <div className='text-xs'>
+                {option?.auto_types
+                  ?.map((type) => (type === 'image' ? t('图片') : t('文字')))
+                  .join(' / ')}
+              </div>
+              <div className='text-xs'>
                 {option?.auto_eligible
                   ? String(option.ratio) + 'x'
-                  : t('分组已失效、权限已撤销或暂无文字模型')}
+                  : t('分组已失效、权限已撤销或暂无文字及生图模型')}
               </div>
             </div>
             <Button
@@ -78,8 +85,8 @@ export default function AutoGroupEditor({ groups, value, onChange }) {
         );
       })}
       <Input
-        aria-label={t('搜索文字分组')}
-        placeholder={t('搜索文字分组')}
+        aria-label={t('搜索分组')}
+        placeholder={t('搜索分组')}
         value={search}
         onChange={setSearch}
       />

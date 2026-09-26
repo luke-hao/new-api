@@ -19,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -227,6 +228,27 @@ func ListModels(c *gin.Context, modelType int) {
 		return
 	}
 	ownerGroups := groups.ownerGroups
+	hasBillingConfig := func(name string) bool {
+		if helper.HasModelBillingConfig(name) {
+			return true
+		}
+		if groups.tokenGroup != "auto" || !service.HasCustomAutoGroups(c) || !service.IsImageAutoModel(name) {
+			return false
+		}
+		for _, group := range ownerGroups {
+			if ratio_setting.IsImageTokenBillingGroup(group) {
+				if _, ok := ratio_setting.GetImageTokenGroupPrice(group, name); ok {
+					return true
+				}
+			}
+			for _, tier := range []string{"1K", "2K", "4K"} {
+				if _, ok := ratio_setting.GetImageSizeGroupPrice(groups.userGroup, group, name, tier); ok {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	modelLimitEnable := common.GetContextKeyBool(c, constant.ContextKeyTokenModelLimitEnabled)
 	if modelLimitEnable {
 		s, ok := common.GetContextKey(c, constant.ContextKeyTokenModelLimit)
@@ -238,7 +260,7 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 		for allowModel, _ := range tokenModelLimit {
 			if !acceptUnsetRatioModel {
-				if !helper.HasModelBillingConfig(allowModel) {
+				if !hasBillingConfig(allowModel) {
 					continue
 				}
 			}
@@ -260,7 +282,7 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 		for _, modelName := range models {
 			if !acceptUnsetRatioModel {
-				if !helper.HasModelBillingConfig(modelName) {
+				if !hasBillingConfig(modelName) {
 					continue
 				}
 			}
@@ -273,7 +295,7 @@ func ListModels(c *gin.Context, modelType int) {
 		allowed := make(map[string]bool)
 		for _, group := range ownerGroups {
 			for _, name := range model.GetGroupEnabledModels(group) {
-				if service.IsTextAutoModel(name) {
+				if service.IsPersonalAutoModel(name) {
 					allowed[name] = true
 				}
 			}

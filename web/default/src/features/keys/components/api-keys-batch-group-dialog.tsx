@@ -69,6 +69,7 @@ export function ApiKeysBatchGroupDialog<TData>({
       desc: info.desc || key,
       ratio: info.ratio,
       auto_eligible: info.auto_eligible,
+      auto_types: info.auto_types,
     }))
   }, [groupsData])
 

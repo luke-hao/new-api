@@ -34,7 +34,33 @@ func IsTextAutoModel(name string) bool {
 	return false
 }
 
-func GetUserTextAutoGroups(userGroup string) (map[string]bool, error) {
+// Image output is different from text models that merely accept image input.
+func IsImageAutoModel(name string) bool {
+	if _, video := common.GetVideoModelContract(name); video {
+		return false
+	}
+	if common.IsImageGenerationModel(name) || model_setting.IsGeminiModelSupportImagine(name) ||
+		strings.Contains(strings.ToLower(name), "seedream") {
+		return true
+	}
+	for _, endpoint := range model.GetModelSupportEndpointTypes(name) {
+		if endpoint == constant.EndpointTypeImageGeneration {
+			return true
+		}
+	}
+	return false
+}
+
+func IsPersonalAutoModel(name string) bool {
+	return IsTextAutoModel(name) || IsImageAutoModel(name)
+}
+
+type AutoGroupCapabilities struct {
+	Text  bool
+	Image bool
+}
+
+func GetUserAutoGroupCapabilities(userGroup string) (map[string]AutoGroupCapabilities, error) {
 	model.GetPricing()
 	groups := GetUserUsableGroups(userGroup)
 	names := make([]string, 0, len(groups))
@@ -47,10 +73,27 @@ func GetUserTextAutoGroups(userGroup string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]bool)
+	result := make(map[string]AutoGroupCapabilities)
 	for _, row := range rows {
-		if IsTextAutoModel(row.Model) {
-			result[row.Group] = true
+		capability := result[row.Group]
+		capability.Text = capability.Text || IsTextAutoModel(row.Model)
+		capability.Image = capability.Image || IsImageAutoModel(row.Model)
+		if capability.Text || capability.Image {
+			result[row.Group] = capability
+		}
+	}
+	return result, nil
+}
+
+func GetUserTextAutoGroups(userGroup string) (map[string]bool, error) {
+	capabilities, err := GetUserAutoGroupCapabilities(userGroup)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]bool)
+	for name, capability := range capabilities {
+		if capability.Text {
+			result[name] = true
 		}
 	}
 	return result, nil
@@ -64,7 +107,7 @@ func ValidateTokenAutoGroups(userGroup string, configured model.TokenAutoGroups)
 	if len(groups) == 0 {
 		return fmt.Errorf("select at least one auto group")
 	}
-	allowed, err := GetUserTextAutoGroups(userGroup)
+	allowed, err := GetUserAutoGroupCapabilities(userGroup)
 	if err != nil {
 		return err
 	}
@@ -73,8 +116,8 @@ func ValidateTokenAutoGroups(userGroup string, configured model.TokenAutoGroups)
 		if name == "" || seen[name] {
 			return fmt.Errorf("auto_groups contains an empty or duplicate group: %s", name)
 		}
-		if !allowed[name] {
-			return fmt.Errorf("auto group is unavailable or has no text models: %s", name)
+		if !allowed[name].Text && !allowed[name].Image {
+			return fmt.Errorf("auto group is unavailable or has no text or image models: %s", name)
 		}
 		seen[name] = true
 	}
@@ -104,6 +147,14 @@ func TokenMayUseAuto(userGroup string) bool {
 	if GroupInUserUsableGroups(userGroup, "auto") {
 		return true
 	}
-	groups, err := GetUserTextAutoGroups(userGroup)
-	return err == nil && len(groups) > 0
+	groups, err := GetUserAutoGroupCapabilities(userGroup)
+	if err != nil {
+		return false
+	}
+	for _, capability := range groups {
+		if capability.Text || capability.Image {
+			return true
+		}
+	}
+	return false
 }
