@@ -213,6 +213,10 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
+	if err := validateTokenAutoGroups(c, &token, nil); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	key, err := common.GenerateKey()
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
@@ -233,6 +237,7 @@ func AddToken(c *gin.Context) {
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
+		AutoGroups:         token.AutoGroups,
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -307,6 +312,13 @@ func UpdateToken(c *gin.Context) {
 		common.ApiSuccess(c, buildMaskedTokenResponse(updated))
 		return
 	} else {
+		if err := validateTokenAutoGroups(c, &token, cleanToken); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		if token.AutoGroups != "" {
+			cleanToken.AutoGroups = token.AutoGroups
+		}
 		// If you add more fields, please also update token.Update()
 		cleanToken.Name = token.Name
 		cleanToken.ExpiredTime = token.ExpiredTime
@@ -337,9 +349,10 @@ type TokenBatch struct {
 }
 
 type TokenGroupBatch struct {
-	Ids             []int  `json:"ids"`
-	Group           string `json:"group"`
-	CrossGroupRetry bool   `json:"cross_group_retry"`
+	AutoGroups      model.TokenAutoGroups `json:"auto_groups"`
+	Ids             []int                 `json:"ids"`
+	Group           string                `json:"group"`
+	CrossGroupRetry bool                  `json:"cross_group_retry"`
 }
 
 func normalizeTokenBatchIDs(ids []int) ([]int, bool) {
@@ -387,6 +400,15 @@ func UpdateTokenGroupBatch(c *gin.Context) {
 	}
 
 	groupUsable := service.GroupInUserUsableGroups(userGroup, request.Group)
+	if request.Group == "auto" {
+		groupUsable = service.TokenMayUseAuto(userGroup)
+	}
+	if request.AutoGroups != "" {
+		if err := service.ValidateTokenAutoGroups(userGroup, request.AutoGroups); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	}
 	if request.Group != "auto" {
 		groupUsable = groupUsable && ratio_setting.ContainsGroupRatio(request.Group)
 	}
@@ -396,7 +418,7 @@ func UpdateTokenGroupBatch(c *gin.Context) {
 	}
 
 	crossGroupRetry := request.Group == "auto" && request.CrossGroupRetry
-	count, err := model.BatchUpdateTokenGroup(ids, userId, request.Group, crossGroupRetry)
+	count, err := model.BatchUpdateTokenGroup(ids, userId, request.Group, crossGroupRetry, request.AutoGroups)
 	if err != nil {
 		common.ApiError(c, err)
 		return

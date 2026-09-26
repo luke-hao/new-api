@@ -407,7 +407,7 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if types.IsSkipRetryError(openaiErr) {
 		return false
 	}
-	if retryTimes <= 0 {
+	if retryTimes <= 0 && !service.HasNextTokenAutoGroup(c) {
 		return false
 	}
 	if _, ok := c.Get("specific_channel_id"); ok {

@@ -12,23 +12,24 @@ import (
 )
 
 type Token struct {
-	Id                 int            `json:"id"`
-	UserId             int            `json:"user_id" gorm:"index"`
-	Key                string         `json:"key" gorm:"type:varchar(128);uniqueIndex"`
-	Status             int            `json:"status" gorm:"default:1"`
-	Name               string         `json:"name" gorm:"index" `
-	CreatedTime        int64          `json:"created_time" gorm:"bigint"`
-	AccessedTime       int64          `json:"accessed_time" gorm:"bigint"`
-	ExpiredTime        int64          `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
-	RemainQuota        int            `json:"remain_quota" gorm:"default:0"`
-	UnlimitedQuota     bool           `json:"unlimited_quota"`
-	ModelLimitsEnabled bool           `json:"model_limits_enabled"`
-	ModelLimits        string         `json:"model_limits" gorm:"type:text"`
-	AllowIps           *string        `json:"allow_ips" gorm:"default:''"`
-	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
-	Group              string         `json:"group" gorm:"default:''"`
-	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
-	DeletedAt          gorm.DeletedAt `gorm:"index"`
+	Id                 int             `json:"id"`
+	UserId             int             `json:"user_id" gorm:"index"`
+	Key                string          `json:"key" gorm:"type:varchar(128);uniqueIndex"`
+	Status             int             `json:"status" gorm:"default:1"`
+	Name               string          `json:"name" gorm:"index" `
+	CreatedTime        int64           `json:"created_time" gorm:"bigint"`
+	AccessedTime       int64           `json:"accessed_time" gorm:"bigint"`
+	ExpiredTime        int64           `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
+	RemainQuota        int             `json:"remain_quota" gorm:"default:0"`
+	UnlimitedQuota     bool            `json:"unlimited_quota"`
+	ModelLimitsEnabled bool            `json:"model_limits_enabled"`
+	ModelLimits        string          `json:"model_limits" gorm:"type:text"`
+	AllowIps           *string         `json:"allow_ips" gorm:"default:''"`
+	UsedQuota          int             `json:"used_quota" gorm:"default:0"` // used quota
+	Group              string          `json:"group" gorm:"default:''"`
+	AutoGroups         TokenAutoGroups `json:"auto_groups" gorm:"type:text"`
+	CrossGroupRetry    bool            `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	DeletedAt          gorm.DeletedAt  `gorm:"index"`
 }
 
 func (token *Token) Clean() {
@@ -307,16 +308,14 @@ func (token *Token) Insert() error {
 func (token *Token) Update() (err error) {
 	defer func() {
 		if shouldUpdateRedis(true, err) {
-			gopool.Go(func() {
-				err := cacheSetToken(*token)
-				if err != nil {
-					common.SysLog("failed to update token cache: " + err.Error())
-				}
-			})
+			if cacheErr := cacheSetToken(*token); cacheErr != nil {
+				_ = cacheDeleteToken(token.Key)
+				common.SysLog("failed to update token cache: " + cacheErr.Error())
+			}
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "auto_groups").Updates(token).Error
 	return err
 }
 
@@ -461,7 +460,7 @@ func CountUserTokens(userId int) (int64, error) {
 }
 
 // BatchUpdateTokenGroup updates only the group-related fields of tokens owned by a user.
-func BatchUpdateTokenGroup(ids []int, userId int, group string, crossGroupRetry bool) (int, error) {
+func BatchUpdateTokenGroup(ids []int, userId int, group string, crossGroupRetry bool, autoGroups ...TokenAutoGroups) (int, error) {
 	if len(ids) == 0 {
 		return 0, errors.New("ids 不能为空！")
 	}
@@ -482,13 +481,14 @@ func BatchUpdateTokenGroup(ids []int, userId int, group string, crossGroupRetry 
 		return 0, err
 	}
 
+	updates := map[string]interface{}{"group": group, "cross_group_retry": crossGroupRetry}
+	if len(autoGroups) > 0 && autoGroups[0] != "" {
+		updates["auto_groups"] = string(autoGroups[0])
+	}
 	if len(tokens) > 0 {
 		if err := tx.Model(&Token{}).
 			Where("user_id = ? AND id IN ?", userId, ids).
-			Updates(map[string]interface{}{
-				"group":             group,
-				"cross_group_retry": crossGroupRetry,
-			}).Error; err != nil {
+			Updates(updates).Error; err != nil {
 			tx.Rollback()
 			return 0, err
 		}

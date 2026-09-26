@@ -3833,6 +3833,14 @@
     "Authentication or permission error": "Authentication or permission error",
     "Other channel errors": "Other channel errors",
     "Recovery interval (minutes)": "Recovery interval (minutes)",
-    "Consecutive successful checks": "Consecutive successful checks"
+    "Consecutive successful checks": "Consecutive successful checks",
+    "自动分组优先级": "Auto group priority",
+    "从上到下选择文字分组，按实际使用分组计费": "Try text groups from top to bottom. Charged at the actual group rate.",
+    "分组已失效、权限已撤销或暂无文字模型": "Group unavailable, access revoked, or no text models",
+    "上移": "Move up",
+    "下移": "Move down",
+    "搜索文字分组": "Search text groups",
+    "请至少选择一个有效的文字分组": "Select at least one available text group",
+    "Auto · 自动分组": "Auto · Automatic groups"
   }
 }

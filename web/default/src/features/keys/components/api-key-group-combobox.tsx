@@ -41,6 +41,7 @@ export type ApiKeyGroupOption = {
   label: string
   desc?: string
   ratio?: number | string
+  auto_eligible?: boolean
 }
 
 type ApiKeyGroupComboboxProps = {
@@ -80,7 +81,10 @@ function getRatioBadgeClassName(ratio: ApiKeyGroupOption['ratio']) {
 
 function GroupRatioBadge({ ratio }: { ratio: ApiKeyGroupOption['ratio'] }) {
   const { t } = useTranslation()
-  const label = formatGroupRatio(ratio, t('Ratio'))
+  const label =
+    typeof ratio === 'string'
+      ? t('Charged at the actual group rate')
+      : formatGroupRatio(ratio, t('Ratio'))
 
   if (!label) return null
 
@@ -159,7 +163,9 @@ export function ApiKeyGroupCombobox({
         >
           <span className='min-w-0'>
             <span className='block font-medium break-words whitespace-normal'>
-              {selectedOption?.label || placeholder || t('Select a group')}
+              {value === 'auto'
+                ? t('Auto · Automatic groups')
+                : selectedOption?.label || placeholder || t('Select a group')}
             </span>
             {!compact && selectedOption?.desc && (
               <span className='text-muted-foreground block truncate text-[11px] sm:text-xs'>
@@ -212,7 +218,9 @@ export function ApiKeyGroupCombobox({
                   />
                   <span className='min-w-0 flex-1'>
                     <span className='block font-medium break-words whitespace-normal'>
-                      {option.label}
+                      {option.value === 'auto'
+                        ? t('Auto · Automatic groups')
+                        : option.label}
                     </span>
                     {option.desc && (
                       <span className='text-muted-foreground block truncate text-xs'>

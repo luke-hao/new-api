@@ -111,19 +111,25 @@ func GetUserGroups(c *gin.Context) {
 	userId := c.GetInt("id")
 	userGroup, _ = model.GetUserGroup(userId, false)
 	userUsableGroups := service.GetUserUsableGroups(userGroup)
+	eligible, err := service.GetUserTextAutoGroups(userGroup)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	for groupName, _ := range ratio_setting.GetGroupRatioCopy() {
 		// UserUsableGroups contains the groups that the user can use
 		if desc, ok := userUsableGroups[groupName]; ok {
 			usableGroups[groupName] = map[string]interface{}{
-				"ratio": service.GetUserGroupRatio(userGroup, groupName),
-				"desc":  desc,
+				"ratio":         service.GetUserGroupRatio(userGroup, groupName),
+				"desc":          desc,
+				"auto_eligible": eligible[groupName],
 			}
 		}
 	}
-	if _, ok := userUsableGroups["auto"]; ok {
+	if _, ok := userUsableGroups["auto"]; ok || len(eligible) > 0 {
 		usableGroups["auto"] = map[string]interface{}{
 			"ratio": "自动",
-			"desc":  setting.GetUsableGroupDescription("auto"),
+			"desc":  "按个人顺序选择文字分组，按实际分组计费",
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{

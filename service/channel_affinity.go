@@ -624,6 +624,9 @@ func GetPreferredChannelByAffinity(c *gin.Context, modelName string, usingGroup 
 }
 
 func ShouldSkipRetryAfterChannelAffinityFailure(c *gin.Context) bool {
+	if c != nil && c.GetString("token_group") == "auto" && HasCustomAutoGroups(c) && c.GetBool("token_cross_group_retry") {
+		return false
+	}
 	if c == nil {
 		return false
 	}

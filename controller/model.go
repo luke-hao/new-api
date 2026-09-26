@@ -190,7 +190,7 @@ func getModelListGroups(c *gin.Context) (modelListGroups, error) {
 		return modelListGroups{
 			userGroup:   userGroup,
 			tokenGroup:  tokenGroup,
-			ownerGroups: service.GetUserAutoGroup(userGroup),
+			ownerGroups: service.GetTokenAutoGroups(c, userGroup),
 		}, nil
 	}
 
@@ -268,6 +268,24 @@ func ListModels(c *gin.Context, modelType int) {
 		}
 	}
 
+	if groups.tokenGroup == "auto" && service.HasCustomAutoGroups(c) {
+		model.GetPricing()
+		allowed := make(map[string]bool)
+		for _, group := range ownerGroups {
+			for _, name := range model.GetGroupEnabledModels(group) {
+				if service.IsTextAutoModel(name) {
+					allowed[name] = true
+				}
+			}
+		}
+		filtered := make([]string, 0, len(userModelNames))
+		for _, name := range userModelNames {
+			if allowed[name] {
+				filtered = append(filtered, name)
+			}
+		}
+		userModelNames = filtered
+	}
 	ownerByModel := map[string]string{}
 	if len(ownerGroups) > 0 {
 		ownerByModel = getPreferredModelOwners(userModelNames, ownerGroups)

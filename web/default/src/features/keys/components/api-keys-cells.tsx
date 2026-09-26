@@ -41,6 +41,7 @@ import {
   type ApiKeyGroupOption,
 } from './api-key-group-combobox'
 import { useApiKeys } from './api-keys-provider'
+import { AutoGroupDialog } from './auto-group-dialog'
 
 export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   const { t } = useTranslation()
@@ -160,10 +161,16 @@ export function ApiKeyGroupCell({
   const { triggerRefresh } = useApiKeys()
   const [group, setGroup] = useState(apiKey.group || '')
   const [isUpdating, setIsUpdating] = useState(false)
+  const [autoOpen, setAutoOpen] = useState(false)
 
   const handleGroupChange = useCallback(
     async (nextGroup: string) => {
-      if (!nextGroup || nextGroup === group || isUpdating) return
+      if (!nextGroup || isUpdating) return
+      if (nextGroup === 'auto') {
+        setAutoOpen(true)
+        return
+      }
+      if (nextGroup === group) return
 
       const previousGroup = group
       setGroup(nextGroup)
@@ -205,6 +212,17 @@ export function ApiKeyGroupCell({
 
   return (
     <div className='-ml-1.5 min-w-[148px]'>
+      {autoOpen && (
+        <AutoGroupDialog
+          apiKey={apiKey}
+          options={options}
+          onClose={() => setAutoOpen(false)}
+          onSaved={() => {
+            setGroup('auto')
+            triggerRefresh()
+          }}
+        />
+      )}
       <ApiKeyGroupCombobox
         options={availableOptions}
         value={group}

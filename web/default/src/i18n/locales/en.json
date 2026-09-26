@@ -5055,6 +5055,16 @@
     "Apply this status change to {{count}} selected keys?": "Apply this status change to {{count}} selected keys?",
     "Token unavailable, expired, or quota exhausted": "Token unavailable, expired, or quota exhausted",
     "Status update failed": "Status update failed",
-    "In progress": "In progress"
+    "In progress": "In progress",
+    "Auto group priority": "Auto group priority",
+    "Auto · Automatic groups": "Auto · Automatic groups",
+    "Charged at the actual group rate": "Charged at the actual group rate",
+    "Try text groups from top to bottom. Charged at the actual group rate.": "Try text groups from top to bottom. Charged at the actual group rate.",
+    "Select at least one text group": "Select at least one text group",
+    "Search text groups": "Search text groups",
+    "No text models available": "No text models available",
+    "Group removed or access revoked": "Group removed or access revoked",
+    "Move up": "Move up",
+    "Move down": "Move down"
   }
 }

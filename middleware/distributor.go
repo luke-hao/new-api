@@ -38,6 +38,12 @@ func Distribute() func(c *gin.Context) {
 			abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
 			return
 		}
+		if common.GetContextKeyString(c, constant.ContextKeyTokenGroup) == "auto" && service.HasCustomAutoGroups(c) {
+			if err := service.PrepareTokenAutoRoute(c, modelRequest.Model); err != nil {
+				abortWithOpenAiMessage(c, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
 		if ok {
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
@@ -96,7 +102,10 @@ func Distribute() func(c *gin.Context) {
 					affinityUsable := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
 					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled {
-						if usingGroup == "auto" {
+						if usingGroup == "auto" && service.HasCustomAutoGroups(c) {
+							service.SetTokenAutoPreferredChannel(c, preferred.Id)
+							affinityUsable = true
+						} else if usingGroup == "auto" {
 							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
@@ -127,6 +136,7 @@ func Distribute() func(c *gin.Context) {
 						ModelName:  modelRequest.Model,
 						TokenGroup: usingGroup,
 						Retry:      common.GetPointer(0),
+						Preselect:  true,
 					})
 					if err != nil {
 						showGroup := usingGroup

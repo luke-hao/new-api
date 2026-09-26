@@ -2637,6 +2637,15 @@
     "Authentication or permission error": "认证或权限异常",
     "Other channel errors": "其他渠道错误",
     "Recovery interval (minutes)": "恢复重试间隔（分钟）",
-    "Consecutive successful checks": "连续成功次数"
+    "Consecutive successful checks": "连续成功次数",
+    "自动分组优先级": "自动分组优先级",
+    "从上到下选择文字分组，按实际使用分组计费": "从上到下选择文字分组，按实际使用分组计费",
+    "分组已失效、权限已撤销或暂无文字模型": "分组已失效、权限已撤销或暂无文字模型",
+    "上移": "上移",
+    "下移": "下移",
+    "移除": "移除",
+    "搜索文字分组": "搜索文字分组",
+    "请至少选择一个有效的文字分组": "请至少选择一个有效的文字分组",
+    "Auto · 自动分组": "Auto · 自动分组"
   }
 }

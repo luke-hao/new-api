@@ -26,7 +26,6 @@ import { toast } from 'sonner'
 import { getUserModels, getUserGroups } from '@/lib/api'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { cn } from '@/lib/utils'
-import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -80,6 +79,7 @@ import {
   type ApiKeyGroupOption,
 } from './api-key-group-combobox'
 import { useApiKeys } from './api-keys-provider'
+import { AutoGroupEditor } from './auto-group-editor'
 
 type ApiKeyMutateDrawerProps = {
   open: boolean
@@ -95,10 +95,9 @@ export function ApiKeysMutateDrawer({
   const { t } = useTranslation()
   const isUpdate = !!currentRow
   const { triggerRefresh } = useApiKeys()
-  const { status } = useStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const defaultUseAutoGroup = status?.default_use_auto_group === true
+  const defaultUseAutoGroup = false
 
   // Fetch models
   const { data: modelsData } = useQuery({
@@ -124,6 +123,7 @@ export function ApiKeysMutateDrawer({
       label: key,
       desc: info.desc || key,
       ratio: info.ratio,
+      auto_eligible: info.auto_eligible,
     })
   )
   const backendHasAuto = groups.some((g) => g.value === 'auto')
@@ -153,7 +153,11 @@ export function ApiKeysMutateDrawer({
   useEffect(() => {
     if (groups.length === 0) return
     const currentGroup = form.getValues('group')
-    if (currentGroup && !groups.some((g) => g.value === currentGroup)) {
+    if (
+      currentGroup &&
+      currentGroup !== 'auto' &&
+      !groups.some((g) => g.value === currentGroup)
+    ) {
       const fallback =
         groups.find((g) => g.value === 'default')?.value ??
         groups[0]?.value ??
@@ -309,7 +313,11 @@ export function ApiKeysMutateDrawer({
                       <ApiKeyGroupCombobox
                         options={groups}
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          field.onChange(value)
+                          if (value === 'auto')
+                            form.setValue('cross_group_retry', true)
+                        }}
                         placeholder={t('Select a group')}
                       />
                     </FormControl>
@@ -318,6 +326,23 @@ export function ApiKeysMutateDrawer({
                 )}
               />
 
+              {selectedGroup === 'auto' && (
+                <FormField
+                  control={form.control}
+                  name='auto_groups'
+                  render={({ field }) => (
+                    <FormItem>
+                      <AutoGroupEditor
+                        options={groups}
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isSubmitting}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               {selectedGroup === 'auto' && (
                 <FormField
                   control={form.control}

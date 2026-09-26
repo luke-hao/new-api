@@ -34,6 +34,7 @@ import {
   type ApiKeyGroupOption,
 } from './api-key-group-combobox'
 import { useApiKeys } from './api-keys-provider'
+import { AutoGroupEditor } from './auto-group-editor'
 
 type ApiKeysBatchGroupDialogProps<TData> = {
   open: boolean
@@ -50,6 +51,7 @@ export function ApiKeysBatchGroupDialog<TData>({
   const { triggerRefresh } = useApiKeys()
   const [group, setGroup] = useState('')
   const [crossGroupRetry, setCrossGroupRetry] = useState(true)
+  const [autoGroups, setAutoGroups] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
@@ -66,6 +68,7 @@ export function ApiKeysBatchGroupDialog<TData>({
       label: key,
       desc: info.desc || key,
       ratio: info.ratio,
+      auto_eligible: info.auto_eligible,
     }))
   }, [groupsData])
 
@@ -73,6 +76,7 @@ export function ApiKeysBatchGroupDialog<TData>({
     if (!nextOpen) {
       setGroup('')
       setCrossGroupRetry(true)
+      setAutoGroups([])
     }
     onOpenChange(nextOpen)
   }
@@ -87,6 +91,7 @@ export function ApiKeysBatchGroupDialog<TData>({
         ids,
         group,
         cross_group_retry: group === 'auto' && crossGroupRetry,
+        ...(group === 'auto' ? { auto_groups: autoGroups } : {}),
       })
 
       if (result.success) {
@@ -134,6 +139,12 @@ export function ApiKeysBatchGroupDialog<TData>({
               isSubmitting ||
               isLoadingGroups ||
               !group ||
+              (group === 'auto' &&
+                (autoGroups.length === 0 ||
+                  autoGroups.some(
+                    (name) =>
+                      !groups.some((g) => g.value === name && g.auto_eligible)
+                  ))) ||
               selectedRows.length === 0
             }
           >
@@ -168,6 +179,14 @@ export function ApiKeysBatchGroupDialog<TData>({
           )}
         </div>
 
+        {group === 'auto' && (
+          <AutoGroupEditor
+            options={groups}
+            value={autoGroups}
+            onChange={setAutoGroups}
+            disabled={isSubmitting}
+          />
+        )}
         {group === 'auto' ? (
           <div className='flex items-center justify-between gap-4 rounded-lg border p-4'>
             <div className='space-y-1'>

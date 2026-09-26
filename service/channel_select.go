@@ -16,6 +16,7 @@ type RetryParam struct {
 	TokenGroup   string
 	ModelName    string
 	Retry        *int
+	Preselect    bool // Middleware preview does not consume an upstream attempt.
 	resetNextTry bool
 }
 
@@ -86,6 +87,9 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 	selectGroup := param.TokenGroup
 	userGroup := common.GetContextKeyString(param.Ctx, constant.ContextKeyUserGroup)
 
+	if param.TokenGroup == "auto" && HasCustomAutoGroups(param.Ctx) {
+		return selectTokenAutoChannel(param)
+	}
 	if param.TokenGroup == "auto" {
 		if len(setting.GetAutoGroups()) == 0 {
 			return nil, selectGroup, errors.New("auto groups is not enabled")

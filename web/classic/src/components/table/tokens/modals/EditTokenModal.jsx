@@ -57,6 +57,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../../context/Status';
 
+import AutoGroupEditor from './AutoGroupEditor';
+
 const { Text, Title } = Typography;
 
 const EditTokenModal = (props) => {
@@ -67,6 +69,7 @@ const EditTokenModal = (props) => {
   const formApiRef = useRef(null);
   const [models, setModels] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [autoGroups, setAutoGroups] = useState([]);
   const [showQuotaInput, setShowQuotaInput] = useState(false);
   const isEdit = props.editingToken.id !== undefined;
 
@@ -80,7 +83,7 @@ const EditTokenModal = (props) => {
     model_limits: [],
     allow_ips: '',
     group: '',
-    cross_group_retry: false,
+    cross_group_retry: true,
     tokenCount: 1,
   });
 
@@ -141,6 +144,7 @@ const EditTokenModal = (props) => {
         label: info.desc,
         value: group,
         ratio: info.ratio,
+        auto_eligible: info.auto_eligible,
       }));
       if (statusState?.status?.default_use_auto_group) {
         if (localGroupOptions.some((group) => group.value === 'auto')) {
@@ -161,6 +165,7 @@ const EditTokenModal = (props) => {
     let res = await API.get(`/api/token/${props.editingToken.id}`);
     const { success, message, data } = res.data;
     if (success) {
+      setAutoGroups(data.auto_groups || []);
       if (data.expired_time !== -1) {
         data.expired_time = timestamp2string(data.expired_time);
       }
@@ -184,6 +189,7 @@ const EditTokenModal = (props) => {
   useEffect(() => {
     if (formApiRef.current) {
       if (!isEdit) {
+        setAutoGroups([]);
         formApiRef.current.setValues(getInitValues());
       }
     }
@@ -216,6 +222,22 @@ const EditTokenModal = (props) => {
   };
 
   const submit = async (values) => {
+    if (
+      values.group === 'auto' &&
+      (autoGroups.length === 0 ||
+        autoGroups.some(
+          (name) =>
+            !groups.some(
+              (group) => group.value === name && group.auto_eligible,
+            ),
+        ))
+    ) {
+      showError(t('请至少选择一个有效的文字分组'));
+      return;
+    }
+    values = { ...values };
+    delete values.auto_groups;
+    if (autoGroups.length > 0) values.auto_groups = autoGroups;
     setLoading(true);
     if (isEdit) {
       let { tokenCount: _tc, ...localInputs } = values;
@@ -386,10 +408,32 @@ const EditTokenModal = (props) => {
                     {groups.length > 0 ? (
                       <Form.Select
                         field='group'
+                        onChange={(value) => {
+                          if (value === 'auto')
+                            formApiRef.current.setValue(
+                              'cross_group_retry',
+                              true,
+                            );
+                        }}
                         label={t('令牌分组')}
                         placeholder={t('令牌分组，默认为用户的分组')}
                         optionList={groups}
-                        renderOptionItem={renderGroupOption}
+                        renderOptionItem={(item) =>
+                          renderGroupOption({
+                            ...item,
+                            value:
+                              item.value === 'auto'
+                                ? t('Auto · 自动分组')
+                                : item.value,
+                            ratio:
+                              item.value === 'auto' ? undefined : item.ratio,
+                          })
+                        }
+                        renderSelectedItem={(item) =>
+                          item.value === 'auto'
+                            ? t('Auto · 自动分组')
+                            : item.value
+                        }
                         filter={(input, option) => {
                           const q = input.toLowerCase();
                           return (
@@ -410,6 +454,15 @@ const EditTokenModal = (props) => {
                       />
                     )}
                   </Col>
+                  {values.group === 'auto' && (
+                    <Col span={24}>
+                      <AutoGroupEditor
+                        groups={groups}
+                        value={autoGroups}
+                        onChange={setAutoGroups}
+                      />
+                    </Col>
+                  )}
                   <Col
                     span={24}
                     style={{
@@ -552,7 +605,10 @@ const EditTokenModal = (props) => {
                         ? `▾ ${t('收起原生额度输入')}`
                         : `▸ ${t('使用原生额度输入')}`}
                     </div>
-                    <div style={{ display: showQuotaInput ? 'block' : 'none' }} className='mt-2'>
+                    <div
+                      style={{ display: showQuotaInput ? 'block' : 'none' }}
+                      className='mt-2'
+                    >
                       <Form.InputNumber
                         field='remain_quota'
                         label={t('额度')}

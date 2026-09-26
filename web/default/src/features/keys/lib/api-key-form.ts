@@ -37,9 +37,17 @@ export function getApiKeyFormSchema(t: TFunction) {
       allow_ips: z.string().optional(),
       group: z.string().optional(),
       cross_group_retry: z.boolean().optional(),
+      auto_groups: z.array(z.string()),
       tokenCount: z.number().min(1).optional(),
     })
     .superRefine((data, ctx) => {
+      if (data.group === 'auto' && data.auto_groups.length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['auto_groups'],
+          message: t('Select at least one text group'),
+        })
+      }
       if (data.unlimited_quota) {
         return
       }
@@ -71,6 +79,7 @@ export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   model_limits: [],
   allow_ips: '',
   group: DEFAULT_GROUP,
+  auto_groups: [],
   cross_group_retry: true,
   tokenCount: 1,
 }
@@ -81,7 +90,7 @@ export function getApiKeyFormDefaultValues(
   return {
     ...API_KEY_FORM_DEFAULT_VALUES,
     group: defaultUseAutoGroup ? 'auto' : DEFAULT_GROUP,
-    cross_group_retry: defaultUseAutoGroup,
+    cross_group_retry: true,
   }
 }
 
@@ -108,6 +117,7 @@ export function transformFormDataToPayload(
     model_limits: data.model_limits.join(','),
     allow_ips: data.allow_ips || '',
     group: data.group || '',
+    ...(data.auto_groups.length > 0 ? { auto_groups: data.auto_groups } : {}),
     cross_group_retry: data.group === 'auto' ? !!data.cross_group_retry : false,
   }
 }
@@ -133,6 +143,7 @@ export function transformApiKeyToFormDefaults(
       : [],
     allow_ips: apiKey.allow_ips || '',
     group: apiKey.group || DEFAULT_GROUP,
+    auto_groups: apiKey.auto_groups || [],
     cross_group_retry: !!apiKey.cross_group_retry,
     tokenCount: 1,
   }

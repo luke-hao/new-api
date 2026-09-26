@@ -5055,6 +5055,16 @@
     "Apply this status change to {{count}} selected keys?": "将更改所选 {{count}} 把密钥的状态，是否继续？",
     "Token unavailable, expired, or quota exhausted": "密钥不存在、无权操作，或已过期 / 额度耗尽",
     "Status update failed": "状态更新失败",
-    "In progress": "进行中"
+    "In progress": "进行中",
+    "Auto group priority": "自动分组优先级",
+    "Auto · Automatic groups": "Auto · 自动分组",
+    "Charged at the actual group rate": "按实际分组计费",
+    "Try text groups from top to bottom. Charged at the actual group rate.": "从上到下选择文字分组，按实际使用分组计费。",
+    "Select at least one text group": "请至少选择一个文字分组",
+    "Search text groups": "搜索文字分组",
+    "No text models available": "暂无可用文字模型",
+    "Group removed or access revoked": "分组已删除或权限已撤销",
+    "Move up": "上移",
+    "Move down": "下移"
   }
 }
