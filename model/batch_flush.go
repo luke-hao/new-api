@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -76,8 +77,15 @@ func applyQuotaBatch(ctx context.Context, db *gorm.DB, batch *quotaBatch) error 
 			if value == 0 {
 				continue
 			}
-			if err := check(tx.Model(&Channel{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", value)), "channel", id); err != nil {
-				return err
+			// Channels can be hard-deleted while requests or queued usage still
+			// reference them. Missing statistics must not roll back wallet and
+			// token debits for every user in the batch.
+			result := tx.Model(&Channel{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", value))
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				common.SysLog(fmt.Sprintf("batch quota %s: channel %d no longer exists; skipping channel statistic delta %d", batch.id, id, value))
 			}
 		}
 		users := make(map[int]int)

@@ -137,15 +137,57 @@ func TestBatchFlushConcurrentProducers(t *testing.T) {
 	assertBatchLedger(t, db, 100, 100)
 }
 
-func TestBatchFlushMissingRowFailsWholeBatch(t *testing.T) {
+func TestBatchFlushDeletedChannelStillChargesWalletAndTokenOnce(t *testing.T) {
 	db := prepareBatchFlush(t)
+	require.NoError(t, db.Create(&Channel{Id: 2, Name: "surviving-channel", Key: "fixture-2"}).Error)
 	queueBatchDebit(15)
+	addNewRecord(BatchUpdateTypeChannelUsedQuota, 2, 7)
 	require.NoError(t, db.Delete(&Channel{}, 1).Error)
-	require.Error(t, FlushBatchQuota(context.Background()))
-	var u User
-	require.NoError(t, db.First(&u, 1).Error)
-	require.Equal(t, 1000, u.Quota)
-	require.True(t, GetBatchQuotaState().PendingBatch)
+	batch := takeQuotaBatch()
+	require.NoError(t, applyQuotaBatch(context.Background(), db, batch))
+	require.NoError(t, applyQuotaBatch(context.Background(), db, batch))
+	var user User
+	var token Token
+	var channel Channel
+	require.NoError(t, db.First(&user, 1).Error)
+	require.NoError(t, db.First(&token, 1).Error)
+	require.NoError(t, db.First(&channel, 2).Error)
+	require.Equal(t, 985, user.Quota)
+	require.Equal(t, 15, user.UsedQuota)
+	require.Equal(t, 1, user.RequestCount)
+	require.Equal(t, 985, token.RemainQuota)
+	require.Equal(t, 15, token.UsedQuota)
+	require.Equal(t, int64(7), channel.UsedQuota)
+	// A later batch must also progress, without recreating a routable channel.
+	queueBatchDebit(5)
+	require.NoError(t, FlushBatchQuota(context.Background()))
+	require.NoError(t, db.First(&user, 1).Error)
+	require.NoError(t, db.First(&token, 1).Error)
+	require.Equal(t, 980, user.Quota)
+	require.Equal(t, 20, user.UsedQuota)
+	require.Equal(t, 980, token.RemainQuota)
+	require.Equal(t, BatchQuotaState{}, GetBatchQuotaState())
+	var count int64
+	require.NoError(t, db.Model(&Channel{}).Where("id = ?", 1).Count(&count).Error)
+	require.Zero(t, count)
+}
+
+func TestBatchFlushMissingFinancialRowStillFailsWholeBatch(t *testing.T) {
+	for _, kind := range []string{"users", "tokens"} {
+		t.Run(kind, func(t *testing.T) {
+			db := prepareBatchFlush(t)
+			queueBatchDebit(15)
+			require.NoError(t, db.Exec("DELETE FROM "+kind+" WHERE id = ?", 1).Error)
+			require.Error(t, FlushBatchQuota(context.Background()))
+			var channel Channel
+			require.NoError(t, db.First(&channel, 1).Error)
+			require.Zero(t, channel.UsedQuota)
+			var receipts int64
+			require.NoError(t, db.Model(&BatchQuotaReceipt{}).Count(&receipts).Error)
+			require.Zero(t, receipts)
+			require.True(t, GetBatchQuotaState().PendingBatch)
+		})
+	}
 }
 
 func TestBatchFlushDuplicateIDNotDoubleApplied(t *testing.T) {
