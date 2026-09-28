@@ -134,6 +134,8 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 						usage.OutputTokenDetails.AudioTokens += realtimeUsage.OutputTokenDetails.AudioTokens
 						usage.OutputTokenDetails.TextTokens += realtimeUsage.OutputTokenDetails.TextTokens
 						err := preConsumeUsage(c, info, usage, sumUsage)
+						usage = &dto.RealtimeUsage{}
+						localUsage = &dto.RealtimeUsage{}
 						if err != nil {
 							errChan <- fmt.Errorf("error consume usage: %v", err)
 							return
@@ -155,6 +157,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 						localUsage.InputTokenDetails.TextTokens += textToken
 						localUsage.InputTokenDetails.AudioTokens += audioToken
 						err = preConsumeUsage(c, info, localUsage, sumUsage)
+						localUsage = &dto.RealtimeUsage{}
 						if err != nil {
 							errChan <- fmt.Errorf("error consume usage: %v", err)
 							return

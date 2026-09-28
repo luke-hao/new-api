@@ -15,6 +15,7 @@ import (
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const UserNameMaxLength = 20
@@ -468,7 +469,7 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 	defer tx.Rollback() // 确保在函数退出时事务能回滚
 
 	// 加锁查询用户以确保数据一致性
-	err := tx.Set("gorm:query_option", "FOR UPDATE").First(&user, user.Id).Error
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, user.Id).Error
 	if err != nil {
 		return err
 	}
@@ -1090,54 +1091,59 @@ func GetUserSetting(id int, fromDB bool) (settingMap dto.UserSetting, err error)
 	return userBase.GetSetting(), nil
 }
 
+// IncreaseUserQuota persists funds synchronously; db is retained for API compatibility.
 func IncreaseUserQuota(id int, quota int, db bool) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
-	gopool.Go(func() {
-		err := cacheIncrUserQuota(id, int64(quota))
-		if err != nil {
-			common.SysLog("failed to increase user quota: " + err.Error())
-		}
-	})
-	if !db && common.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeUserQuota, id, quota)
-		return nil
-	}
-	return increaseUserQuota(id, quota)
-}
-
-func increaseUserQuota(id int, quota int) (err error) {
-	err = DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
-	if err != nil {
+	if err = increaseUserQuota(id, quota); err != nil {
 		return err
 	}
-	return err
+	if cacheErr := invalidateUserCache(id); cacheErr != nil {
+		common.SysLog("failed to invalidate user quota cache: " + cacheErr.Error())
+	}
+	return nil
+}
+
+func increaseUserQuota(id int, quota int) error {
+	if quota == 0 {
+		return nil
+	}
+	result := DB.Unscoped().Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("wallet quota update: user %d does not exist", id)
+	}
+	return nil
 }
 
 func DecreaseUserQuota(id int, quota int, db bool) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
-	gopool.Go(func() {
-		err := cacheDecrUserQuota(id, int64(quota))
-		if err != nil {
-			common.SysLog("failed to decrease user quota: " + err.Error())
-		}
-	})
-	if !db && common.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeUserQuota, id, -quota)
-		return nil
-	}
-	return decreaseUserQuota(id, quota)
-}
-
-func decreaseUserQuota(id int, quota int) (err error) {
-	err = DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota - ?", quota)).Error
-	if err != nil {
+	if err = decreaseUserQuota(id, quota); err != nil {
 		return err
 	}
-	return err
+	if cacheErr := invalidateUserCache(id); cacheErr != nil {
+		common.SysLog("failed to invalidate user quota cache: " + cacheErr.Error())
+	}
+	return nil
+}
+
+func decreaseUserQuota(id int, quota int) error {
+	if quota == 0 {
+		return nil
+	}
+	result := DB.Unscoped().Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota - ?", quota))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("wallet quota update: user %d does not exist", id)
+	}
+	return nil
 }
 
 func DeltaUpdateUserQuota(id int, delta int) (err error) {
@@ -1278,4 +1284,19 @@ func RootUserExists() bool {
 		return false
 	}
 	return true
+}
+
+func OverrideUserQuota(id, expected, amount int) error {
+	if expected == amount {
+		return nil
+	}
+	r := DB.Model(&User{}).Where("id = ? AND quota = ?", id, expected).UpdateColumn("quota", amount)
+	if r.Error != nil {
+		return r.Error
+	}
+	if r.RowsAffected != 1 {
+		return errors.New("balance changed concurrently; refresh and retry")
+	}
+	invalidateReservationCaches(id, "", true)
+	return nil
 }

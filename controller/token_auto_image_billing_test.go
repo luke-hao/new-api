@@ -28,6 +28,7 @@ func TestPersonalAutoImageReservationAndSettlement(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db := setupPersonalAutoTest(t)
+			require.NoError(t, db.AutoMigrate(&model.BillingAdjustment{}))
 			previousPrice := ratio_setting.ModelPrice2JSONString()
 			previousTokenGroups := ratio_setting.ImageTokenBillingGroups2JSONString()
 			previousSize := ratio_setting.ImageSizeGroupPrices2JSONString()

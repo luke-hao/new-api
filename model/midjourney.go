@@ -1,28 +1,36 @@
 package model
 
+import (
+	"fmt"
+	"github.com/QuantumNous/new-api/common"
+	"gorm.io/gorm"
+)
+
 type Midjourney struct {
-	Id          int    `json:"id"`
-	Code        int    `json:"code"`
-	UserId      int    `json:"user_id" gorm:"index"`
-	Action      string `json:"action" gorm:"type:varchar(40);index"`
-	MjId        string `json:"mj_id" gorm:"index"`
-	Prompt      string `json:"prompt"`
-	PromptEn    string `json:"prompt_en"`
-	Description string `json:"description"`
-	State       string `json:"state"`
-	SubmitTime  int64  `json:"submit_time" gorm:"index"`
-	StartTime   int64  `json:"start_time" gorm:"index"`
-	FinishTime  int64  `json:"finish_time" gorm:"index"`
-	ImageUrl    string `json:"image_url"`
-	VideoUrl    string `json:"video_url"`
-	VideoUrls   string `json:"video_urls"`
-	Status      string `json:"status" gorm:"type:varchar(20);index"`
-	Progress    string `json:"progress" gorm:"type:varchar(30);index"`
-	FailReason  string `json:"fail_reason"`
-	ChannelId   int    `json:"channel_id"`
-	Quota       int    `json:"quota"`
-	Buttons     string `json:"buttons"`
-	Properties  string `json:"properties"`
+	Id             int    `json:"id"`
+	Code           int    `json:"code"`
+	UserId         int    `json:"user_id" gorm:"index"`
+	Action         string `json:"action" gorm:"type:varchar(40);index"`
+	MjId           string `json:"mj_id" gorm:"index"`
+	Prompt         string `json:"prompt"`
+	PromptEn       string `json:"prompt_en"`
+	Description    string `json:"description"`
+	State          string `json:"state"`
+	SubmitTime     int64  `json:"submit_time" gorm:"index"`
+	StartTime      int64  `json:"start_time" gorm:"index"`
+	FinishTime     int64  `json:"finish_time" gorm:"index"`
+	ImageUrl       string `json:"image_url"`
+	VideoUrl       string `json:"video_url"`
+	VideoUrls      string `json:"video_urls"`
+	Status         string `json:"status" gorm:"type:varchar(20);index"`
+	Progress       string `json:"progress" gorm:"type:varchar(30);index"`
+	FailReason     string `json:"fail_reason"`
+	ChannelId      int    `json:"channel_id"`
+	Quota          int    `json:"quota"`
+	TokenId        int    `json:"-"`
+	SubscriptionId int    `json:"-"`
+	Buttons        string `json:"buttons"`
+	Properties     string `json:"properties"`
 }
 
 // TaskQueryParams 用于包含所有搜索条件的结构体，可以根据需求添加更多字段
@@ -217,4 +225,35 @@ func CountAllUserTask(userId int, queryParams TaskQueryParams) int64 {
 	}
 	_ = query.Count(&total).Error
 	return total
+}
+
+// UpdateWithRefund commits task failure and its unique refund intent together.
+func (task *Midjourney) UpdateWithRefund(fromStatus string, refund bool) (bool, error) {
+	if fromStatus == "SUCCESS" || fromStatus == "FAILURE" {
+		return false, nil
+	}
+	won := false
+	id := fmt.Sprintf("mj:%d:refund", task.Id)
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		r := tx.Model(&Midjourney{}).Where("id = ? AND status = ?", task.Id, fromStatus).Select("*").Updates(task)
+		if r.Error != nil {
+			return r.Error
+		}
+		if r.RowsAffected == 0 {
+			return nil
+		}
+		won = true
+		if !refund || task.Quota <= 0 {
+			return nil
+		}
+		a := BillingAdjustment{ID: id, UserID: task.UserId, TokenID: task.TokenId, SubscriptionID: task.SubscriptionId, Delta: -task.Quota, MidjourneyID: task.Id, ChannelID: task.ChannelId, Status: "pending", CreatedAt: common.GetTimestamp(), UpdatedAt: common.GetTimestamp()}
+		return tx.Create(&a).Error
+	})
+	if err != nil {
+		return false, err
+	}
+	if won && refund && task.Quota > 0 {
+		err = ApplyBillingAdjustment(id)
+	}
+	return won, err
 }

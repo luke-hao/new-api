@@ -76,6 +76,21 @@ func GetRefundDrainState() RefundDrainState { return refundWork.snapshot() }
 // fencing. It waits for registered refunds, persists queued batch updates and
 // rejects known failures. It does not declare a whole-site cutover ready.
 func DrainBillingForMigration(ctx context.Context) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := model.RetryBillingAdjustments(1000); err != nil {
+			return err
+		}
+		var pending int64
+		if err := model.DB.Model(&model.BillingAdjustment{}).Where("status = ?", "pending").Count(&pending).Error; err != nil {
+			return err
+		}
+		if pending == 0 {
+			break
+		}
+	}
 	if err := refundWork.wait(ctx); err != nil {
 		return err
 	}

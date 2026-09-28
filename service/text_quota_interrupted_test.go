@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -114,24 +113,27 @@ func TestInterruptedTextBillingWithoutUsageRemainsRefundable(t *testing.T) {
 	require.Zero(t, n)
 }
 
-type failedInterruptedFunding struct{}
-
-func (*failedInterruptedFunding) Source() string       { return BillingSourceWallet }
-func (*failedInterruptedFunding) PreConsume(int) error { return nil }
-func (*failedInterruptedFunding) Settle(int) error     { return errors.New("fixture funding unavailable") }
-func (*failedInterruptedFunding) Refund() error        { return nil }
-
 func TestInterruptedTextBillingSettlementFailureDoesNotRecordSuccess(t *testing.T) {
 	c, info, session := interruptedBillingFixture(t, BillingSourceWallet, 0)
-	session.funding = &failedInterruptedFunding{}
-	require.ErrorContains(t, PostInterruptedTextConsumeQuota(c, info, &dto.Usage{PromptTokens: 100, UsageSemantic: "anthropic"}), "fixture funding unavailable")
+
+	var token model.Token
+	require.NoError(t, model.DB.First(&token, info.TokenId).Error)
+	require.NoError(t, model.DB.Unscoped().Delete(&token).Error)
+	require.Error(t, PostInterruptedTextConsumeQuota(c, info, &dto.Usage{PromptTokens: 100, UsageSemantic: "anthropic"}))
+	require.NoError(t, model.DB.Create(&token).Error)
 	require.False(t, session.settled)
 	require.False(t, c.GetBool("claude_interrupted_usage_settled"))
 	require.Equal(t, 100000000, getUserQuota(t, info.UserId))
 	require.Equal(t, 100000000, getTokenRemainQuota(t, info.TokenId))
 	var n int64
 	require.NoError(t, model.LOG_DB.Model(&model.Log{}).Where("request_id = ?", "interrupted-fixture-request").Count(&n).Error)
+
 	require.Zero(t, n)
+	session.Refund(c)
+	require.False(t, session.refunded)
+	require.NoError(t, PostInterruptedTextConsumeQuota(c, info, &dto.Usage{PromptTokens: 100, UsageSemantic: "anthropic"}))
+	require.Equal(t, 100000000-425, getUserQuota(t, info.UserId))
+	require.Equal(t, 100000000-425, getTokenRemainQuota(t, info.TokenId))
 }
 
 func TestInterruptedTextBillingCacheOnly(t *testing.T) {

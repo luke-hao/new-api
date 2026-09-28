@@ -432,24 +432,16 @@ func postTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		extraContent = append(extraContent, fmt.Sprintf("Image Generation Call 花费 %s", decimal.NewFromFloat(summary.ImageGenerationCallPrice).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
 
-	if interrupted {
-		if err := SettleBilling(ctx, relayInfo, summary.Quota); err != nil {
-			logger.LogError(ctx, "interrupted text billing settlement failed: "+err.Error())
-			return err
+	settlementErr := SettleBilling(ctx, relayInfo, summary.Quota)
+	if settlementErr != nil {
+		logger.LogError(ctx, "text billing settlement pending: "+settlementErr.Error())
+		if interrupted {
+			return settlementErr
 		}
 	}
 	if !hasBillableTextQuota(summary) {
 		extraContent = append(extraContent, "上游没有返回计费信息，无法扣费（可能是上游超时）")
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, summary.ModelName, relayInfo.FinalPreConsumedQuota))
-	} else {
-		model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, summary.Quota)
-		model.UpdateChannelUsedQuota(relayInfo.ChannelId, summary.Quota)
-	}
-
-	if !interrupted {
-		if err := SettleBilling(ctx, relayInfo, summary.Quota); err != nil {
-			logger.LogError(ctx, "error settling billing: "+err.Error())
-		}
 	}
 
 	logModel := summary.ModelName
@@ -570,5 +562,5 @@ func postTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 			perfmetrics.RecordRelaySample(relayInfo, true, int64(summary.CompletionTokens))
 		})
 	}
-	return nil
+	return settlementErr
 }

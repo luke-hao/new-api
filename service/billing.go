@@ -82,8 +82,5 @@ func SettleBilling(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, actualQuo
 	if err != nil {
 		return err
 	}
-	if quotaDelta != 0 {
-		return adjustPostConsumeQuota(relayInfo, quotaDelta, relayInfo.FinalPreConsumedQuota, true)
-	}
-	return nil
+	return adjustPostConsumeQuota(relayInfo, quotaDelta, relayInfo.FinalPreConsumedQuota, true)
 }

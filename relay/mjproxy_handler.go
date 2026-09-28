@@ -202,20 +202,10 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 		}
 	}
 
-	userQuota, err := model.GetUserQuota(info.UserId, false)
-	if err != nil {
-		return &dto.MidjourneyResponse{
-			Code:        4,
-			Description: err.Error(),
-		}
+	if apiErr := service.PreConsumeBilling(c, priceData.Quota, info); apiErr != nil {
+		return service.MidjourneyErrorWrapper(constant.MjRequestError, apiErr.Error())
 	}
-
-	if userQuota-priceData.Quota < 0 {
-		return &dto.MidjourneyResponse{
-			Code:        4,
-			Description: "quota_not_enough",
-		}
-	}
+	defer info.Billing.Refund(c)
 	requestURL := getMjRequestPath(c.Request.URL.String())
 	baseURL := c.GetString("base_url")
 	fullRequestURL := fmt.Sprintf("%s%s", baseURL, requestURL)
@@ -225,7 +215,7 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 	}
 	defer func() {
 		if mjResp.StatusCode == 200 && mjResp.Response.Code == 1 {
-			err := service.PostConsumeQuota(info, priceData.Quota, 0, true)
+			err := service.SettleBilling(c, info, priceData.Quota)
 			if err != nil {
 				common.SysLog("error consuming token remain quota: " + err.Error())
 			}
@@ -243,29 +233,33 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 				Group:     info.UsingGroup,
 				Other:     other,
 			})
-			model.UpdateUserUsedQuotaAndRequestCount(info.UserId, priceData.Quota)
-			model.UpdateChannelUsedQuota(info.ChannelId, priceData.Quota)
+
 		}
 	}()
 	midjResponse := &mjResp.Response
 	midjourneyTask := &model.Midjourney{
-		UserId:      info.UserId,
-		Code:        midjResponse.Code,
-		Action:      constant.MjActionSwapFace,
-		MjId:        midjResponse.Result,
-		Prompt:      "InsightFace",
-		PromptEn:    "",
-		Description: midjResponse.Description,
-		State:       "",
-		SubmitTime:  info.StartTime.UnixNano() / int64(time.Millisecond),
-		StartTime:   time.Now().UnixNano() / int64(time.Millisecond),
-		FinishTime:  0,
-		ImageUrl:    "",
-		Status:      "",
-		Progress:    "0%",
-		FailReason:  "",
-		ChannelId:   c.GetInt("channel_id"),
-		Quota:       priceData.Quota,
+		UserId:         info.UserId,
+		TokenId:        info.TokenId,
+		SubscriptionId: info.SubscriptionId,
+		Code:           midjResponse.Code,
+		Action:         constant.MjActionSwapFace,
+		MjId:           midjResponse.Result,
+		Prompt:         "InsightFace",
+		PromptEn:       "",
+		Description:    midjResponse.Description,
+		State:          "",
+		SubmitTime:     info.StartTime.UnixNano() / int64(time.Millisecond),
+		StartTime:      time.Now().UnixNano() / int64(time.Millisecond),
+		FinishTime:     0,
+		ImageUrl:       "",
+		Status:         "",
+		Progress:       "0%",
+		FailReason:     "",
+		ChannelId:      c.GetInt("channel_id"),
+		Quota:          priceData.Quota,
+	}
+	if mjResp.StatusCode != 200 || midjResponse.Code != 1 {
+		midjourneyTask.Quota = 0
 	}
 	err = midjourneyTask.Insert()
 	if err != nil {
@@ -509,21 +503,12 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 		}
 	}
 
-	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
-	if err != nil {
-		return &dto.MidjourneyResponse{
-			Code:        4,
-			Description: err.Error(),
+	if consumeQuota {
+		if apiErr := service.PreConsumeBilling(c, priceData.Quota, relayInfo); apiErr != nil {
+			return service.MidjourneyErrorWrapper(constant.MjRequestError, apiErr.Error())
 		}
+		defer relayInfo.Billing.Refund(c)
 	}
-
-	if consumeQuota && userQuota-priceData.Quota < 0 {
-		return &dto.MidjourneyResponse{
-			Code:        4,
-			Description: "quota_not_enough",
-		}
-	}
-
 	midjResponseWithStatus, responseBody, err := service.DoMidjourneyHttpRequest(c, time.Second*60, fullRequestURL)
 	if err != nil {
 		return &midjResponseWithStatus.Response
@@ -532,7 +517,7 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 
 	defer func() {
 		if consumeQuota && midjResponseWithStatus.StatusCode == 200 {
-			err := service.PostConsumeQuota(relayInfo, priceData.Quota, 0, true)
+			err := service.SettleBilling(c, relayInfo, priceData.Quota)
 			if err != nil {
 				common.SysLog("error consuming token remain quota: " + err.Error())
 			}
@@ -549,8 +534,7 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 				Group:     relayInfo.UsingGroup,
 				Other:     other,
 			})
-			model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, priceData.Quota)
-			model.UpdateChannelUsedQuota(relayInfo.ChannelId, priceData.Quota)
+
 		}
 	}()
 
@@ -562,23 +546,25 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	// 24-prompt包含敏感词 {"code":24,"description":"可能包含敏感词","properties":{"promptEn":"nude body","bannedWord":"nude"}}
 	// other: 提交错误，description为错误描述
 	midjourneyTask := &model.Midjourney{
-		UserId:      relayInfo.UserId,
-		Code:        midjResponse.Code,
-		Action:      midjRequest.Action,
-		MjId:        midjResponse.Result,
-		Prompt:      midjRequest.Prompt,
-		PromptEn:    "",
-		Description: midjResponse.Description,
-		State:       "",
-		SubmitTime:  time.Now().UnixNano() / int64(time.Millisecond),
-		StartTime:   0,
-		FinishTime:  0,
-		ImageUrl:    "",
-		Status:      "",
-		Progress:    "0%",
-		FailReason:  "",
-		ChannelId:   c.GetInt("channel_id"),
-		Quota:       priceData.Quota,
+		UserId:         relayInfo.UserId,
+		TokenId:        relayInfo.TokenId,
+		SubscriptionId: relayInfo.SubscriptionId,
+		Code:           midjResponse.Code,
+		Action:         midjRequest.Action,
+		MjId:           midjResponse.Result,
+		Prompt:         midjRequest.Prompt,
+		PromptEn:       "",
+		Description:    midjResponse.Description,
+		State:          "",
+		SubmitTime:     time.Now().UnixNano() / int64(time.Millisecond),
+		StartTime:      0,
+		FinishTime:     0,
+		ImageUrl:       "",
+		Status:         "",
+		Progress:       "0%",
+		FailReason:     "",
+		ChannelId:      c.GetInt("channel_id"),
+		Quota:          priceData.Quota,
 	}
 	if midjResponse.Code == 3 {
 		//无实例账号自动禁用渠道（No available account instance）
@@ -622,6 +608,9 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	if midjResponse.Code == 1 && midjRequest.Action == "UPLOAD" {
 		midjourneyTask.Progress = "100%"
 		midjourneyTask.Status = "SUCCESS"
+	}
+	if !consumeQuota || midjResponseWithStatus.StatusCode != 200 {
+		midjourneyTask.Quota = 0
 	}
 	err = midjourneyTask.Insert()
 	if err != nil {

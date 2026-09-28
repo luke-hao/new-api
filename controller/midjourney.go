@@ -173,26 +173,9 @@ func UpdateMidjourneyTaskBulk() {
 						shouldReturnQuota = true
 					}
 				}
-				won, err := task.UpdateWithStatus(preStatus)
+				_, err := task.UpdateWithRefund(preStatus, shouldReturnQuota)
 				if err != nil {
-					logger.LogError(ctx, "UpdateMidjourneyTask task error: "+err.Error())
-				} else if won && shouldReturnQuota {
-					err = model.IncreaseUserQuota(task.UserId, task.Quota, false)
-					if err != nil {
-						logger.LogError(ctx, "fail to increase user quota: "+err.Error())
-					}
-					model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
-						UserId:    task.UserId,
-						LogType:   model.LogTypeRefund,
-						Content:   "",
-						ChannelId: task.ChannelId,
-						ModelName: service.CovertMjpActionToModelName(task.Action),
-						Quota:     task.Quota,
-						Other: map[string]interface{}{
-							"task_id": task.MjId,
-							"reason":  "构图失败",
-						},
-					})
+					logger.LogError(ctx, "Midjourney task update or refund pending: "+err.Error())
 				}
 			}
 		}

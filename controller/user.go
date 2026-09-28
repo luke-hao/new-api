@@ -1135,7 +1135,7 @@ func ManageUser(c *gin.Context) {
 			})
 		case "override":
 			oldQuota := user.Quota
-			if err := model.DB.Model(&model.User{}).Where("id = ?", user.Id).Update("quota", req.Value).Error; err != nil {
+			if err := model.OverrideUserQuota(user.Id, oldQuota, req.Value); err != nil {
 				common.ApiError(c, err)
 				return
 			}

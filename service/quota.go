@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -17,6 +16,7 @@ import (
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
+	"github.com/google/uuid"
 
 	"github.com/bytedance/gopkg/util/gopool"
 
@@ -90,16 +90,6 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 	if relayInfo.UsePrice {
 		return nil
 	}
-	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
-	if err != nil {
-		return err
-	}
-
-	token, err := model.GetTokenByKey(strings.TrimPrefix(relayInfo.TokenKey, "sk-"), false)
-	if err != nil {
-		return err
-	}
-
 	modelName := relayInfo.OriginModelName
 	textInputTokens := usage.InputTokenDetails.TextTokens
 	textOutTokens := usage.OutputTokenDetails.TextTokens
@@ -141,18 +131,22 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 		return err
 	}
 
-	if userQuota < quota {
-		return fmt.Errorf("user quota is not enough, user quota: %s, need quota: %s", logger.FormatQuota(userQuota), logger.FormatQuota(quota))
+	if quota == 0 {
+		return nil
 	}
-
-	if !token.UnlimitedQuota && token.RemainQuota < quota {
-		return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
+	if relayInfo.Billing == nil {
+		if apiErr := PreConsumeBilling(ctx, 0, relayInfo); apiErr != nil {
+			return apiErr
+		}
 	}
-
-	err = PostConsumeQuota(relayInfo, quota, 0, false)
-	if err != nil {
+	session, ok := relayInfo.Billing.(*BillingSession)
+	if !ok {
+		return fmt.Errorf("realtime billing session unavailable")
+	}
+	if err := session.ReserveIncremental(quota); err != nil {
 		return err
 	}
+
 	logger.LogInfo(ctx, "realtime streaming consume quota success, quota: "+fmt.Sprintf("%d", quota))
 	return nil
 }
@@ -231,9 +225,6 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		logContent += "（可能是上游超时）"
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, "+
 			"tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, modelName, relayInfo.FinalPreConsumedQuota))
-	} else {
-		model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, quota)
-		model.UpdateChannelUsedQuota(relayInfo.ChannelId, quota)
 	}
 
 	if err := SettleBilling(ctx, relayInfo, quota); err != nil {
@@ -363,9 +354,6 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 		logContent += "（可能是上游超时）"
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, "+
 			"tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, relayInfo.OriginModelName, relayInfo.FinalPreConsumedQuota))
-	} else {
-		model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, quota)
-		model.UpdateChannelUsedQuota(relayInfo.ChannelId, quota)
 	}
 
 	if err := SettleBilling(ctx, relayInfo, quota); err != nil {
@@ -407,21 +395,7 @@ func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {
 	if relayInfo.IsPlayground {
 		return nil
 	}
-	//if relayInfo.TokenUnlimited {
-	//	return nil
-	//}
-	token, err := model.GetTokenByKey(relayInfo.TokenKey, false)
-	if err != nil {
-		return err
-	}
-	if !relayInfo.TokenUnlimited && token.RemainQuota < quota {
-		return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
-	}
-	err = model.DecreaseTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota)
-	if err != nil {
-		return err
-	}
-	return nil
+	return model.ReserveTokenQuota(relayInfo.UserId, relayInfo.TokenId, relayInfo.TokenKey, quota)
 }
 
 func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQuota int, sendEmail bool) error {
@@ -453,39 +427,45 @@ func postConsumeQuotaDelta(relayInfo *relaycommon.RelayInfo, quotaDelta int, pre
 		return errors.New("consume quota cannot be negative")
 	}
 
-	// 1) Consume from wallet quota OR subscription item
+	tokenID := relayInfo.TokenId
+	if relayInfo.IsPlayground {
+		tokenID = 0
+	}
+	subID := 0
 	if relayInfo.BillingSource == BillingSourceSubscription {
-		if relayInfo.SubscriptionId == 0 {
+		subID = relayInfo.SubscriptionId
+		if subID <= 0 {
 			return errors.New("subscription id is missing")
 		}
-		delta := int64(quotaDelta)
-		if delta != 0 {
-			if err := model.PostConsumeUserSubscriptionDelta(relayInfo.SubscriptionId, delta); err != nil {
-				return err
-			}
-			relayInfo.SubscriptionPostDelta += delta
+	}
+	id := "legacy:" + uuid.NewString()
+	if sendEmail && relayInfo.RequestId != "" {
+		id = "legacy-settle:" + relayInfo.RequestId
+	}
+	if quotaDelta < 0 && preConsumedQuota == 0 && relayInfo.RequestId != "" {
+		id = "legacy-refund:" + relayInfo.RequestId
+	}
+	a := &model.BillingAdjustment{ID: id, UserID: relayInfo.UserId, TokenID: tokenID, SubscriptionID: subID, Delta: quotaDelta}
+	if sendEmail {
+		a.UsedQuota, err = common.SafeAddInt("settled usage", quotaDelta, preConsumedQuota)
+		if err != nil || a.UsedQuota < 0 {
+			return fmt.Errorf("invalid settled usage")
 		}
-	} else {
-		// Wallet
-		if quotaDelta > 0 {
-			err = model.DecreaseUserQuota(relayInfo.UserId, quotaDelta, false)
-		} else if quotaDelta < 0 {
-			err = model.IncreaseUserQuota(relayInfo.UserId, -quotaDelta, false)
+		if relayInfo.ChannelMeta != nil {
+			a.ChannelID = relayInfo.ChannelId
 		}
-		if err != nil {
-			return err
+		if a.UsedQuota > 0 {
+			a.RequestCount = 1
 		}
 	}
-
-	if !relayInfo.IsPlayground {
-		if quotaDelta > 0 {
-			err = model.DecreaseTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quotaDelta)
-		} else if quotaDelta < 0 {
-			err = model.IncreaseTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, -quotaDelta)
-		}
-		if err != nil {
-			return err
-		}
+	if err := model.QueueBillingAdjustment(a); err != nil {
+		return err
+	}
+	if err := model.ApplyBillingAdjustment(id); err != nil {
+		return err
+	}
+	if subID > 0 {
+		relayInfo.SubscriptionPostDelta += int64(quotaDelta)
 	}
 
 	if sendEmail {

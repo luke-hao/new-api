@@ -38,6 +38,7 @@ func TestMain(m *testing.M) {
 
 	if err := db.AutoMigrate(
 		&model.Task{},
+		&model.BillingAdjustment{},
 		&model.User{},
 		&model.Token{},
 		&model.Log{},
@@ -59,6 +60,7 @@ func truncate(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
 		model.DB.Exec("DELETE FROM tasks")
+		model.DB.Exec("DELETE FROM billing_adjustments")
 		model.DB.Exec("DELETE FROM users")
 		model.DB.Exec("DELETE FROM tokens")
 		model.DB.Exec("DELETE FROM logs")
@@ -109,7 +111,7 @@ func seedChannel(t *testing.T, id int) {
 }
 
 func makeTask(userId, channelId, quota, tokenId int, billingSource string, subscriptionId int) *model.Task {
-	return &model.Task{
+	task := &model.Task{
 		TaskID:    "task_" + time.Now().Format("150405.000"),
 		UserId:    userId,
 		ChannelId: channelId,
@@ -133,6 +135,10 @@ func makeTask(userId, channelId, quota, tokenId int, billingSource string, subsc
 			},
 		},
 	}
+	if err := model.DB.Create(task).Error; err != nil {
+		panic(err)
+	}
+	return task
 }
 
 // ---------------------------------------------------------------------------
@@ -497,7 +503,6 @@ func TestCASGuardedRefund_Win(t *testing.T) {
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
 	task.Status = model.TaskStatus(model.TaskStatusInProgress)
-	require.NoError(t, model.DB.Create(task).Error)
 
 	simulatePollBilling(ctx, task, model.TaskStatus(model.TaskStatusFailure), 0)
 
@@ -530,7 +535,6 @@ func TestCASGuardedRefund_Lose(t *testing.T) {
 	// Create task with IN_PROGRESS in DB
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
 	task.Status = model.TaskStatus(model.TaskStatusInProgress)
-	require.NoError(t, model.DB.Create(task).Error)
 
 	// Simulate another process already transitioning to FAILURE
 	model.DB.Model(&model.Task{}).Where("id = ?", task.ID).Update("status", model.TaskStatusFailure)
@@ -562,7 +566,6 @@ func TestCASGuardedSettle_Win(t *testing.T) {
 
 	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
 	task.Status = model.TaskStatus(model.TaskStatusInProgress)
-	require.NoError(t, model.DB.Create(task).Error)
 
 	simulatePollBilling(ctx, task, model.TaskStatus(model.TaskStatusSuccess), actualQuota)
 
@@ -592,7 +595,6 @@ func TestNonTerminalUpdate_NoBilling(t *testing.T) {
 	task := makeTask(userID, channelID, preConsumed, 0, BillingSourceWallet, 0)
 	task.Status = model.TaskStatus(model.TaskStatusInProgress)
 	task.Progress = "20%"
-	require.NoError(t, model.DB.Create(task).Error)
 
 	// Simulate a non-terminal poll update (still IN_PROGRESS, progress changed)
 	simulatePollBilling(ctx, task, model.TaskStatus(model.TaskStatusInProgress), 0)
